@@ -8,6 +8,7 @@ import { ViewportController, transformForBounds } from '@/view/viewport';
 import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
+import { GlassFilters } from '@/components/GlassFilters';
 import { BranchLabels } from '@/components/BranchLabels';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
@@ -16,6 +17,7 @@ import { MiniMap } from '@/components/MiniMap';
 import { GenerationRail } from '@/components/GenerationRail';
 
 import '@/styles/base.css';
+import '@/styles/liquid-glass.css';
 import '@/styles/app.css';
 import '@/styles/avatar.css';
 import '@/styles/node.css';
@@ -165,8 +167,30 @@ export default function App() {
 
   const selectedPerson = selectedId ? (graph.people.get(selectedId) ?? null) : null;
 
+  // Marque les périodes où la vue bouge. La réfraction du verre recalcule tout
+  // l'arrière-plan à chaque image ; pendant un déplacement, cet effet est
+  // invisible à l'œil mais bien réel pour la machine, donc on le suspend.
+  const appRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    let timer = 0;
+    const unsubscribe = viewport.subscribe(() => {
+      const element = appRef.current;
+      if (!element) return;
+      if (element.dataset.moving !== 'true') element.dataset.moving = 'true';
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (appRef.current) appRef.current.dataset.moving = 'false';
+      }, 180);
+    });
+    return () => {
+      unsubscribe();
+      window.clearTimeout(timer);
+    };
+  }, [viewport]);
+
   return (
-    <div className="app" data-panel-open={selectedPerson ? true : undefined}>
+    <div className="app" ref={appRef} data-panel-open={selectedPerson ? true : undefined}>
+      <GlassFilters />
       <Backdrop viewport={viewport} />
 
       <TreeCanvas
@@ -238,7 +262,7 @@ export default function App() {
         lineageActive={highlightMode === 'lineage'}
       />
 
-      <div className="hint-bar glass" data-hidden={hintVisible ? undefined : true}>
+      <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>
         <span>
           <kbd>Molette</kbd> zoom
         </span>

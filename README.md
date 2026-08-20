@@ -4,9 +4,14 @@ Une application web pour parcourir un arbre familial de plusieurs centaines de
 personnes : navigation libre dans un très grand plan, recherche instantanée,
 fiche détaillée par personne, interface en verre dépoli.
 
-Le jeu de données de démonstration compte **647 personnes sur 7 générations**
-(1838 → 2022), réparties en une dizaine de branches. Toutes les personnes,
+Le jeu de données de démonstration compte **525 personnes sur 10 générations**
+(1748 → 2022), réparties en une quinzaine de branches. Toutes les personnes,
 dates et lieux sont fictifs.
+
+L'arbre est dessiné comme un arbre : un tronc et des racines au pied, une
+ramure dont chaque branche s'épaissit en fonction du nombre de personnes
+qu'elle porte, un feuillage aux extrémités sans descendance. Les générations
+les plus anciennes sont en bas — l'arbre pousse vers le haut.
 
 ---
 
@@ -138,7 +143,7 @@ votre liste de `PersonRecord` : rien d'autre ne change.
 src/
   data/         Données familiales et schéma — aucune dépendance à l'interface
   domain/       Graphe, placement, parenté, recherche, dates — sans React
-  view/         Navigation, index spatial, rendu des liens, mesures
+  view/         Navigation, index spatial, dessin de l'arbre, mesures
   hooks/        Assemblage des données, thème, media queries
   components/   Interface
   styles/       Jetons de design et feuilles par zone
@@ -146,6 +151,39 @@ src/
 
 `domain/` et `view/` ne dépendent d'aucun composant : le placement de l'arbre
 et le calcul des parentés sont testables et réutilisables tels quels.
+
+### Le matériau de verre
+
+`styles/liquid-glass.css` définit une seule matière, dont tous les panneaux
+flottants sont faits. Elle superpose cinq couches, chacune isolée pour pouvoir
+se dégrader seule :
+
+| Couche | Rôle | Support |
+| --- | --- | --- |
+| Substrat | flou, saturation et luminosité de l'arrière-plan | `backdrop-filter` |
+| Réfraction | les bords courbent ce qui passe derrière, comme une lentille | filtre SVG `feDisplacementMap`, dans `components/GlassFilters.tsx` |
+| Teinte | la masse colorée qui donne son épaisseur au matériau | dégradé, plus dense sur les bords |
+| Spéculaire | l'arête qui capte la lumière et dessine le contour | dégradé conique sur un anneau d'un pixel |
+| Élévation | l'ombre portée qui décolle la surface du fond | trois ombres superposées |
+
+Les variantes s'obtiennent par classes : `lg--clear`, `lg--thick`,
+`lg--control`, `lg--chip`, `lg--pill`, `lg--interactive`. Un seul jeu de
+variables CSS pilote l'ensemble ; changer `--lg-blur` change l'épaisseur perçue
+partout.
+
+La réfraction est suspendue pendant que la vue bouge (`data-moving` sur `.app`) :
+elle recalcule tout l'arrière-plan à chaque image pour un effet que l'œil ne
+peut pas suivre en mouvement. Elle disparaît aussi, avec le flou, quand le
+navigateur ne les gère pas ou quand le système demande moins de transparence —
+le texte reste alors posé sur une surface pleine.
+
+### Le dessin de l'arbre
+
+`view/tree-renderer.ts` dessine la ramure entière sur un seul canvas. Chaque
+branche est un **polygone fuselé**, pas un trait : son épaisseur doit décroître
+le long du parcours, ce qu'une largeur de trait constante ne permet pas. Elle
+suit une racine carrée du nombre de descendants, comme dans un arbre réel où la
+section d'une branche équivaut à la somme des sections qu'elle nourrit.
 
 ### Tenir la charge
 

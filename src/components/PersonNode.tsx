@@ -92,7 +92,7 @@ export const PersonNode = memo(function PersonNode({
       {!compact && lifespan && <span className="node-years">{lifespan}</span>}
 
       {!compact && (
-        <span className="node-tooltip glass" aria-hidden="true">
+        <span className="node-tooltip lg lg--clear" aria-hidden="true">
           <span className="node-tooltip-name">{person.displayName}</span>
           {person.birthName && <span className="node-tooltip-line">née {person.maidenName}</span>}
           {lifespan && <span className="node-tooltip-line">{lifespan}</span>}

@@ -39,9 +39,11 @@
   --accent-rose: #ff9fc4;
   --accent-mint: #86e0c8;
 
-  /* Liens de l'arbre */
-  --link-base: rgba(174, 196, 240, 0.4);
-  --link-dim: rgba(150, 172, 214, 0.09);
+  /* Bois et feuillage de l'arbre */
+  --wood-trunk: rgba(163, 130, 94, 0.92);
+  --wood-twig: rgba(198, 174, 142, 0.62);
+  --wood-dim: rgba(170, 150, 128, 0.07);
+  --leaf: rgba(138, 200, 148, 0.85);
   --link-highlight: #9dc2ff;
   --link-cross: rgba(255, 201, 138, 0.42);
   --link-node: rgba(190, 210, 245, 0.5);
@@ -102,11 +104,13 @@
   --accent-rose: #c2497e;
   --accent-mint: #1c8f74;
 
-  --link-base: rgba(40, 66, 110, 0.4);
-  --link-dim: rgba(40, 66, 110, 0.1);
+  --wood-trunk: rgba(88, 66, 45, 0.92);
+  --wood-twig: rgba(146, 118, 86, 0.68);
+  --wood-dim: rgba(110, 92, 72, 0.07);
+  --leaf: rgba(104, 156, 96, 0.9);
   --link-highlight: #2f6fdb;
-  --link-cross: rgba(194, 118, 28, 0.55);
-  --link-node: rgba(40, 66, 110, 0.55);
+  --link-cross: rgba(184, 112, 28, 0.6);
+  --link-node: rgba(110, 92, 72, 0.6);
 
   --shadow-card: 0 1px 2px rgba(20, 34, 62, 0.08), 0 6px 18px rgba(20, 34, 62, 0.08);
   --shadow-card-hover: 0 2px 6px rgba(20, 34, 62, 0.1), 0 18px 40px rgba(20, 34, 62, 0.16);

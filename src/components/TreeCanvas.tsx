@@ -8,7 +8,7 @@ import { visibleRect } from '@/view/viewport';
 import type { HoverStore } from '@/view/hover-store';
 import { BLUR_BUDGET, LOD_COMPACT, LOD_FULL } from '@/view/metrics';
 import { PersonNode, type NodeDetail } from './PersonNode';
-import { LinksLayer } from './LinksLayer';
+import { BranchLayer } from './BranchLayer';
 
 export interface TreeCanvasProps {
   graph: FamilyGraph;
@@ -340,7 +340,7 @@ export function TreeCanvas({
       onKeyDown={onKeyDown}
       onClick={handleBackgroundClick}
     >
-      <LinksLayer
+      <BranchLayer
         viewport={viewport}
         layout={layout}
         spatial={spatial}

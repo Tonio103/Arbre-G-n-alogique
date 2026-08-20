@@ -9,7 +9,7 @@ export const COUPLE_GAP = 24;
 /** Écart entre deux familles racines indépendantes. */
 export const FAMILY_GAP = 120;
 /** Hauteur d'une génération. */
-export const ROW_HEIGHT = 286;
+export const ROW_HEIGHT = 1320;
 
 /** Marge autour de l'arbre lors d'un recentrage. */
 export const FIT_PADDING = 120;
@@ -19,7 +19,7 @@ export const FIT_PADDING = 120;
  * Le zoom minimal doit descendre assez bas pour en montrer toute l'étendue
  * d'un seul coup d'œil, sous forme de constellation.
  */
-export const MIN_SCALE = 0.018;
+export const MIN_SCALE = 0.006;
 export const MAX_SCALE = 2.4;
 
 /** Seuils de niveau de détail : au-delà, on dégrade le rendu pour tenir la fluidité. */

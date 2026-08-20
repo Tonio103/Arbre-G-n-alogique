@@ -83,22 +83,6 @@ ol {
   border: 0;
 }
 
-/* Surface de verre partagée par tous les panneaux flottants. */
-.glass {
-  background: var(--glass-panel);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-panel), var(--shadow-inset);
-  backdrop-filter: blur(22px) saturate(175%);
-  -webkit-backdrop-filter: blur(22px) saturate(175%);
-}
-
-.glass-soft {
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(14px) saturate(155%);
-  -webkit-backdrop-filter: blur(14px) saturate(155%);
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -432,11 +432,12 @@
     }
   }
 
-  /* Poignée de préhension, comme sur une feuille modale. */
-  .detail::before {
+  /* Poignée de préhension, comme sur une feuille modale. Portée par l'en-tête :
+     les pseudo-éléments du panneau lui-même sont réservés au matériau de verre. */
+  .detail-head::before {
     content: '';
     position: absolute;
-    top: 8px;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
     width: 38px;

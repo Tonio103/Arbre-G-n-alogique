@@ -41,7 +41,17 @@ export function GenerationRail({ rows, positions, viewport }: GenerationRailProp
         viewport.size.width / 2,
         viewport.size.height / 2,
       );
-      const generation = Math.round(center.y / ROW_HEIGHT);
+      // L'axe étant retourné, on ne peut pas déduire la génération d'une
+      // division : on retient la rangée dont l'altitude est la plus proche.
+      let generation = rows[0]?.generation ?? 0;
+      let best = Infinity;
+      for (const row of rows) {
+        const distance = Math.abs(row.y + ROW_HEIGHT / 2 - center.y);
+        if (distance < best) {
+          best = distance;
+          generation = row.generation;
+        }
+      }
       setCurrent((previous) => (previous === generation ? previous : generation));
     };
 
@@ -57,14 +67,16 @@ export function GenerationRail({ rows, positions, viewport }: GenerationRailProp
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       frameRef.current = 0;
     };
-  }, [viewport]);
+  }, [viewport, rows]);
 
   if (rows.length === 0) return null;
 
   return (
-    <nav className="rail glass" aria-label="Générations">
+    <nav className="rail lg lg--thick lg--pill" aria-label="Générations">
       <ul className="rail-list">
-        {rows.map((row) => {
+        {/* L'arbre pousse vers le haut : la génération la plus récente est en
+            haut de l'écran, le rail doit suivre le même ordre. */}
+        {[...rows].reverse().map((row) => {
           const active = row.generation === current;
           return (
             <li key={row.generation}>

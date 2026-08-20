@@ -238,7 +238,15 @@ export function expandLineage(seed: LineageSeed, founderBirthYear: number, rngSe
   ];
 
   while (queue.length > 0 && people.length < seed.budget) {
-    const entry = queue.shift()!;
+    // On développe en priorité le couple le plus récent. Un parcours en largeur
+    // épuiserait le budget sur les générations anciennes et laisserait toutes
+    // les lignées s'éteindre au XIXᵉ siècle ; ainsi, plusieurs descendances
+    // atteignent réellement le présent.
+    let nextIndex = 0;
+    for (let i = 1; i < queue.length; i += 1) {
+      if (queue[i].parentBirthYear > queue[nextIndex].parentBirthYear) nextIndex = i;
+    }
+    const entry = queue.splice(nextIndex, 1)[0];
     const total = childCount(rng, entry.parentBirthYear);
     let previousBirth = entry.parentBirthYear + between(rng, 22, 28);
 

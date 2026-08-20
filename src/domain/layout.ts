@@ -72,9 +72,33 @@ export interface LayoutRegion {
   count: number;
 }
 
+/**
+ * Le tronc, sous les fondateurs.
+ *
+ * Les lignées les plus anciennes sont plusieurs, mais un arbre n'a qu'un pied :
+ * les réunir sur un tronc commun est ce qui transforme une juxtaposition de
+ * généalogies en un seul arbre.
+ */
+export interface TrunkLayout {
+  x: number;
+  /** Sommet : là où le tronc se divise vers les fondateurs. */
+  topY: number;
+  /** Pied, au niveau du sol. */
+  baseY: number;
+  width: number;
+  roots: { x: number; y: number; weight: number }[];
+}
+
 export interface TreeLayout {
   positions: Map<string, NodePosition>;
+  trunk: TrunkLayout;
   regions: LayoutRegion[];
+  /**
+   * Nombre de descendants de chaque personne. C'est ce qui donne son épaisseur
+   * à une branche : une lignée qui porte cinq cents personnes est un maître
+   * branche, une personne sans descendance est un rameau.
+   */
+  weights: Map<string, number>;
   unions: LayoutUnion[];
   crossLinks: CrossLink[];
   bounds: Bounds;
@@ -227,6 +251,7 @@ function assign(
   left: number,
   positions: Map<string, NodePosition>,
   graph: FamilyGraph,
+  depth: number,
 ): void {
   const blockLeft = left + (node.subtreeWidth - node.blockWidth) / 2;
   let cursor = blockLeft;
@@ -235,7 +260,9 @@ function assign(
     positions.set(memberId, {
       id: memberId,
       x: cursor,
-      y: generation * ROW_HEIGHT,
+      // Axe inversé : la génération la plus ancienne est en bas, à la racine.
+      // L'arbre pousse alors vers le haut, du tronc vers le feuillage.
+      y: (depth - generation) * ROW_HEIGHT,
       generation,
     });
     cursor += CARD_WIDTH + COUPLE_GAP;
@@ -249,7 +276,7 @@ function assign(
 
   let childCursor = left + (node.subtreeWidth - childrenWidth) / 2;
   for (const child of node.childNodes) {
-    assign(child, childCursor, positions, graph);
+    assign(child, childCursor, positions, graph, depth);
     childCursor += child.subtreeWidth + SIBLING_GAP;
   }
 }
@@ -265,10 +292,26 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
   const roots = buildPlacementForest(graph);
   const positions = new Map<string, NodePosition>();
 
+  // Nombre de descendants par personne, calculé de bas en haut de l'ordre
+  // topologique : les enfants sont toujours comptés avant leurs parents.
+  const weights = new Map<string, number>();
+  for (let i = graph.order.length - 1; i >= 0; i -= 1) {
+    const id = graph.order[i];
+    let total = 0;
+    for (const childId of graph.people.get(id)?.children ?? []) {
+      total += 1 + (weights.get(childId) ?? 0);
+    }
+    weights.set(id, total);
+  }
+
+  // Profondeur totale : sert à retourner l'axe vertical une fois pour toutes.
+  let depth = 0;
+  for (const generation of graph.generations) depth = Math.max(depth, generation);
+
   let cursor = 0;
   for (const root of roots) {
     measure(root);
-    assign(root, cursor, positions, graph);
+    assign(root, cursor, positions, graph, depth);
     cursor += root.subtreeWidth + FAMILY_GAP;
   }
 
@@ -276,7 +319,7 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
   for (const id of graph.order) {
     if (positions.has(id)) continue;
     const generation = graph.people.get(id)?.generation ?? 0;
-    positions.set(id, { id, x: cursor, y: generation * ROW_HEIGHT, generation });
+    positions.set(id, { id, x: cursor, y: (depth - generation) * ROW_HEIGHT, generation });
     cursor += CARD_WIDTH + SIBLING_GAP;
   }
 
@@ -312,12 +355,12 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
       partners.length > 1 && adjacent
         ? (cardCenterX(partners[0].x) + cardCenterX(partners[partners.length - 1].x)) / 2
         : cardCenterX(partners[0].x);
-    // Pour un couple, la descendance part du trait qui relie les deux cartes ;
-    // pour un parent seul, du bas de sa carte.
+    // L'arbre pousse vers le haut : la descendance part du trait qui relie les
+    // deux cartes, ou du haut de la carte pour un parent seul.
     const anchorY =
       partners.length > 1 && adjacent
-        ? cardCenterY(Math.max(...partners.map((p) => p.y)))
-        : cardBottom(partners[0].y);
+        ? cardCenterY(Math.min(...partners.map((p) => p.y)))
+        : cardTop(partners[0].y);
 
     const layoutUnion: LayoutUnion = {
       id: union.id,
@@ -385,17 +428,21 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
     .sort((a, b) => a - b)
     .map((generation) => ({
       generation,
-      y: generation * ROW_HEIGHT,
+      y: (depth - generation) * ROW_HEIGHT,
       count: countByGeneration.get(generation) ?? 0,
       label: decadeLabel(yearsByGeneration.get(generation) ?? []),
     }));
 
+  const trunk = computeTrunk(graph, positions, weights);
+
   return {
     positions,
+    trunk,
     regions: computeRegions(graph, positions),
+    weights,
     unions: layoutUnions,
     crossLinks,
-    bounds: { minX, minY, maxX, maxY },
+    bounds: { minX, minY, maxX, maxY: Math.max(maxY, trunk.baseY) },
     rows,
     unionsByPerson,
     unionById,
@@ -456,4 +503,54 @@ function computeRegions(
   }
 
   return regions.sort((a, b) => a.minX - b.minX);
+}
+
+
+/** Hauteur du fût, sous la génération la plus ancienne. */
+const TRUNK_RISE = ROW_HEIGHT * 1.25;
+/** Profondeur des racines sous le sol. */
+const ROOT_DEPTH = ROW_HEIGHT * 0.5;
+
+function computeTrunk(
+  graph: FamilyGraph,
+  positions: Map<string, NodePosition>,
+  weights: Map<string, number>,
+): TrunkLayout {
+  const roots: TrunkLayout['roots'] = [];
+  let lowest = 0;
+
+  for (const [id, position] of positions) {
+    const person = graph.people.get(id);
+    if (!person || person.parents.length > 0) continue;
+    // Seuls les fondateurs qui ont une descendance portent l'arbre ; les
+    // conjoints entrés dans la famille sans lignée propre n'en font pas partie.
+    if (person.children.length === 0) continue;
+    roots.push({
+      x: cardCenterX(position.x),
+      y: cardBottom(position.y),
+      weight: 1 + (weights.get(id) ?? 0),
+    });
+    lowest = Math.max(lowest, cardBottom(position.y));
+  }
+
+  if (roots.length === 0) {
+    return { x: 0, topY: 0, baseY: ROOT_DEPTH, width: 40, roots: [] };
+  }
+
+  // L'axe du tronc se place au barycentre des lignées, pondéré par ce que
+  // chacune porte : le pied se trouve sous la masse qu'il soutient.
+  let totalWeight = 0;
+  let weighted = 0;
+  for (const root of roots) {
+    totalWeight += root.weight;
+    weighted += root.x * root.weight;
+  }
+
+  return {
+    x: weighted / totalWeight,
+    topY: lowest,
+    baseY: lowest + TRUNK_RISE + ROOT_DEPTH,
+    width: Math.min(520, 40 + 11 * Math.sqrt(totalWeight)),
+    roots,
+  };
 }

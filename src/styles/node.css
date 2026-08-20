@@ -284,13 +284,23 @@
 }
 
 /*
- * Quand beaucoup de cartes sont à l'écran, le flou d'arrière-plan des
- * infobulles coûte plus qu'il n'apporte : le conteneur le désactive.
+ * Une infobulle par carte visible, toutes invisibles sauf une : leur flou
+ * d'arrière-plan ne doit exister qu'au moment où elle se montre, sinon on paie
+ * quatre-vingts surfaces floutées pour n'en regarder qu'une.
  */
-.world[data-cheap='true'] .node-tooltip {
+.node-tooltip {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  background: var(--glass-panel-solid);
+}
+
+.node:hover .node-tooltip,
+.node:focus-visible .node-tooltip {
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+}
+
+.node-tooltip::before {
+  display: none;
 }
 
 .world[data-cheap='true'] .node {

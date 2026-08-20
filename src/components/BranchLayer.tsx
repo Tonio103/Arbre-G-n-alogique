@@ -4,44 +4,48 @@ import type { SpatialIndex } from '@/view/spatial';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
 import type { HoverStore } from '@/view/hover-store';
-import { drawLinks, drawNodeDots, type LinkPalette } from '@/view/links-renderer';
+import { drawCanopy, drawTree, type TreePalette } from '@/view/tree-renderer';
 import { LOD_COMPACT } from '@/view/metrics';
 
-export interface LinksLayerProps {
+export interface BranchLayerProps {
   viewport: ViewportController;
   layout: TreeLayout;
   spatial: SpatialIndex;
   hoverStore: HoverStore;
   /** Unions accentuées par la sélection courante. */
   highlightUnions: Set<string>;
-  /** Personnes accentuées, utilisées pour les points en vue éloignée. */
+  /** Personnes accentuées, utilisées pour le feuillage en vue lointaine. */
   highlightPeople: Set<string>;
   hasSelection: boolean;
   /** Change quand le thème change : la palette est relue. */
   theme: string;
 }
 
-function readPalette(): LinkPalette {
+function readPalette(): TreePalette {
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string): string =>
     styles.getPropertyValue(name).trim() || fallback;
   return {
-    base: read('--link-base', 'rgba(174,196,240,0.3)'),
-    dim: read('--link-dim', 'rgba(150,172,214,0.09)'),
-    highlight: read('--link-highlight', '#9dc2ff'),
-    cross: read('--link-cross', 'rgba(255,201,138,0.42)'),
-    node: read('--link-node', 'rgba(190,210,245,0.5)'),
+    trunk: read('--wood-trunk', 'rgba(94,72,52,0.85)'),
+    twig: read('--wood-twig', 'rgba(150,124,92,0.7)'),
+    dim: read('--wood-dim', 'rgba(120,100,80,0.12)'),
+    highlight: read('--link-highlight', '#2f6fdb'),
+    cross: read('--link-cross', 'rgba(194,118,28,0.55)'),
+    leaf: read('--leaf', '#7ba86f'),
+    node: read('--wood-twig', 'rgba(150,124,92,0.7)'),
   };
 }
 
 /**
- * Toutes les lignes de parenté, dessinées sur un seul canvas.
+ * La ramure entière, dessinée sur un seul canvas.
  *
- * Un élément SVG par lien coûterait des milliers de nœuds DOM et rendrait le
- * déplacement saccadé bien avant la centième personne. Ici le coût ne dépend
- * que de ce qui est visible, et le survol se repeint sans passer par React.
+ * Chaque branche est un polygone fuselé dont l'épaisseur dépend du nombre de
+ * personnes qu'elle porte : un élément de DOM par lien coûterait des milliers
+ * de nœuds et interdirait ce dégradé d'épaisseur. Le coût ne dépend que de ce
+ * qui est réellement dans le cadre, et le survol se repeint sans passer par
+ * React.
  */
-export function LinksLayer({
+export function BranchLayer({
   viewport,
   layout,
   spatial,
@@ -50,13 +54,11 @@ export function LinksLayer({
   highlightPeople,
   hasSelection,
   theme,
-}: LinksLayerProps) {
+}: BranchLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
-  const paletteRef = useRef<LinkPalette | null>(null);
+  const paletteRef = useRef<TreePalette | null>(null);
 
-  // Les valeurs qui changent souvent passent par des refs : le rendu canvas les
-  // lit au moment de peindre, sans qu'un nouveau rendu React soit nécessaire.
   const highlightUnionsRef = useRef(highlightUnions);
   const highlightPeopleRef = useRef(highlightPeople);
   const hasSelectionRef = useRef(hasSelection);
@@ -84,7 +86,7 @@ export function LinksLayer({
       frameRef.current = 0;
       const palette = paletteRef.current ?? readPalette();
       const transform = viewport.transform;
-      const rect = visibleRect(transform, { width, height }, 260);
+      const rect = visibleRect(transform, { width, height }, 320);
 
       const hovered = hoverStore.getSnapshot();
       const accentUnions = new Set(highlightUnionsRef.current);
@@ -92,12 +94,11 @@ export function LinksLayer({
         for (const unionId of layout.unionsByPerson.get(hovered) ?? []) accentUnions.add(unionId);
       }
 
-      const unions = spatial.visibleUnions(rect);
-      const crossLinks = layout.crossLinks;
-
-      drawLinks(context, {
-        unions,
-        crossLinks,
+      drawTree(context, {
+        unions: spatial.visibleUnions(rect),
+        crossLinks: layout.crossLinks,
+        weights: layout.weights,
+        bounds: layout.bounds,
         transform,
         width,
         height,
@@ -105,19 +106,18 @@ export function LinksLayer({
         palette,
         highlighted: accentUnions,
         hasSelection: hasSelectionRef.current,
+        trunk: layout.trunk,
       });
 
-      // En vue très éloignée, les cartes ne sont plus montées : on trace les
-      // personnes en points pour conserver la silhouette de l'arbre.
       if (transform.scale < LOD_COMPACT) {
         const accentPeople = new Set(highlightPeopleRef.current);
         if (hovered) accentPeople.add(hovered);
-        drawNodeDots(context, {
+        drawCanopy(context, {
           nodes: spatial.visibleNodes(rect),
+          weights: layout.weights,
           highlighted: accentPeople,
           hasSelection: hasSelectionRef.current,
-          color: palette.node,
-          accent: palette.highlight,
+          palette,
           scale: transform.scale,
         });
       }
@@ -159,8 +159,6 @@ export function LinksLayer({
   // Une sélection ou un changement de thème doit repeindre immédiatement.
   useEffect(() => {
     if (frameRef.current) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = 0;
       viewport.set(viewport.transform);

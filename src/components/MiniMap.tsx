@@ -169,7 +169,7 @@ export function MiniMap({ layout, viewport, highlighted, theme }: MiniMapProps) 
   }, [highlighted, viewport]);
 
   return (
-    <div className="minimap glass">
+    <div className="minimap lg lg--thick">
       <canvas
         ref={canvasRef}
         style={{ width: WIDTH, height: HEIGHT }}

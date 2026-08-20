@@ -11,6 +11,9 @@ export interface BranchLabelsProps {
 /** En dessous de ce zoom, les noms sur les cartes ne sont plus lisibles. */
 const SHOW_BELOW = 0.34;
 /** Marge entre deux étiquettes voisines avant de considérer qu'elles se gênent. */
+/** Au-delà, les étiquettes cachent plus d'arbre qu'elles n'en expliquent. */
+const MAX_LABELS = 5;
+
 const LABEL_GAP = 12;
 
 /**
@@ -50,6 +53,10 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
 
       const { width, height } = viewport.size;
       const taken: Array<{ left: number; right: number; top: number }> = [];
+      // Les étiquettes se posent devant la ramure : au-delà de quelques-unes,
+      // elles masquent l'arbre qu'elles sont censées aider à lire. `order` étant
+      // trié par importance, on garde les branches les plus fournies.
+      let shown = 0;
 
       for (const { region, index } of order) {
         const element = itemsRef.current[index];
@@ -71,6 +78,11 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
           continue;
         }
 
+        if (shown >= MAX_LABELS) {
+          hide();
+          continue;
+        }
+
         const labelWidth = widthsRef.current[index] || 160;
         const left = screenX - labelWidth / 2;
         const right = screenX + labelWidth / 2;
@@ -86,6 +98,7 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         }
 
         taken.push({ left, right, top: screenY });
+        shown += 1;
         element.style.opacity = '1';
         element.style.pointerEvents = 'auto';
         element.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -100%)`;
@@ -113,7 +126,7 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         <button
           type="button"
           key={region.anchorId}
-          className="branch-label glass"
+          className="branch-label lg lg--chip lg--interactive"
           ref={(element) => {
             itemsRef.current[index] = element;
           }}

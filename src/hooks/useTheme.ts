@@ -4,11 +4,16 @@ export type Theme = 'dark' | 'light';
 
 const STORAGE_KEY = 'arbre-theme';
 
+/**
+ * Le thème clair est le défaut : c'est sur fond clair que le bois de l'arbre
+ * et le verre des panneaux se lisent le mieux. Le choix de l'utilisateur, lui,
+ * est mémorisé et l'emporte toujours.
+ */
 function initialTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark';
+  if (typeof window === 'undefined') return 'light';
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === 'dark' || stored === 'light') return stored;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return 'light';
 }
 
 /** Thème appliqué sur `<html>`, mémorisé entre deux visites. */
