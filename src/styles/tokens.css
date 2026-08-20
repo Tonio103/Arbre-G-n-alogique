@@ -50,6 +50,8 @@
   --node-plate-strong: rgba(22, 33, 56, 0.72);
   --node-deceased-ring: rgba(255, 255, 255, 0.16);
 
+  --ground: rgba(96, 122, 104, 0.2);
+  --ground-shade: rgba(0, 0, 0, 0.3);
   --wood-bark: rgba(38, 28, 18, 0.3);
   --leaf: rgba(138, 200, 148, 0.85);
   --leaf-alt: rgba(96, 158, 116, 0.7);
@@ -122,6 +124,8 @@
   --node-plate-strong: rgba(255, 255, 255, 0.86);
   --node-deceased-ring: rgba(20, 34, 62, 0.12);
 
+  --ground: rgba(122, 146, 116, 0.22);
+  --ground-shade: rgba(58, 66, 50, 0.18);
   --wood-bark: rgba(52, 38, 24, 0.22);
   --leaf: rgba(116, 168, 104, 0.88);
   --leaf-alt: rgba(84, 134, 84, 0.72);

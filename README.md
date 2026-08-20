@@ -8,10 +8,11 @@ Le jeu de données de démonstration compte **525 personnes sur 10 générations
 (1748 → 2022), réparties en une quinzaine de branches. Toutes les personnes,
 dates et lieux sont fictifs.
 
-L'arbre est dessiné comme un arbre : un tronc et des racines au pied, une
-ramure dont chaque branche s'épaissit en fonction du nombre de personnes
-qu'elle porte, un feuillage aux extrémités sans descendance. Les générations
-les plus anciennes sont en bas — l'arbre pousse vers le haut.
+L'arbre est dessiné comme un arbre : un tronc et des racines plantés dans une
+clairière, une ramure dont chaque branche s'épaissit en fonction du nombre de
+personnes qu'elle porte, un feuillage là où les lignées s'arrêtent. Les
+générations les plus anciennes sont en bas — l'arbre pousse vers le haut, et
+chaque personne est un médaillon rond accroché à sa branche.
 
 ---
 
@@ -184,6 +185,24 @@ branche est un **polygone fuselé**, pas un trait : son épaisseur doit décroî
 le long du parcours, ce qu'une largeur de trait constante ne permet pas. Elle
 suit une racine carrée du nombre de descendants, comme dans un arbre réel où la
 section d'une branche équivaut à la somme des sections qu'elle nourrit.
+
+Le dessin se fait en six passes, du fond vers la surface : la clairière et
+l'ombre portée, le bois, l'écorce du fût, les mariages entre branches
+éloignées, le feuillage, puis la lignée sélectionnée.
+
+`view/organic.ts` fournit l'irrégularité sans laquelle une ramure se lit comme
+un diagramme : déviation des branches, décalage des fourches, variation des
+épaisseurs, orientation des feuilles. Elle vient d'un **hachage de
+l'identifiant**, jamais d'un tirage aléatoire — la même personne doit produire
+la même forme à chaque image, sinon l'arbre frémirait à chaque déplacement.
+
+Deux repères de calibrage, faciles à casser en retouchant le rendu :
+
+- l'épaisseur d'une branche est plafonnée **sous** la largeur d'un médaillon ;
+  au-delà elle cesse d'être une branche et devient une bande qui écrase le
+  portrait ;
+- la compensation de zoom est calée sur l'écart entre deux personnes voisines ;
+  au-delà, les branches fusionnent en masses pleines et l'arbre perd sa ramure.
 
 ### Tenir la charge
 

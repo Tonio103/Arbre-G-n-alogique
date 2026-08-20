@@ -26,6 +26,8 @@ function readPalette(): TreePalette {
   const read = (name: string, fallback: string): string =>
     styles.getPropertyValue(name).trim() || fallback;
   return {
+    ground: read('--ground', 'rgba(126, 142, 112, 0.16)'),
+    groundShade: read('--ground-shade', 'rgba(60, 66, 52, 0.16)'),
     trunk: read('--wood-trunk', 'rgba(94,72,52,0.85)'),
     twig: read('--wood-twig', 'rgba(150,124,92,0.7)'),
     bark: read('--wood-bark', 'rgba(62,46,32,0.22)'),

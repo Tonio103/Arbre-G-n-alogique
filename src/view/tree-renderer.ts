@@ -18,6 +18,10 @@ import { hashN, jitter, traceBark, traceLeafCluster } from './organic';
 import type { Transform } from './viewport';
 
 export interface TreePalette {
+  /** Sol sur lequel l'arbre est planté. */
+  ground: string;
+  /** Ombre portée au pied du tronc. */
+  groundShade: string;
   /** Bois près de la racine. */
   trunk: string;
   /** Bois des rameaux, en haut de l'arbre. */
@@ -349,6 +353,52 @@ function drawFoliage(
   }
 }
 
+/**
+ * Le sol, et l'ombre que l'arbre y projette.
+ *
+ * Sans eux l'arbre flotte : rien n'indique où il est planté, et le regard n'a
+ * aucun repère pour juger de sa hauteur. Une bande qui s'estompe vers le haut
+ * suffit — un aplat franc ferait décor de théâtre.
+ */
+function drawGround(ctx: CanvasRenderingContext2D, params: DrawParams): void {
+  const { trunk, palette, bounds } = params;
+  if (trunk.roots.length === 0) return;
+
+  const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
+
+  // Une ellipse, pas une bande : un rectangle, si large soit-il, finit par
+  // montrer ses deux arêtes verticales au milieu du vide. Le dégradé radial
+  // s'éteint dans toutes les directions à la fois.
+  const reach = Math.max(bounds.maxX - bounds.minX, ROW_HEIGHT * 8) * 0.62;
+  const flatten = (ROW_HEIGHT * 1.5) / reach;
+
+  const paintEllipse = (radius: number, fill: string | CanvasGradient): void => {
+    ctx.save();
+    ctx.translate(trunk.x, groundY);
+    ctx.scale(1, flatten);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.restore();
+  };
+
+  // Le dégradé est construit dans le repère écrasé, donc en cercle : c'est la
+  // mise à l'échelle qui lui donne sa forme de clairière.
+  const soil = ctx.createRadialGradient(0, 0, 0, 0, 0, reach);
+  soil.addColorStop(0, palette.ground);
+  soil.addColorStop(0.55, palette.ground);
+  soil.addColorStop(1, 'transparent');
+  paintEllipse(reach, soil);
+
+  // Ombre portée, resserrée au pied du fût.
+  const shadowReach = Math.max(trunk.width * 7, ROW_HEIGHT);
+  const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, shadowReach);
+  shade.addColorStop(0, palette.groundShade);
+  shade.addColorStop(1, 'transparent');
+  paintEllipse(shadowReach, shade);
+}
+
 export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): void {
   const { transform, width, height, dpr, palette, highlighted, hasSelection, weights } = params;
 
@@ -384,6 +434,9 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     if (highlighted.has(union.id)) accent.push(union);
     else normal.push(union);
   }
+
+  // Passe 0 : le sol, sous tout le reste.
+  if (!hasSelection) drawGround(ctx, params);
 
   // Passe 1 : le pied et toute la ramure, en un seul remplissage.
   ctx.beginPath();
