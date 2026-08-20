@@ -332,6 +332,8 @@
   z-index: 12;
   padding: 10px 8px;
   border-radius: var(--radius-pill);
+  /* Dense, comme la vue d'ensemble : les cartes défilent juste derrière. */
+  background: var(--glass-panel-solid);
   animation: chrome-in 620ms var(--ease-out) 180ms both;
   transition: right var(--dur-slow) var(--ease-out);
 }
