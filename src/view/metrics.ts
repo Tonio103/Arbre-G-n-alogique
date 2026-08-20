@@ -9,7 +9,7 @@ export const COUPLE_GAP = 24;
 /** Écart entre deux familles racines indépendantes. */
 export const FAMILY_GAP = 120;
 /** Hauteur d'une génération. */
-export const ROW_HEIGHT = 1320;
+export const ROW_HEIGHT = 1000;
 
 /** Marge autour de l'arbre lors d'un recentrage. */
 export const FIT_PADDING = 120;

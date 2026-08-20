@@ -1,4 +1,10 @@
-import type { Bounds, CrossLink, LayoutUnion, NodePosition, TrunkLayout } from '@/domain/layout';
+import type {
+  Bounds,
+  CrossLink,
+  LayoutUnion,
+  NodePosition,
+  TrunkLayout,
+} from '@/domain/layout';
 import {
   CARD_HEIGHT,
   CARD_WIDTH,
@@ -8,6 +14,7 @@ import {
   cardCenterY,
   cardTop,
 } from './metrics';
+import { hashN, jitter, traceBark, traceLeafCluster } from './organic';
 import type { Transform } from './viewport';
 
 export interface TreePalette {
@@ -15,6 +22,8 @@ export interface TreePalette {
   trunk: string;
   /** Bois des rameaux, en haut de l'arbre. */
   twig: string;
+  /** Creux de l'écorce, plus sombre que le bois. */
+  bark: string;
   /** Branche estompée quand une lignée est sélectionnée. */
   dim: string;
   highlight: string;
@@ -22,6 +31,8 @@ export interface TreePalette {
   cross: string;
   /** Feuillage : personnes sans descendance connue. */
   leaf: string;
+  /** Seconde teinte du feuillage, pour éviter un vert uniforme. */
+  leafAlt: string;
   /** Points des personnes en vue lointaine. */
   node: string;
 }
@@ -39,6 +50,8 @@ export interface DrawParams {
   highlighted: Set<string>;
   hasSelection: boolean;
   trunk: TrunkLayout;
+  /** Personnes visibles : sert à poser le feuillage sur les rameaux terminaux. */
+  nodes: NodePosition[];
 }
 
 /**
@@ -49,7 +62,9 @@ export interface DrawParams {
  * massif, les rameaux terminaux sont fins, et la transition est continue.
  */
 function thickness(descendants: number): number {
-  return Math.min(92, 2.2 + 2.4 * Math.sqrt(descendants));
+  // Le plafond est calé sous la largeur d'un médaillon : au-delà, la branche
+  // cesse d'être une branche et devient une bande qui écrase le portrait.
+  return Math.min(34, 1.7 + 1.45 * Math.sqrt(descendants));
 }
 
 /** Hauteur de la fourche d'où partent les branches vers les enfants. */
@@ -59,6 +74,10 @@ const forkOffset = (parentY: number): number => cardTop(parentY) - (ROW_HEIGHT -
  * Trace une branche fuselée entre deux points, en polygone plutôt qu'en trait :
  * l'épaisseur doit décroître le long du parcours, ce qu'un `lineWidth` constant
  * ne permet pas.
+ *
+ * `sway` écarte la courbe de sa trajectoire idéale. Sans lui, toutes les
+ * branches d'une même fratrie décrivent exactement le même S et l'ensemble se
+ * lit comme un diagramme ; avec lui, chacune part chercher sa place.
  */
 function traceBranch(
   ctx: CanvasRenderingContext2D,
@@ -69,13 +88,14 @@ function traceBranch(
   w0: number,
   w1: number,
   segments: number,
+  sway = 0,
 ): void {
   const dy = y1 - y0;
   // Contrôles verticaux : la branche quitte le tronc à la verticale et rejoint
   // l'enfant à la verticale, ce qui donne la courbe en S d'une vraie ramure.
-  const c1x = x0;
+  const c1x = x0 + sway;
   const c1y = y0 + dy * 0.55;
-  const c2x = x1;
+  const c2x = x1 - sway * 0.45;
   const c2y = y1 - dy * 0.55;
 
   const left: number[] = [];
@@ -146,7 +166,9 @@ function traceUnion(
 
   if (children.length === 0) return;
 
-  const forkY = forkOffset(parentY);
+  // La fourche se déplace un peu d'une famille à l'autre : alignées à la même
+  // altitude, toutes les divisions dessineraient une ligne d'horizon artificielle.
+  const forkY = forkOffset(parentY) + jitter(union.id, 1, ROW_HEIGHT * 0.06);
   const startY =
     partners.length > 1 && union.adjacent ? cardCenterY(parentY) : cardTop(partners[0].y);
 
@@ -156,12 +178,25 @@ function traceUnion(
   const trunkWidth = thickness(carried) * boost;
 
   // Tronc : du couple jusqu'à la fourche.
-  traceBranch(ctx, union.anchorX, startY, union.anchorX, forkY, trunkWidth, trunkWidth * 0.9, 3);
+  traceBranch(
+    ctx,
+    union.anchorX,
+    startY,
+    union.anchorX + jitter(union.id, 2, trunkWidth * 0.35),
+    forkY,
+    trunkWidth,
+    trunkWidth * 0.9,
+    4,
+    jitter(union.id, 3, trunkWidth * 0.5),
+  );
   traceKnot(ctx, union.anchorX, forkY, (trunkWidth * 0.9) / 2);
 
   for (const child of children) {
     const carriedByChild = 1 + (weights.get(child.id) ?? 0);
-    const width = thickness(carriedByChild) * boost;
+    // Épaisseur variée d'un rameau à l'autre : une fratrie parfaitement
+    // régulière trahit le dessin automatique.
+    const width = thickness(carriedByChild) * boost * (0.88 + hashN(child.id, 4) * 0.28);
+    const reach = Math.abs(cardCenterX(child.x) - union.anchorX);
     traceBranch(
       ctx,
       union.anchorX,
@@ -171,6 +206,9 @@ function traceUnion(
       width,
       width * 0.62,
       segments,
+      // La déviation croît avec la portée : une branche qui va loin s'arque,
+      // une branche courte reste droite.
+      jitter(child.id, 5, Math.min(ROW_HEIGHT * 0.22, reach * 0.16 + width * 2)),
     );
   }
 }
@@ -192,25 +230,27 @@ function traceTrunk(
   const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
 
   // Fût, du sol jusqu'à la naissance des premières branches.
-  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.72, 4);
+  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.72, 5, width * 0.12);
 
   // Racines : elles divergent sous le sol en s'affinant, ce qui ancre l'arbre
   // au lieu de le laisser posé sur une pointe.
-  const rootCount = 5;
+  const rootCount = 7;
   for (let i = 0; i < rootCount; i += 1) {
     const t = i / (rootCount - 1);
     const spread = (t - 0.5) * 2;
-    const reach = width * (2.6 + Math.abs(spread) * 2.4);
-    const rootWidth = width * (0.42 - Math.abs(spread) * 0.16);
+    const wobble = jitter('root', i, 0.24);
+    const reach = width * (2.4 + Math.abs(spread) * 2.6) * (1 + wobble);
+    const rootWidth = width * (0.44 - Math.abs(spread) * 0.17);
     traceBranch(
       ctx,
       trunk.x,
       groundY,
-      trunk.x + spread * reach,
+      trunk.x + (spread + wobble * 0.4) * reach,
       trunk.baseY + Math.abs(spread) * ROW_HEIGHT * 0.16,
       Math.max(2, rootWidth),
       1.5,
       6,
+      jitter('root-sway', i, width * 0.5),
     );
   }
 
@@ -219,10 +259,25 @@ function traceTrunk(
   let total = 0;
   for (const root of trunk.roots) total += root.weight;
 
-  for (const root of trunk.roots) {
+  for (let i = 0; i < trunk.roots.length; i += 1) {
+    const root = trunk.roots[i];
     const share = Math.max(0.08, root.weight / Math.max(1, total));
-    const w = Math.max(3, width * Math.sqrt(share));
-    traceBranch(ctx, trunk.x, trunk.topY, root.x, root.y, w, w * 0.72, segments);
+    // Nettement plus fines que le fût : ce sont déjà des branches, et une
+    // maîtresse branche aussi épaisse que le tronc n'existe pas.
+    const w = Math.max(3, width * Math.sqrt(share) * 0.5);
+    traceBranch(
+      ctx,
+      trunk.x,
+      trunk.topY,
+      root.x,
+      root.y,
+      w,
+      w * 0.7,
+      Math.max(segments, 10),
+      // Arquées vers l'extérieur : elles s'écartent d'abord, puis se redressent
+      // sous leur lignée, au lieu de filer en ligne droite.
+      (root.x - trunk.x) * 0.3 + jitter('founder', i, w * 4),
+    );
   }
 }
 
@@ -234,6 +289,64 @@ function traceCross(ctx: CanvasRenderingContext2D, link: CrossLink): void {
   const dip = Math.min(220, Math.abs(bx - ax) * 0.14 + 60);
   ctx.moveTo(ax, ay);
   ctx.bezierCurveTo(ax + (bx - ax) * 0.25, ay - dip, ax + (bx - ax) * 0.75, by - dip, bx, by);
+}
+
+/**
+ * Feuillage.
+ *
+ * Il pousse là où la lignée s'arrête : une personne sans descendance connue est
+ * l'extrémité d'un rameau, donc l'endroit exact où un arbre porte ses feuilles.
+ * C'est ce qui donne à l'ensemble sa couronne, et au regard un moyen immédiat
+ * de voir où l'arbre continue et où il s'achève.
+ */
+function drawFoliage(
+  ctx: CanvasRenderingContext2D,
+  params: DrawParams,
+  scale: number,
+): void {
+  const { palette, weights, highlighted } = params;
+  const size = Math.max(13, Math.min(240, 21 / Math.max(scale, 0.02)));
+  // De loin, une touffe fournie devient une masse illisible : on réduit le
+  // nombre de feuilles à mesure que chacune perd en surface à l'écran.
+  const perCluster = scale > 0.3 ? 11 : scale > 0.12 ? 9 : 7;
+
+  const near: NodePosition[] = [];
+  const far: NodePosition[] = [];
+
+  for (const node of params.nodes) {
+    if ((weights.get(node.id) ?? 0) > 0) continue;
+    // Deux plans de feuillage, tirés au sort de façon stable : le fond est
+    // dessiné plus sombre et décalé, ce qui donne de l'épaisseur à la couronne.
+    if (hashN(node.id, 99) < 0.45) far.push(node);
+    else near.push(node);
+  }
+
+  const paint = (group: NodePosition[], color: string, offset: number, alpha: number): void => {
+    if (group.length === 0) return;
+    ctx.beginPath();
+    for (const node of group) {
+      const x = cardCenterX(node.x) + jitter(node.id, 21, size * 0.5);
+      const y = cardTop(node.y) - size * 0.25 + offset;
+      traceLeafCluster(ctx, node.id, x, y, size, perCluster);
+    }
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+
+  const faded = params.hasSelection ? 0.3 : 1;
+  paint(far, palette.leafAlt, size * 0.3, 0.72 * faded);
+  paint(near, palette.leaf, 0, 0.9 * faded);
+
+  // La sélection garde son feuillage en pleine couleur, sinon la branche
+  // désignée paraîtrait morte au milieu d'un arbre vivant.
+  if (params.hasSelection) {
+    const accent = params.nodes.filter(
+      (node) => highlighted.has(node.id) && (weights.get(node.id) ?? 0) === 0,
+    );
+    paint(accent, palette.leaf, 0, 1);
+  }
 }
 
 export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): void {
@@ -253,15 +366,11 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   const scale = transform.scale;
   // Loin, une branche n'occupe qu'une fraction de pixel : inutile de la
   // détailler, deux segments suffisent et divisent le coût par cinq.
-  const segments = scale > 0.5 ? 14 : scale > 0.2 ? 8 : 3;
+  const segments = scale > 0.5 ? 16 : scale > 0.2 ? 9 : 4;
   const showCouples = scale > 0.1;
-  // Une branche de deux pixels-monde devient invisible sous un fort dézoom.
-  // Sans compensation, l'arbre entier se réduit à un trait de cheveu ; en
-  // épaississant à mesure qu'on s'éloigne, on retrouve une silhouette dont les
-  // masses — tronc, maîtresses branches, ramure — restent lisibles de loin.
   // Calibré sur l'écart entre deux personnes voisines : au-delà, les branches
   // fusionnent en masses pleines et l'arbre perd sa ramure.
-  const boost = Math.min(4, Math.max(1, 0.08 / scale));
+  const boost = Math.min(13, Math.max(1, 0.3 / scale));
 
   // Dégradé du bois : sombre et chaud à la racine, clair vers les rameaux.
   // Il est construit en coordonnées monde, donc suit l'arbre et non l'écran.
@@ -283,7 +392,25 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   ctx.fillStyle = hasSelection ? palette.dim : wood;
   ctx.fill();
 
-  // Passe 2 : mariages entre branches éloignées, en fil léger.
+  // Passe 2 : l'écorce du fût. Seulement quand elle est assez large à l'écran
+  // pour se lire — en dessous, ce ne serait qu'un bruit gris sur la silhouette.
+  const trunkOnScreen = params.trunk.width * Math.min(boost, 4.5) * scale;
+  if (trunkOnScreen > 26 && !hasSelection) {
+    ctx.beginPath();
+    traceBark(
+      ctx,
+      'ecorce',
+      params.trunk.x,
+      params.trunk.topY,
+      params.trunk.baseY - ROW_HEIGHT * 0.5,
+      params.trunk.width * Math.min(boost, 4.5),
+      11,
+    );
+    ctx.fillStyle = palette.bark;
+    ctx.fill();
+  }
+
+  // Passe 3 : mariages entre branches éloignées, en fil léger.
   if (params.crossLinks.length && scale > 0.12) {
     ctx.save();
     ctx.setLineDash([7 / Math.max(scale, 0.3), 8 / Math.max(scale, 0.3)]);
@@ -295,7 +422,10 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.restore();
   }
 
-  // Passe 3 : la lignée sélectionnée, par-dessus, avec un halo.
+  // Passe 4 : le feuillage, posé sur la ramure.
+  if (params.nodes.length) drawFoliage(ctx, params, scale);
+
+  // Passe 5 : la lignée sélectionnée, par-dessus, avec un halo.
   if (accent.length) {
     ctx.save();
     ctx.beginPath();
@@ -318,25 +448,23 @@ export interface CanopyParams {
 }
 
 /**
- * Feuillage de la vue éloignée.
+ * Marques des personnes en vue éloignée.
  *
- * Trop loin pour monter des cartes, l'arbre se lit à sa silhouette : les
- * personnes sans descendance forment la canopée en vert tendre, celles qui
- * portent une lignée restent de la couleur du bois.
+ * Trop loin pour monter des cartes, l'arbre se lit à sa silhouette : chaque
+ * personne qui porte une lignée devient un point de la couleur du bois. Les
+ * extrémités, elles, sont déjà rendues par le feuillage.
  */
 export function drawCanopy(ctx: CanvasRenderingContext2D, params: CanopyParams): void {
   const { nodes, weights, palette, highlighted } = params;
-  const radius = Math.max(2.2, Math.min(64, 3.2 / Math.max(params.scale, 0.004)));
-  const alpha = params.hasSelection ? 0.32 : 0.9;
+  const radius = Math.max(2.2, Math.min(48, 2.6 / Math.max(params.scale, 0.004)));
+  const alpha = params.hasSelection ? 0.28 : 0.75;
 
-  const leaves: NodePosition[] = [];
   const wood: NodePosition[] = [];
   const accent: NodePosition[] = [];
 
   for (const node of nodes) {
     if (highlighted.has(node.id)) accent.push(node);
-    else if ((weights.get(node.id) ?? 0) === 0) leaves.push(node);
-    else wood.push(node);
+    else if ((weights.get(node.id) ?? 0) > 0) wood.push(node);
   }
 
   const paint = (group: NodePosition[], color: string, size: number, opacity: number): void => {
@@ -354,7 +482,6 @@ export function drawCanopy(ctx: CanvasRenderingContext2D, params: CanopyParams):
     ctx.globalAlpha = 1;
   };
 
-  paint(wood, palette.node, radius * 0.82, alpha * 0.8);
-  paint(leaves, palette.leaf, radius, alpha);
-  paint(accent, palette.highlight, radius * 1.5, 1);
+  paint(wood, palette.node, radius * 0.8, alpha);
+  paint(accent, palette.highlight, radius * 1.4, 1);
 }

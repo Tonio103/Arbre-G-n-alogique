@@ -31,9 +31,13 @@ function buildAriaLabel(person: Person): string {
 }
 
 /**
- * Carte d'une personne dans l'arbre.
+ * Médaillon d'une personne, accroché à sa branche.
  *
- * Mémoïsée et pilotée par CSS pour le survol : sur un arbre de plusieurs
+ * Un portrait rond et un nom, sans cadre : sur un arbre, une grille de
+ * rectangles écraserait la ramure qu'elle est censée habiter. Le verre
+ * n'apparaît qu'au survol et à la sélection, là où il aide à lire.
+ *
+ * Mémoïsé et piloté par CSS pour le survol : sur un arbre de plusieurs
  * centaines de personnes, seul le changement de sélection doit provoquer un
  * nouveau rendu.
  */
@@ -74,22 +78,26 @@ export const PersonNode = memo(function PersonNode({
       onFocus={() => onHover(person.id)}
       onBlur={() => onHover(null)}
     >
-      <span className="node-surface" aria-hidden="true" />
+      {/* Halo posé derrière le portrait : il détache le médaillon du feuillage
+          sans lui imposer de cadre. */}
+      <span className="node-halo" aria-hidden="true" />
 
-      <Avatar
-        id={person.id}
-        initials={person.initials}
-        photo={person.photo}
-        size={compact ? 64 : 72}
-        className="node-avatar"
-      />
-
-      <span className="node-text">
-        <span className="node-first">{person.firstName}</span>
-        {!compact && <span className="node-last">{person.lastName}</span>}
+      <span className="node-portrait">
+        <Avatar
+          id={person.id}
+          initials={person.initials}
+          photo={person.photo}
+          size={compact ? 68 : 80}
+          className="node-avatar"
+        />
+        <span className="node-ring" aria-hidden="true" />
       </span>
 
-      {!compact && lifespan && <span className="node-years">{lifespan}</span>}
+      <span className="node-plate">
+        <span className="node-first">{person.firstName}</span>
+        {!compact && <span className="node-last">{person.lastName}</span>}
+        {!compact && lifespan && <span className="node-years">{lifespan}</span>}
+      </span>
 
       {!compact && (
         <span className="node-tooltip lg lg--clear" aria-hidden="true">

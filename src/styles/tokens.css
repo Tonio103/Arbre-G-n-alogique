@@ -41,9 +41,18 @@
 
   /* Bois et feuillage de l'arbre */
   --wood-trunk: rgba(163, 130, 94, 0.92);
-  --wood-twig: rgba(198, 174, 142, 0.62);
+  --wood-twig: rgba(206, 182, 150, 0.72);
   --wood-dim: rgba(170, 150, 128, 0.07);
+  /* Médaillon : halo, plaque du nom, cerne des personnes disparues */
+  --node-halo-core: rgba(18, 28, 48, 0.5);
+  --node-halo-mid: rgba(18, 28, 48, 0.26);
+  --node-plate: rgba(18, 28, 48, 0.34);
+  --node-plate-strong: rgba(22, 33, 56, 0.72);
+  --node-deceased-ring: rgba(255, 255, 255, 0.16);
+
+  --wood-bark: rgba(38, 28, 18, 0.3);
   --leaf: rgba(138, 200, 148, 0.85);
+  --leaf-alt: rgba(96, 158, 116, 0.7);
   --link-highlight: #9dc2ff;
   --link-cross: rgba(255, 201, 138, 0.42);
   --link-node: rgba(190, 210, 245, 0.5);
@@ -105,9 +114,17 @@
   --accent-mint: #1c8f74;
 
   --wood-trunk: rgba(88, 66, 45, 0.92);
-  --wood-twig: rgba(146, 118, 86, 0.68);
+  --wood-twig: rgba(132, 104, 74, 0.82);
   --wood-dim: rgba(110, 92, 72, 0.07);
-  --leaf: rgba(104, 156, 96, 0.9);
+  --node-halo-core: rgba(255, 255, 255, 0.82);
+  --node-halo-mid: rgba(255, 255, 255, 0.42);
+  --node-plate: rgba(255, 255, 255, 0.5);
+  --node-plate-strong: rgba(255, 255, 255, 0.86);
+  --node-deceased-ring: rgba(20, 34, 62, 0.12);
+
+  --wood-bark: rgba(52, 38, 24, 0.22);
+  --leaf: rgba(116, 168, 104, 0.88);
+  --leaf-alt: rgba(84, 134, 84, 0.72);
   --link-highlight: #2f6fdb;
   --link-cross: rgba(184, 112, 28, 0.6);
   --link-node: rgba(110, 92, 72, 0.6);

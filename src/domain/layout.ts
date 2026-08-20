@@ -507,7 +507,7 @@ function computeRegions(
 
 
 /** Hauteur du fût, sous la génération la plus ancienne. */
-const TRUNK_RISE = ROW_HEIGHT * 1.25;
+const TRUNK_RISE = ROW_HEIGHT * 2.2;
 /** Profondeur des racines sous le sol. */
 const ROOT_DEPTH = ROW_HEIGHT * 0.5;
 
@@ -521,9 +521,14 @@ function computeTrunk(
 
   for (const [id, position] of positions) {
     const person = graph.people.get(id);
-    if (!person || person.parents.length > 0) continue;
-    // Seuls les fondateurs qui ont une descendance portent l'arbre ; les
-    // conjoints entrés dans la famille sans lignée propre n'en font pas partie.
+    if (!person) continue;
+    // Seule la génération la plus ancienne forme la souche.
+    //
+    // « Sans parents connus » ne suffit pas : chaque conjoint entré dans la
+    // famille à n'importe quelle génération est dans ce cas, et le prendre pour
+    // un fondateur ferait partir du pied de l'arbre une branche qui traverse
+    // toute la ramure.
+    if (person.generation !== 0 || person.parents.length > 0) continue;
     if (person.children.length === 0) continue;
     roots.push({
       x: cardCenterX(position.x),
@@ -532,6 +537,22 @@ function computeTrunk(
     });
     lowest = Math.max(lowest, cardBottom(position.y));
   }
+
+  // Un couple fondateur ne mérite qu'un départ : deux branches accolées
+  // dessineraient une fourche là où l'arbre n'en a pas.
+  roots.sort((a, b) => a.x - b.x);
+  const merged: TrunkLayout['roots'] = [];
+  for (const root of roots) {
+    const previous = merged[merged.length - 1];
+    if (previous && root.x - previous.x < CARD_WIDTH + COUPLE_GAP + 8) {
+      previous.x = (previous.x + root.x) / 2;
+      previous.weight += root.weight;
+      continue;
+    }
+    merged.push({ ...root });
+  }
+  roots.length = 0;
+  roots.push(...merged);
 
   if (roots.length === 0) {
     return { x: 0, topY: 0, baseY: ROOT_DEPTH, width: 40, roots: [] };
@@ -548,7 +569,10 @@ function computeTrunk(
 
   return {
     x: weighted / totalWeight,
-    topY: lowest,
+    // La division ne se fait pas au niveau des fondateurs mais bien en dessous.
+    // Sinon les départs vers des lignées réparties sur toute la largeur sont
+    // rigoureusement horizontaux, et le pied de l'arbre devient une barre.
+    topY: lowest + TRUNK_RISE * 0.62,
     baseY: lowest + TRUNK_RISE + ROOT_DEPTH,
     width: Math.min(520, 40 + 11 * Math.sqrt(totalWeight)),
     roots,

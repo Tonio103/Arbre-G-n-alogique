@@ -1,15 +1,23 @@
-/*
- * Carte d'une personne.
- * Au repos la carte est presque invisible : seule la photo porte le regard.
- * La surface de verre ne se révèle qu'au survol et à la sélection, ce qui
- * garde l'arbre lisible même avec des centaines de cartes à l'écran.
- */
+/* ============================================================================
+ *
+ *  MÉDAILLON D'UNE PERSONNE
+ *
+ *  Le portrait est l'élément principal ; le nom l'accompagne. Il n'y a pas de
+ *  cadre : sur un arbre, une grille de rectangles écraserait la ramure. Ce qui
+ *  détache le médaillon de son fond, c'est un halo très doux et l'anneau qui
+ *  cercle le portrait — pas une boîte.
+ *
+ *  Au repos le médaillon est discret. Le verre, la matière et la lumière
+ *  n'apparaissent qu'au survol et à la sélection, là où ils aident à lire.
+ *
+ * ========================================================================== */
+
 .node {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 12px;
+  padding-top: 8px;
   border-radius: var(--radius-card);
   text-align: center;
   color: var(--text-primary);
@@ -21,40 +29,112 @@
   will-change: transform;
 }
 
-/* Fond de verre séparé : il s'anime sans toucher au reste de la carte. */
-.node-surface {
+/* ------------------------------- Le halo -------------------------------- */
+
+/*
+ * Lueur circulaire posée derrière le portrait. Elle sépare le médaillon du
+ * feuillage sans lui donner de contour : un dégradé radial s'éteint avant son
+ * bord, là où une boîte afficherait une arête.
+ */
+.node-halo {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  /* Voile de verre à peine perceptible : la carte existe, sans jamais
-     concurrencer le portrait qu'elle porte. */
-  background: var(--glass-fill-faint);
-  border: 1px solid transparent;
-  opacity: 1;
+  top: -6%;
+  left: 50%;
+  width: 122%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 42%,
+    var(--node-halo-core) 0%,
+    var(--node-halo-mid) 46%,
+    transparent 72%
+  );
+  opacity: 0.85;
+  pointer-events: none;
   transition:
     opacity var(--dur-base) var(--ease-out),
-    background var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out);
-}
-
-.node-avatar {
-  position: relative;
-  z-index: 1;
-  transition:
-    box-shadow var(--dur-base) var(--ease-out),
     transform var(--dur-base) var(--ease-spring);
 }
 
-.node-text {
+/* ------------------------------ Le portrait ------------------------------ */
+
+.node-portrait {
+  position: relative;
+  z-index: 1;
+  display: block;
+  border-radius: 50%;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+
+.node-avatar {
+  display: block;
+  box-shadow:
+    0 1px 2px rgba(16, 26, 44, 0.16),
+    0 8px 20px rgba(16, 26, 44, 0.16);
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+
+/*
+ * Anneau de verre autour du portrait.
+ *
+ * C'est la seule pièce de matière du médaillon au repos : un cerne clair en
+ * haut, plus sombre en bas, qui donne au disque son épaisseur. Le dégradé
+ * conique partage l'angle de lumière du reste de l'interface, si bien que
+ * portrait et panneaux sont éclairés depuis le même point.
+ */
+.node-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--lg-light),
+    transparent 0deg,
+    var(--lg-specular) 30deg,
+    var(--lg-specular-soft) 82deg,
+    transparent 140deg,
+    transparent 200deg,
+    var(--lg-specular-soft) 250deg,
+    var(--lg-specular) 285deg,
+    transparent 336deg
+  );
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+  opacity: 0.75;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    inset var(--dur-base) var(--ease-spring);
+}
+
+/* -------------------------------- Le nom -------------------------------- */
+
+/*
+ * Le nom repose sur une plaque à peine teintée. Elle existe pour une seule
+ * raison : garantir la lisibilité quand le texte tombe sur du feuillage clair
+ * ou sur une branche. Elle reste donc aussi discrète que le contraste le permet.
+ */
+.node-plate {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 1px;
   margin-top: 9px;
   max-width: 100%;
-  padding: 0 6px;
+  padding: 4px 10px 5px;
+  border-radius: 13px;
+  background: var(--node-plate);
+  transition:
+    background var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
 }
 
 .node-first {
@@ -66,71 +146,81 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .node-last {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 450;
   line-height: 1.2;
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .node-years {
-  position: relative;
-  z-index: 1;
-  margin-top: 3px;
-  font-size: 10.5px;
+  margin-top: 2px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   color: var(--text-tertiary);
   opacity: 0;
-  transform: translateY(-2px);
+  height: 0;
+  transform: translateY(-3px);
   transition:
     opacity var(--dur-base) var(--ease-out),
     transform var(--dur-base) var(--ease-out);
 }
 
-/* Une personne disparue : une puce discrète, jamais un traitement grisé. */
-.node[data-deceased] .node-avatar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* ---------------------------------- Survol ---------------------------------- */
+/* --------------------------------- Survol --------------------------------- */
 
 .node:hover,
 .node:focus-visible {
-  transform: scale(1.075);
+  transform: scale(1.09);
   z-index: 30;
 }
 
-.node:hover .node-surface,
-.node:focus-visible .node-surface {
+.node:hover .node-halo,
+.node:focus-visible .node-halo {
   opacity: 1;
-  background: var(--glass-fill-hover);
-  border-color: var(--glass-border-strong);
-  box-shadow: var(--shadow-card-hover), var(--shadow-inset);
+  transform: translateX(-50%) scale(1.1);
+}
+
+.node:hover .node-portrait,
+.node:focus-visible .node-portrait {
+  transform: translateY(-2px);
 }
 
 .node:hover .node-avatar,
 .node:focus-visible .node-avatar {
   box-shadow:
-    0 0 0 1px var(--glass-border-strong),
-    0 0 0 4px var(--accent-soft),
-    0 10px 24px rgba(0, 0, 0, 0.34);
+    0 2px 4px rgba(16, 26, 44, 0.2),
+    0 14px 30px rgba(16, 26, 44, 0.26),
+    0 0 0 5px var(--accent-soft);
+}
+
+/* L'anneau s'écarte et s'allume : le disque paraît se soulever. */
+.node:hover .node-ring,
+.node:focus-visible .node-ring {
+  inset: -5px;
+  opacity: 1;
+}
+
+.node:hover .node-plate,
+.node:focus-visible .node-plate {
+  background: var(--node-plate-strong);
+  box-shadow:
+    0 1px 2px rgba(16, 26, 44, 0.1),
+    0 8px 20px rgba(16, 26, 44, 0.14),
+    inset 0 1px 0 var(--lg-inner-light);
 }
 
 .node:hover .node-years,
 .node:focus-visible .node-years {
   opacity: 1;
+  height: auto;
   transform: translateY(0);
 }
 
@@ -140,73 +230,87 @@
   z-index: 25;
 }
 
-.node[data-selected] .node-surface {
+.node[data-selected] .node-halo {
   opacity: 1;
-  background: var(--glass-fill-strong);
-  border-color: var(--accent-ring);
-  box-shadow:
-    var(--shadow-card),
-    var(--shadow-inset),
-    0 0 0 1px var(--accent-ring),
-    0 0 32px var(--accent-soft);
+  background: radial-gradient(
+    circle at 50% 42%,
+    var(--accent-soft) 0%,
+    var(--accent-soft) 40%,
+    transparent 72%
+  );
 }
 
 .node[data-selected] .node-avatar {
   box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 0 6px var(--accent-soft),
-    0 10px 26px rgba(0, 0, 0, 0.36);
+    0 0 0 2.5px var(--accent),
+    0 0 0 7px var(--accent-soft),
+    0 12px 28px rgba(16, 26, 44, 0.3);
+}
+
+.node[data-selected] .node-ring {
+  opacity: 0;
+}
+
+.node[data-selected] .node-plate {
+  background: var(--node-plate-strong);
+  box-shadow: 0 0 0 1px var(--accent-ring);
 }
 
 .node[data-selected] .node-years {
   opacity: 1;
+  height: auto;
   transform: translateY(0);
 }
 
 /*
  * Rôle familial : un anneau de couleur autour du portrait, et rien d'autre.
- * Poser un fond plein sur chaque proche transformerait l'arbre en damier de
- * rectangles ; l'anneau suffit à lire la parenté d'un coup d'œil.
+ * Poser un fond plein sur chaque proche transformerait l'arbre en damier ;
+ * l'anneau suffit à lire la parenté d'un coup d'œil.
  */
 .node[data-role] .node-years {
   opacity: 1;
+  height: auto;
   transform: translateY(0);
+}
+
+.node[data-role] .node-ring {
+  opacity: 0;
 }
 
 .node[data-role='spouse'] .node-avatar {
   box-shadow:
-    0 0 0 2px var(--accent-rose),
-    0 6px 16px rgba(0, 0, 0, 0.28);
+    0 0 0 2.5px var(--accent-rose),
+    0 8px 18px rgba(16, 26, 44, 0.22);
 }
 
 .node[data-role='parent'] .node-avatar,
 .node[data-role='ancestor'] .node-avatar {
   box-shadow:
-    0 0 0 2px var(--accent-warm),
-    0 6px 16px rgba(0, 0, 0, 0.28);
+    0 0 0 2.5px var(--accent-warm),
+    0 8px 18px rgba(16, 26, 44, 0.22);
 }
 
 .node[data-role='child'] .node-avatar,
 .node[data-role='descendant'] .node-avatar {
   box-shadow:
-    0 0 0 2px var(--accent-mint),
-    0 6px 16px rgba(0, 0, 0, 0.28);
+    0 0 0 2.5px var(--accent-mint),
+    0 8px 18px rgba(16, 26, 44, 0.22);
 }
 
 .node[data-role='sibling'] .node-avatar {
   box-shadow:
-    0 0 0 2px var(--accent),
-    0 6px 16px rgba(0, 0, 0, 0.28);
+    0 0 0 2.5px var(--accent),
+    0 8px 18px rgba(16, 26, 44, 0.22);
 }
 
 /* Hors de la branche sélectionnée : on efface sans faire disparaître. */
 .node[data-dimmed] {
-  opacity: 0.26;
-  filter: saturate(0.55);
+  opacity: 0.24;
+  filter: saturate(0.5);
 }
 
 .node[data-dimmed]:hover {
-  opacity: 0.85;
+  opacity: 0.9;
   filter: none;
 }
 
@@ -219,21 +323,31 @@
   0%,
   100% {
     box-shadow:
-      0 0 0 2px var(--accent),
+      0 0 0 2.5px var(--accent),
       0 0 0 0 var(--accent-soft);
   }
   50% {
     box-shadow:
-      0 0 0 2px var(--accent),
-      0 0 0 14px transparent;
+      0 0 0 2.5px var(--accent),
+      0 0 0 16px transparent;
   }
+}
+
+/* Une personne disparue : un cerne intérieur discret, jamais un traitement grisé. */
+.node[data-deceased] .node-portrait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--node-deceased-ring);
+  pointer-events: none;
 }
 
 /* --------------------------------- Infobulle --------------------------------- */
 
 .node-tooltip {
   position: absolute;
-  top: calc(100% - 6px);
+  top: calc(100% - 2px);
   left: 50%;
   z-index: 2;
   display: flex;
@@ -253,11 +367,27 @@
     transform var(--dur-base) var(--ease-spring);
 }
 
+/*
+ * Une infobulle par médaillon visible, toutes invisibles sauf une : leur flou
+ * d'arrière-plan ne doit exister qu'au moment où elle se montre, sinon on paie
+ * quatre-vingts surfaces floutées pour n'en regarder qu'une.
+ */
+.node-tooltip {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.node-tooltip::before {
+  display: none;
+}
+
 .node:hover .node-tooltip,
 .node:focus-visible .node-tooltip {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
   transition-delay: 60ms;
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
 }
 
 .node-tooltip-name {
@@ -276,33 +406,38 @@
 /* ------------------------------ Niveau de détail ------------------------------ */
 
 .node[data-detail='compact'] {
-  padding-top: 10px;
+  padding-top: 6px;
+}
+
+.node[data-detail='compact'] .node-plate {
+  margin-top: 7px;
+  padding: 3px 8px 4px;
 }
 
 .node[data-detail='compact'] .node-first {
   font-size: 12px;
 }
 
-/*
- * Une infobulle par carte visible, toutes invisibles sauf une : leur flou
- * d'arrière-plan ne doit exister qu'au moment où elle se montre, sinon on paie
- * quatre-vingts surfaces floutées pour n'en regarder qu'une.
- */
-.node-tooltip {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.node:hover .node-tooltip,
-.node:focus-visible .node-tooltip {
-  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
-  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
-}
-
-.node-tooltip::before {
-  display: none;
-}
-
+/* Rendu allégé quand la densité de médaillons dépasse le budget de flou. */
 .world[data-cheap='true'] .node {
   transition: none;
+}
+
+.world[data-cheap='true'] .node-ring {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node,
+  .node-halo,
+  .node-portrait,
+  .node-plate,
+  .node-ring,
+  .node-years {
+    transition: none;
+  }
+
+  .node[data-flagged] .node-avatar {
+    animation: none;
+  }
 }

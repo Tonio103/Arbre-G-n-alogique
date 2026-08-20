@@ -28,10 +28,12 @@ function readPalette(): TreePalette {
   return {
     trunk: read('--wood-trunk', 'rgba(94,72,52,0.85)'),
     twig: read('--wood-twig', 'rgba(150,124,92,0.7)'),
+    bark: read('--wood-bark', 'rgba(62,46,32,0.22)'),
     dim: read('--wood-dim', 'rgba(120,100,80,0.12)'),
     highlight: read('--link-highlight', '#2f6fdb'),
     cross: read('--link-cross', 'rgba(194,118,28,0.55)'),
     leaf: read('--leaf', '#7ba86f'),
+    leafAlt: read('--leaf-alt', '#5f8f5c'),
     node: read('--wood-twig', 'rgba(150,124,92,0.7)'),
   };
 }
@@ -88,6 +90,7 @@ export function BranchLayer({
       const transform = viewport.transform;
       const rect = visibleRect(transform, { width, height }, 320);
 
+      const visibleNodes = spatial.visibleNodes(rect);
       const hovered = hoverStore.getSnapshot();
       const accentUnions = new Set(highlightUnionsRef.current);
       if (hovered) {
@@ -107,13 +110,14 @@ export function BranchLayer({
         highlighted: accentUnions,
         hasSelection: hasSelectionRef.current,
         trunk: layout.trunk,
+        nodes: visibleNodes,
       });
 
       if (transform.scale < LOD_COMPACT) {
         const accentPeople = new Set(highlightPeopleRef.current);
         if (hovered) accentPeople.add(hovered);
         drawCanopy(context, {
-          nodes: spatial.visibleNodes(rect),
+          nodes: visibleNodes,
           weights: layout.weights,
           highlighted: accentPeople,
           hasSelection: hasSelectionRef.current,
