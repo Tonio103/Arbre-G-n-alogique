@@ -12,7 +12,7 @@ export interface BranchLabelsProps {
 const SHOW_BELOW = 0.34;
 /** Marge entre deux étiquettes voisines avant de considérer qu'elles se gênent. */
 /** Au-delà, les étiquettes cachent plus d'arbre qu'elles n'en expliquent. */
-const MAX_LABELS = 5;
+const MAX_LABELS = 3;
 
 const LABEL_GAP = 12;
 
@@ -86,9 +86,13 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         const labelWidth = widthsRef.current[index] || 160;
         const left = screenX - labelWidth / 2;
         const right = screenX + labelWidth / 2;
+        // Le test de chevauchement est volontairement large en hauteur : les
+        // branches d'une même lignée partagent la même abscisse, et des
+        // étiquettes séparées de quelques dizaines de pixels s'empilent en
+        // escalier devant la ramure qu'elles désignent.
         const overlaps = taken.some(
           (slot) =>
-            Math.abs(slot.top - screenY) < 30 &&
+            Math.abs(slot.top - screenY) < 110 &&
             left < slot.right + LABEL_GAP &&
             right > slot.left - LABEL_GAP,
         );

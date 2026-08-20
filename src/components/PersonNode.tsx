@@ -87,7 +87,7 @@ export const PersonNode = memo(function PersonNode({
           id={person.id}
           initials={person.initials}
           photo={person.photo}
-          size={compact ? 68 : 80}
+          size={compact ? 44 : 50}
           className="node-avatar"
         />
         <span className="node-ring" aria-hidden="true" />

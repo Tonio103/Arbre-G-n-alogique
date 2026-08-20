@@ -227,6 +227,21 @@ dimensionné en fonction du nombre total de personnes :
   transformé, le navigateur repeignait tout le fond à chaque image, ce qui
   coûtait près de la moitié du budget d'affichage.
 
+### Placement par contours
+
+Le placement naïf réserve à chaque sous-arbre une bande où nul autre n'entre.
+Une personne sans descendance monopolise alors une colonne sur toute la hauteur
+de l'arbre : la largeur totale finit par valoir le nombre de **feuilles** plutôt
+que la population de la génération la plus fournie — deux fois et demie
+l'espace nécessaire sur ce jeu de données. Les branches doivent traverser cette
+largeur en une génération de hauteur, ce qui les couche à l'horizontale et fait
+perdre à l'ensemble toute allure d'arbre.
+
+`measure()` garde donc, pour chaque sous-arbre, la silhouette de ses bords
+gauche et droit niveau par niveau. Deux voisins ne s'écartent que de ce que
+leurs silhouettes exigent réellement : une branche courte se glisse sous la
+ramure de sa voisine au lieu de la pousser.
+
 ### Placement
 
 Les générations sont calculées en propageant deux règles jusqu'à stabilisation :

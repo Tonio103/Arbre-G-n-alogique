@@ -116,7 +116,11 @@ interface PlacementNode {
   childNodes: PlacementNode[];
   generation: number;
   blockWidth: number;
-  subtreeWidth: number;
+  /** Position du bloc, relative à l'origine locale du sous-arbre. */
+  blockOffset: number;
+  /** Décalage de ce sous-arbre par rapport à l'origine de son parent. */
+  offset: number;
+  contour: Contour;
 }
 
 /**
@@ -181,7 +185,9 @@ function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
       childNodes: [],
       generation: person.generation,
       blockWidth: members.length * CARD_WIDTH + (members.length - 1) * COUPLE_GAP,
-      subtreeWidth: 0,
+      blockOffset: 0,
+      offset: 0,
+      contour: { left: [0], right: [0] },
     };
 
     // Descendance : toute union d'un membre du bloc que personne n'a encore
@@ -231,30 +237,105 @@ function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
   return roots;
 }
 
-function measure(node: PlacementNode): number {
-  let childrenWidth = 0;
-  for (let i = 0; i < node.childNodes.length; i += 1) {
-    childrenWidth += measure(node.childNodes[i]);
-    if (i > 0) childrenWidth += SIBLING_GAP;
+/**
+ * Place les sous-arbres par contours plutôt qu'en bandes exclusives.
+ *
+ * Le placement naïf réserve à chaque sous-arbre une bande où nul autre n'entre.
+ * Une personne sans descendance monopolise alors une colonne sur toute la
+ * hauteur de l'arbre, et la largeur totale finit par valoir le nombre de
+ * feuilles plutôt que la population de la génération la plus fournie — deux
+ * fois et demie l'espace nécessaire, dans ce jeu de données. Les branches
+ * doivent parcourir cette largeur en une génération de hauteur, ce qui les
+ * couche à l'horizontale.
+ *
+ * On garde donc, pour chaque sous-arbre, la silhouette de ses bords gauche et
+ * droit, niveau par niveau. Deux voisins ne s'écartent alors que de ce que
+ * leurs silhouettes exigent réellement : une branche courte se glisse sous la
+ * ramure de sa voisine au lieu de la pousser.
+ */
+interface Contour {
+  /** Bord gauche, par profondeur relative au nœud (0 = sa propre rangée). */
+  left: number[];
+  right: number[];
+}
+
+function measure(node: PlacementNode): void {
+  if (node.childNodes.length === 0) {
+    node.blockOffset = 0;
+    node.contour = { left: [0], right: [node.blockWidth] };
+    return;
   }
-  node.subtreeWidth = Math.max(node.blockWidth, childrenWidth);
-  return node.subtreeWidth;
+
+  const merged: Contour = { left: [], right: [] };
+
+  for (let i = 0; i < node.childNodes.length; i += 1) {
+    const child = node.childNodes[i];
+    measure(child);
+
+    if (i === 0) {
+      child.offset = 0;
+    } else {
+      // Décalage minimal : le plus grand empiètement constaté sur les niveaux
+      // que les deux silhouettes ont en commun.
+      let shift = 0;
+      const shared = Math.min(merged.right.length, child.contour.left.length);
+      for (let d = 0; d < shared; d += 1) {
+        shift = Math.max(shift, merged.right[d] - child.contour.left[d] + SIBLING_GAP);
+      }
+      child.offset = shift;
+    }
+
+    for (let d = 0; d < child.contour.left.length; d += 1) {
+      const left = child.contour.left[d] + child.offset;
+      const right = child.contour.right[d] + child.offset;
+      if (d < merged.left.length) {
+        merged.left[d] = Math.min(merged.left[d], left);
+        merged.right[d] = Math.max(merged.right[d], right);
+      } else {
+        merged.left.push(left);
+        merged.right.push(right);
+      }
+    }
+  }
+
+  // Le parent se centre sur la rangée de ses enfants — pas sur leur silhouette
+  // entière, qui peut déborder très loin à cause d'une descendance lointaine.
+  const first = node.childNodes[0];
+  const last = node.childNodes[node.childNodes.length - 1];
+  const childrenCenter =
+    (first.offset + first.contour.left[0] + last.offset + last.contour.right[0]) / 2;
+  node.blockOffset = childrenCenter - node.blockWidth / 2;
+
+  node.contour = {
+    left: [node.blockOffset, ...merged.left],
+    right: [node.blockOffset + node.blockWidth, ...merged.right],
+  };
+}
+
+/** Étendue horizontale réellement occupée par un sous-arbre. */
+function contourSpan(node: PlacementNode): { min: number; max: number } {
+  let min = Infinity;
+  let max = -Infinity;
+  for (let d = 0; d < node.contour.left.length; d += 1) {
+    min = Math.min(min, node.contour.left[d]);
+    max = Math.max(max, node.contour.right[d]);
+  }
+  return { min, max };
 }
 
 /**
- * Assigne les coordonnées. Le bloc parent et le groupe d'enfants sont centrés
- * sur le même axe, ce qui aligne naturellement un couple au-dessus de sa
- * descendance sans passe de correction.
+ * Assigne les coordonnées définitives à partir des décalages calculés.
+ * `origin` est la position, en coordonnées du monde, de l'origine locale du
+ * sous-arbre — celle à laquelle contours et décalages se rapportent.
  */
 function assign(
   node: PlacementNode,
-  left: number,
+  origin: number,
   positions: Map<string, NodePosition>,
   graph: FamilyGraph,
   depth: number,
 ): void {
-  const blockLeft = left + (node.subtreeWidth - node.blockWidth) / 2;
-  let cursor = blockLeft;
+  let cursor = origin + node.blockOffset;
   for (const memberId of node.members) {
     const generation = graph.people.get(memberId)?.generation ?? node.generation;
     positions.set(memberId, {
@@ -268,16 +349,8 @@ function assign(
     cursor += CARD_WIDTH + COUPLE_GAP;
   }
 
-  let childrenWidth = 0;
-  for (let i = 0; i < node.childNodes.length; i += 1) {
-    childrenWidth += node.childNodes[i].subtreeWidth;
-    if (i > 0) childrenWidth += SIBLING_GAP;
-  }
-
-  let childCursor = left + (node.subtreeWidth - childrenWidth) / 2;
   for (const child of node.childNodes) {
-    assign(child, childCursor, positions, graph, depth);
-    childCursor += child.subtreeWidth + SIBLING_GAP;
+    assign(child, origin + child.offset, positions, graph, depth);
   }
 }
 
@@ -311,8 +384,11 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
   let cursor = 0;
   for (const root of roots) {
     measure(root);
-    assign(root, cursor, positions, graph, depth);
-    cursor += root.subtreeWidth + FAMILY_GAP;
+    const span = contourSpan(root);
+    // L'origine se cale pour que le bord gauche réel du sous-arbre tombe
+    // exactement sur le curseur.
+    assign(root, cursor - span.min, positions, graph, depth);
+    cursor += span.max - span.min + FAMILY_GAP;
   }
 
   // Filet de sécurité : personne ne doit rester sans coordonnées.
@@ -574,7 +650,7 @@ function computeTrunk(
     // rigoureusement horizontaux, et le pied de l'arbre devient une barre.
     topY: lowest + TRUNK_RISE * 0.62,
     baseY: lowest + TRUNK_RISE + ROOT_DEPTH,
-    width: Math.min(520, 40 + 11 * Math.sqrt(totalWeight)),
+    width: Math.min(760, 50 + 24 * Math.sqrt(totalWeight)),
     roots,
   };
 }

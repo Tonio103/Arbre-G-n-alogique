@@ -17,7 +17,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 8px;
+  padding-top: 5px;
   border-radius: var(--radius-card);
   text-align: center;
   color: var(--text-primary);
@@ -85,9 +85,9 @@
  */
 .node-ring {
   position: absolute;
-  inset: -3px;
+  inset: -2px;
   border-radius: 50%;
-  padding: 1.5px;
+  padding: 1.2px;
   background: conic-gradient(
     from var(--lg-light),
     transparent 0deg,
@@ -125,11 +125,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  margin-top: 9px;
+  gap: 0;
+  margin-top: 6px;
   max-width: 100%;
-  padding: 4px 10px 5px;
-  border-radius: 13px;
+  padding: 3px 7px 4px;
+  border-radius: 10px;
   background: var(--node-plate);
   transition:
     background var(--dur-base) var(--ease-out),
@@ -138,7 +138,7 @@
 }
 
 .node-first {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -150,7 +150,7 @@
 }
 
 .node-last {
-  font-size: 11.5px;
+  font-size: 10px;
   font-weight: 450;
   line-height: 1.2;
   color: var(--text-secondary);
@@ -161,8 +161,8 @@
 }
 
 .node-years {
-  margin-top: 2px;
-  font-size: 10px;
+  margin-top: 1px;
+  font-size: 9px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   color: var(--text-tertiary);
@@ -204,7 +204,7 @@
 /* L'anneau s'écarte et s'allume : le disque paraît se soulever. */
 .node:hover .node-ring,
 .node:focus-visible .node-ring {
-  inset: -5px;
+  inset: -4px;
   opacity: 1;
 }
 
@@ -406,16 +406,16 @@
 /* ------------------------------ Niveau de détail ------------------------------ */
 
 .node[data-detail='compact'] {
-  padding-top: 6px;
+  padding-top: 4px;
 }
 
 .node[data-detail='compact'] .node-plate {
-  margin-top: 7px;
-  padding: 3px 8px 4px;
+  margin-top: 5px;
+  padding: 2px 6px 3px;
 }
 
 .node[data-detail='compact'] .node-first {
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* Rendu allégé quand la densité de médaillons dépasse le budget de flou. */

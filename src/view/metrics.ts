@@ -1,15 +1,24 @@
-/** Dimensions du monde, partagées par le calcul de placement et par le rendu. */
-export const CARD_WIDTH = 128;
-export const CARD_HEIGHT = 152;
+/*
+ * Dimensions du monde, partagées par le calcul de placement et par le rendu.
+ *
+ * Ces six nombres décident de la silhouette de l'arbre. La largeur totale vaut
+ * à peu près le nombre de personnes de la génération la plus fournie multiplié
+ * par (CARD_WIDTH + SIBLING_GAP) ; la hauteur vaut le nombre de générations
+ * multiplié par ROW_HEIGHT. Un médaillon large étale l'arbre en frise : c'est
+ * le rapport entre ces deux familles de valeurs qui fait qu'on reconnaît un
+ * arbre ou une étagère.
+ */
+export const CARD_WIDTH = 78;
+export const CARD_HEIGHT = 100;
 
 /** Écart entre deux frères et sœurs. */
-export const SIBLING_GAP = 34;
+export const SIBLING_GAP = 14;
 /** Écart entre deux conjoints d'un même bloc. */
-export const COUPLE_GAP = 24;
+export const COUPLE_GAP = 10;
 /** Écart entre deux familles racines indépendantes. */
-export const FAMILY_GAP = 120;
+export const FAMILY_GAP = 52;
 /** Hauteur d'une génération. */
-export const ROW_HEIGHT = 1000;
+export const ROW_HEIGHT = 1150;
 
 /** Marge autour de l'arbre lors d'un recentrage. */
 export const FIT_PADDING = 120;

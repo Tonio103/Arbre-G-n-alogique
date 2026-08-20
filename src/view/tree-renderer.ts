@@ -95,10 +95,22 @@ function traceBranch(
   sway = 0,
 ): void {
   const dy = y1 - y0;
+  const dx = x1 - x0;
+
   // Contrôles verticaux : la branche quitte le tronc à la verticale et rejoint
   // l'enfant à la verticale, ce qui donne la courbe en S d'une vraie ramure.
+  //
+  // L'élan de départ ne peut pas dépendre du seul écart vertical. Quand un
+  // enfant est à des milliers d'unités sur le côté pour une génération de haut,
+  // une courbe proportionnée à cet écart part presque à plat et la branche
+  // devient un câble tendu. On lui donne donc de quoi s'élever d'abord, en
+  // proportion de la distance à parcourir : elle monte, puis s'incline vers son
+  // enfant — ce que fait une branche qui s'étale.
+  const rise = Math.max(Math.abs(dy) * 0.55, Math.min(Math.abs(dx) * 0.4, Math.abs(dy) * 1.9));
+  const lift = dy < 0 ? -rise : rise;
+
   const c1x = x0 + sway;
-  const c1y = y0 + dy * 0.55;
+  const c1y = y0 + lift;
   const c2x = x1 - sway * 0.45;
   const c2y = y1 - dy * 0.55;
 
@@ -230,7 +242,11 @@ function traceTrunk(
 ): void {
   if (trunk.roots.length === 0) return;
 
-  const width = trunk.width * Math.min(boost, 4.5);
+  // Le fût ne reçoit presque pas la compensation de zoom : elle existe pour
+  // rendre visibles les rameaux d'un pixel, alors que le tronc est déjà la
+  // pièce la plus large de l'arbre. L'y appliquer en fait une masse qui écrase
+  // toute la ramure.
+  const width = trunk.width * Math.min(boost, 1.25);
   const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
 
   // Fût, du sol jusqu'à la naissance des premières branches.
@@ -243,7 +259,9 @@ function traceTrunk(
     const t = i / (rootCount - 1);
     const spread = (t - 0.5) * 2;
     const wobble = jitter('root', i, 0.24);
-    const reach = width * (2.4 + Math.abs(spread) * 2.6) * (1 + wobble);
+    // Emprise au sol bornée à quelques largeurs de fût : proportionnelle à une
+    // épaisseur déjà compensée, elle balayait tout l'écran.
+    const reach = width * (1.5 + Math.abs(spread) * 1.3) * (1 + wobble * 0.5);
     const rootWidth = width * (0.44 - Math.abs(spread) * 0.17);
     traceBranch(
       ctx,
@@ -329,8 +347,12 @@ function drawFoliage(
     if (group.length === 0) return;
     ctx.beginPath();
     for (const node of group) {
-      const x = cardCenterX(node.x) + jitter(node.id, 21, size * 0.5);
-      const y = cardTop(node.y) - size * 0.25 + offset;
+      const x = cardCenterX(node.x) + jitter(node.id, 21, size * 0.6);
+      // Le décalage vertical est essentiel : toutes les personnes d'une même
+      // génération étant à la même altitude, un feuillage posé à hauteur fixe
+      // dessine des lignes horizontales qui trahissent les rangées du plan.
+      const y =
+        cardTop(node.y) - size * 0.25 + offset + jitter(node.id, 41, ROW_HEIGHT * 0.16);
       traceLeafCluster(ctx, node.id, x, y, size, perCluster);
     }
     ctx.fillStyle = color;
@@ -447,8 +469,8 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
 
   // Passe 2 : l'écorce du fût. Seulement quand elle est assez large à l'écran
   // pour se lire — en dessous, ce ne serait qu'un bruit gris sur la silhouette.
-  const trunkOnScreen = params.trunk.width * Math.min(boost, 4.5) * scale;
-  if (trunkOnScreen > 26 && !hasSelection) {
+  const trunkOnScreen = params.trunk.width * Math.min(boost, 1.25) * scale;
+  if (trunkOnScreen > 110 && !hasSelection) {
     ctx.beginPath();
     traceBark(
       ctx,
