@@ -1,0 +1,175 @@
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+/*
+ * Décor : trois halos colorés très flous, déplacés en parallaxe avec la
+ * navigation. C'est ce qui donne la sensation de se déplacer dans un volume
+ * plutôt que sur une image plate.
+ */
+.backdrop {
+  position: fixed;
+  /* Marge supérieure à l'amplitude de parallaxe (voir Backdrop.tsx), pour que
+     la couche couvre l'écran quelle que soit sa translation. */
+  inset: -80px;
+  z-index: 0;
+  pointer-events: none;
+  contain: layout paint style;
+  background:
+    radial-gradient(60% 50% at 20% 18%, rgba(86, 128, 220, 0.3), transparent 70%),
+    radial-gradient(52% 46% at 82% 28%, rgba(158, 106, 214, 0.24), transparent 72%),
+    radial-gradient(58% 52% at 58% 88%, rgba(58, 168, 178, 0.22), transparent 74%),
+    linear-gradient(168deg, var(--bg-deep), var(--bg-mid) 55%, var(--bg-deep));
+  will-change: transform;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+:root[data-theme='light'] .backdrop {
+  background:
+    radial-gradient(60% 50% at 20% 18%, rgba(120, 165, 255, 0.34), transparent 70%),
+    radial-gradient(52% 46% at 82% 28%, rgba(196, 158, 255, 0.28), transparent 72%),
+    radial-gradient(58% 52% at 58% 88%, rgba(120, 216, 216, 0.26), transparent 74%),
+    linear-gradient(168deg, var(--bg-mid), var(--bg-deep) 60%, var(--bg-mid));
+}
+
+/*
+ * Vignette, peinte dans la couche de décor plutôt qu'au-dessus de l'arbre.
+ * Superposée au contenu, elle obligeait le navigateur à refondre toute la
+ * surface à chaque image ; ici elle assombrit seulement le fond, ce qui rend
+ * en prime les cartes plus nettes sur les bords.
+ */
+.backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(110% 84% at 50% 45%, transparent 52%, rgba(0, 0, 0, 0.34));
+}
+
+:root[data-theme='light'] .backdrop::before {
+  background: radial-gradient(110% 84% at 50% 45%, transparent 58%, rgba(30, 50, 90, 0.1));
+}
+
+/* Grain très fin : casse les dégradés et évite l'effet plastique. */
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+}
+
+.stage[data-grabbing='true'] {
+  cursor: grabbing;
+}
+
+.stage-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/*
+ * Conteneur du monde : une seule transformation pour des centaines de cartes.
+ * Les cartes sont positionnées en coordonnées monde et ne bougent jamais ;
+ * seul ce conteneur est transformé, ce qui garde le pan et le zoom à 60 images
+ * par seconde quel que soit le nombre de personnes affichées.
+ */
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Bandeau d'aide en bas d'écran, s'efface une fois l'utilisateur lancé. */
+.hint-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  animation: hint-in 620ms var(--ease-out) both;
+  z-index: 6;
+}
+
+.hint-bar[data-hidden='true'] {
+  animation: hint-out 340ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+.hint-bar kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 7px;
+  background: var(--glass-fill-strong);
+  border: 1px solid var(--glass-border);
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.hint-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--glass-border);
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes hint-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+
+@media (max-width: 720px) {
+  .hint-bar {
+    display: none;
+  }
+}

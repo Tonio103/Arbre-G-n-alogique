@@ -1,0 +1,48 @@
+.avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 0 0 1px var(--glass-border-strong),
+    0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/*
+ * Portrait généré : deux halos décalés sur un fond incliné. Le résultat reste
+ * doux et différent pour chaque personne sans jamais devenir criard.
+ */
+.avatar-generated {
+  background:
+    radial-gradient(72% 68% at 26% 22%, var(--avatar-c), transparent 62%),
+    radial-gradient(80% 76% at 78% 82%, var(--avatar-b), transparent 68%),
+    linear-gradient(var(--avatar-tilt), var(--avatar-a), var(--avatar-b));
+}
+
+.avatar-generated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.26), transparent 46%);
+  mix-blend-mode: soft-light;
+}
+
+.avatar-initials {
+  position: relative;
+  z-index: 1;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  user-select: none;
+}

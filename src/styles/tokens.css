@@ -1,0 +1,115 @@
+/*
+ * Jetons de design.
+ * Le thème sombre est la référence ; le thème clair redéfinit les mêmes
+ * variables. Aucun composant ne code une couleur en dur.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Fond et profondeur */
+  --bg-deep: #070a14;
+  --bg-mid: #0c1428;
+  --bg-base: #080d1a;
+  --bg-veil: rgba(6, 10, 20, 0.55);
+
+  /* Verre */
+  --glass-fill-faint: rgba(255, 255, 255, 0.032);
+  --glass-fill: rgba(255, 255, 255, 0.055);
+  --glass-fill-strong: rgba(255, 255, 255, 0.085);
+  --glass-fill-hover: rgba(255, 255, 255, 0.115);
+  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-border-strong: rgba(255, 255, 255, 0.2);
+  --glass-sheen: rgba(255, 255, 255, 0.14);
+  --glass-panel: rgba(16, 22, 38, 0.62);
+  --glass-panel-solid: rgba(14, 19, 34, 0.86);
+
+  /* Texte */
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(232, 238, 252, 0.66);
+  --text-tertiary: rgba(216, 226, 248, 0.44);
+  --text-inverse: #0a1020;
+
+  /* Accents */
+  --accent: #7fb0ff;
+  --accent-strong: #a9c9ff;
+  --accent-soft: rgba(127, 176, 255, 0.16);
+  --accent-ring: rgba(127, 176, 255, 0.55);
+  --accent-warm: #ffc98a;
+  --accent-rose: #ff9fc4;
+  --accent-mint: #86e0c8;
+
+  /* Liens de l'arbre */
+  --link-base: rgba(174, 196, 240, 0.4);
+  --link-dim: rgba(150, 172, 214, 0.09);
+  --link-highlight: #9dc2ff;
+  --link-cross: rgba(255, 201, 138, 0.42);
+  --link-node: rgba(190, 210, 245, 0.5);
+
+  /* Ombres */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 22px rgba(0, 0, 0, 0.28);
+  --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, 0.34), 0 20px 46px rgba(0, 0, 0, 0.44);
+  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.3), 0 32px 80px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+
+  /* Rayons */
+  --radius-card: 26px;
+  --radius-panel: 30px;
+  --radius-control: 16px;
+  --radius-pill: 999px;
+
+  /* Mouvement */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+
+  /* Gabarit */
+  --topbar-height: 68px;
+  --panel-width: 400px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-deep: #e8ecf5;
+  --bg-mid: #f4f6fb;
+  --bg-base: #eef1f8;
+  --bg-veil: rgba(255, 255, 255, 0.5);
+
+  --glass-fill-faint: rgba(255, 255, 255, 0.42);
+  --glass-fill: rgba(255, 255, 255, 0.6);
+  --glass-fill-strong: rgba(255, 255, 255, 0.76);
+  --glass-fill-hover: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(16, 32, 64, 0.09);
+  --glass-border-strong: rgba(16, 32, 64, 0.16);
+  --glass-sheen: rgba(255, 255, 255, 0.9);
+  --glass-panel: rgba(255, 255, 255, 0.72);
+  --glass-panel-solid: rgba(252, 253, 255, 0.92);
+
+  --text-primary: rgba(12, 20, 38, 0.94);
+  --text-secondary: rgba(26, 38, 62, 0.66);
+  --text-tertiary: rgba(30, 44, 70, 0.46);
+  --text-inverse: #ffffff;
+
+  --accent: #2f6fdb;
+  --accent-strong: #1f57bb;
+  --accent-soft: rgba(47, 111, 219, 0.11);
+  --accent-ring: rgba(47, 111, 219, 0.45);
+  --accent-warm: #c2761c;
+  --accent-rose: #c2497e;
+  --accent-mint: #1c8f74;
+
+  --link-base: rgba(40, 66, 110, 0.4);
+  --link-dim: rgba(40, 66, 110, 0.1);
+  --link-highlight: #2f6fdb;
+  --link-cross: rgba(194, 118, 28, 0.55);
+  --link-node: rgba(40, 66, 110, 0.55);
+
+  --shadow-card: 0 1px 2px rgba(20, 34, 62, 0.08), 0 6px 18px rgba(20, 34, 62, 0.08);
+  --shadow-card-hover: 0 2px 6px rgba(20, 34, 62, 0.1), 0 18px 40px rgba(20, 34, 62, 0.16);
+  --shadow-panel: 0 2px 8px rgba(20, 34, 62, 0.08), 0 30px 70px rgba(20, 34, 62, 0.18);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}

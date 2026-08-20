@@ -1,0 +1,208 @@
+# Arbre généalogique
+
+Une application web pour parcourir un arbre familial de plusieurs centaines de
+personnes : navigation libre dans un très grand plan, recherche instantanée,
+fiche détaillée par personne, interface en verre dépoli.
+
+Le jeu de données de démonstration compte **647 personnes sur 7 générations**
+(1838 → 2022), réparties en une dizaine de branches. Toutes les personnes,
+dates et lieux sont fictifs.
+
+---
+
+## Démarrer
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+```bash
+npm run build      # vérification des types + production dans dist/
+npm run preview    # sert le résultat du build
+npm run typecheck  # types seuls
+```
+
+Aucune dépendance en dehors de React, TypeScript et Vite.
+
+---
+
+## Navigation
+
+| Geste / touche | Effet |
+| --- | --- |
+| Molette | Zoom avant et arrière, centré sur le pointeur |
+| Pavé tactile à deux doigts | Déplacement libre |
+| Glisser | Déplacement, avec inertie |
+| Pincement | Zoom tactile |
+| Double-clic | Zoom sur le point visé |
+| Flèches | Déplacement (`Maj` pour aller plus vite) |
+| `+` / `-` | Zoom |
+| `0` | Vue d'ensemble de l'arbre entier |
+| `H` | Retour à la personne principale |
+| `L` | Bascule famille proche ↔ lignée entière |
+| `⌘K` / `Ctrl+K` | Recherche |
+| `Échap` | Ferme la fiche ou la recherche |
+| `Tab` | Parcourt les cartes visibles |
+
+Survoler une personne l'agrandit, affiche ses informations essentielles et
+accentue ses liens familiaux. La sélectionner ouvre sa fiche, met en évidence
+ses proches et estompe le reste de l'arbre.
+
+En vue éloignée, les cartes cèdent la place aux noms des branches : cliquer sur
+l'un d'eux plonge dans la lignée correspondante.
+
+---
+
+## Ajouter ou modifier des personnes
+
+Les données sont totalement séparées de l'interface. Tout se passe dans
+`src/data/` — aucun composant à toucher.
+
+Une personne minimale :
+
+```ts
+{
+  id: 'marie-durand-1912',
+  firstName: 'Marie',
+  lastName: 'Durand',
+  parents: ['jean-durand-1880', 'louise-petit-1884'],
+}
+```
+
+Une personne complète :
+
+```ts
+{
+  id: 'roger-beaumont-1921',
+  firstName: 'Roger',
+  lastName: 'Beaumont',
+  gender: 'm',
+  birthDate: '1921-03-30',        // "1921", "1921-03" ou "vers 1921" acceptés
+  birthPlace: 'Avignon',
+  deathDate: '2004-12-19',
+  deathPlace: 'Avignon',
+  photo: '/photos/roger.jpg',      // sans photo, un portrait est généré
+  profession: 'Directeur d’école',
+  education: 'École normale d’instituteurs d’Avignon',
+  headline: 'Instituteur et résistant',   // deux à quatre mots, sur la carte
+  residences: ['Avignon', 'Apt'],
+  biography: '…',
+  interests: ['Histoire locale', 'Randonnée'],
+  anecdotes: ['A refusé la Légion d’honneur en 1974.'],
+  milestones: [{ year: '1943', title: 'Entre dans la Résistance' }],
+  memories: ['Le bureau couvert de cahiers à corriger.'],
+  notes: '…',
+  links: [{ label: 'Acte de naissance', url: 'https://…' }],
+  custom: { 'Surnom': 'Monsieur Roger' },   // champs libres, affichés tels quels
+  parents: ['marcel-beaumont-1894', 'germaine-ferrand-1893'],
+  spouses: [{ id: 'monique-lemoine-1926', status: 'married', since: '1947-08-16' }],
+}
+```
+
+**Seuls `parents` et `spouses` se saisissent.** Les enfants, la fratrie, les
+demi-frères et sœurs, les unions et les générations sont dérivés au chargement,
+de sorte qu'un lien ne puisse jamais être renseigné d'un côté seulement. Les
+liens de conjoint sont symétrisés automatiquement : le déclarer sur une seule
+des deux personnes suffit.
+
+Le champ `custom` accepte n'importe quelle paire clé/valeur et s'affiche dans la
+fiche sans modification de code — c'est le point d'extension prévu pour tout ce
+que le schéma n'anticipe pas.
+
+Les incohérences (parent inconnu, identifiant en double, boucle de filiation)
+n'interrompent rien : elles sont collectées dans `graph.warnings`.
+
+### Organisation des données
+
+| Fichier | Rôle |
+| --- | --- |
+| `data/schema.ts` | Types. La référence de ce qu'on peut saisir |
+| `data/core-family.ts` | Le noyau familial, écrit à la main, richement documenté |
+| `data/generator.ts` | Peuple les branches collatérales de façon déterministe |
+| `data/vocabulary.ts` | Prénoms, métiers et lieux par époque |
+| `data/index.ts` | Assemble le tout et déclare les branches nommées |
+
+Pour un arbre plus grand ou plus petit, ajustez les `budget` des graines dans
+`core-family.ts` : c'est le seul réglage. Le générateur étant semé par une
+valeur fixe, le même arbre est reconstruit à chaque chargement.
+
+Pour partir de vos propres données, remplacez le contenu de `data/index.ts` par
+votre liste de `PersonRecord` : rien d'autre ne change.
+
+---
+
+## Architecture
+
+```
+src/
+  data/         Données familiales et schéma — aucune dépendance à l'interface
+  domain/       Graphe, placement, parenté, recherche, dates — sans React
+  view/         Navigation, index spatial, rendu des liens, mesures
+  hooks/        Assemblage des données, thème, media queries
+  components/   Interface
+  styles/       Jetons de design et feuilles par zone
+```
+
+`domain/` et `view/` ne dépendent d'aucun composant : le placement de l'arbre
+et le calcul des parentés sont testables et réutilisables tels quels.
+
+### Tenir la charge
+
+Un arbre de 647 personnes occupe environ 57 000 × 2 000 pixels. Rien n'est
+dimensionné en fonction du nombre total de personnes :
+
+- **Cartes virtualisées** — seules les cartes réellement dans le cadre sont
+  montées, une trentaine à l'écran contre 647 au total. Un index spatial en
+  grille donne la liste des personnes visibles en temps constant.
+- **Liens sur un canvas unique** — un élément par lien coûterait des milliers de
+  nœuds DOM. Ils sont tracés en trois passes groupées par style, et seuls les
+  liens visibles sont parcourus.
+- **Transformation hors de React** — le déplacement et le zoom écrivent
+  directement dans le DOM ; l'état React n'est mis à jour que lorsque l'ensemble
+  des cartes visibles change réellement.
+- **Survol hors de React** — la personne survolée transite par un petit store
+  externe, pour ne repeindre que la couche de liens.
+- **Niveaux de détail** — sous 0,52 la carte se réduit au prénom ; sous 0,24 les
+  cartes disparaissent au profit de points tracés sur le canvas, ce qui plafonne
+  le coût quel que soit le niveau de dézoom.
+- **Le décor est une couche isolée** — tant qu'il vivait sous l'élément
+  transformé, le navigateur repeignait tout le fond à chaque image, ce qui
+  coûtait près de la moitié du budget d'affichage.
+
+### Placement
+
+Les générations sont calculées en propageant deux règles jusqu'à stabilisation :
+un enfant se place sous ses parents, et deux conjoints partagent la même ligne.
+
+Le placement horizontal est un parcours en deux temps, en O(n) : mesure des
+largeurs de bas en haut, puis attribution des positions de haut en bas. Le bloc
+d'un couple et le groupe de ses enfants étant centrés sur le même axe, un couple
+se retrouve naturellement au-dessus de sa descendance, sans passe de correction.
+
+Chaque personne n'apparaît qu'une fois. Un conjoint venu de l'extérieur se place
+à côté de son époux ou de son épouse ; un conjoint né dans l'arbre garde sa
+place dans sa propre lignée, et l'union devient alors un **lien croisé**, tracé
+en courbe pointillée — c'est le cas du mariage de Marcel Beaumont et Germaine
+Ferrand, qui unit les deux lignées fondatrices. Un arbre sur papier procède de
+la même façon : on ne peut pas dessiner quelqu'un à deux endroits.
+
+---
+
+## Accessibilité
+
+Chaque carte est un bouton, atteignable au clavier, annoncé avec son nom, ses
+dates et sa profession. La zone de navigation se pilote entièrement au clavier.
+Les listes de résultats suivent le motif `combobox` / `listbox`, avec navigation
+aux flèches. Le contraste des textes reste au-dessus des seuils AA dans les deux
+thèmes, et `prefers-reduced-motion` désactive les animations.
+
+---
+
+## Portraits
+
+Sans champ `photo`, un portrait est généré à partir de l'identifiant de la
+personne : dégradé stable dans le temps, initiales lisibles, teintes volontairement
+sourdes pour qu'une centaine de portraits côte à côte forment un ensemble et non
+un nuancier. Renseigner `photo` (URL ou chemin) le remplace ; en cas d'échec de
+chargement, le portrait généré reprend la main.
