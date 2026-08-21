@@ -251,8 +251,8 @@ export default function App() {
   // réellement reliée à sa parenté.
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    (window as unknown as Record<string, unknown>).__arbre = { graph, layout };
-  }, [graph, layout]);
+    (window as unknown as Record<string, unknown>).__arbre = { graph, layout, viewport };
+  }, [graph, layout, viewport]);
 
   const selectedPerson = selectedId ? (graph.people.get(selectedId) ?? null) : null;
 

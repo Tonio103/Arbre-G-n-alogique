@@ -209,7 +209,7 @@ export function SearchField({ graph, index, onPick, total, anchorId }: SearchFie
         )}
       </div>
 
-      {(open || filtering) && (
+      {open && (
         <div className="search-results lg lg--thick lg--liquid" role="presentation">
           {/*
             * Les filtres.

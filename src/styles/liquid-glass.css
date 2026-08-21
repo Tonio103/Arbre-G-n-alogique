@@ -261,13 +261,22 @@
  * Une plaque intérieure garde donc sa masse, sa lumière et son arête, et laisse
  * le flou à celle qui la porte. C'est aussi ce qui se passe dans le monde
  * physique : deux vitres accolées ne floutent pas deux fois.
+ *
+ * Mais « posé dans le DOM sous un autre .lg » n'est pas la même chose que
+ * « posé à plat sur sa surface ». Le panneau de résultats de recherche est un
+ * descendant de la barre supérieure pour des raisons de mise en page — il en
+ * hérite le positionnement — alors qu'à l'écran il plane au-dessus de toute la
+ * scène, détaché de la barre. Lui couper le flou le rendait sourd derrière lui :
+ * un aplat de couleur qui laisse deviner l'arbre en clair au lieu de l'effacer
+ * en douceur. `:not()` l'excepte de la règle générale ; ses propres enfants
+ * (les pastilles de filtre), eux, restent bien à plat sur SA surface à lui.
  */
-.lg .lg {
+.lg .lg:not(.search-results) {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-.lg .lg::before {
+.lg .lg:not(.search-results)::before {
   display: none;
 }
 
@@ -339,13 +348,30 @@
   --lg-glare: rgba(255, 255, 255, 0.2);
 }
 
-/* Verre dense : pour ce qui porte du texte long et doit rester lisible quoi
-   qu'il y ait derrière. */
+/*
+ * Verre dense : pour ce qui porte du texte long et doit rester lisible quoi
+ * qu'il y ait derrière.
+ *
+ * Un flou de quarante-six pixels à deux fois la saturation, posé sur une scène
+ * chargée — ramure, feuillage, étiquettes — ne donne pas un verre dépoli : il
+ * donne une purée de couleurs, avec parfois assez de forme qui survit au flou
+ * pour qu'on lise un fantôme de texte à travers le panneau. Un matériau
+ * « épais », chez Apple, tient sa lisibilité par l'opacité de son fond, pas par
+ * la seule texture ; le flou n'y est qu'un indice de profondeur. Moins de flou,
+ * moins de saturation, et un fond nettement plus couvrant.
+ */
 .lg--thick {
-  --lg-blur: 46px;
-  --lg-tint-alpha: 0.4;
-  --lg-tint-alpha-edge: 0.54;
-  --lg-saturate: 215%;
+  --lg-blur: 30px;
+  --lg-tint-alpha: 0.62;
+  --lg-tint-alpha-edge: 0.74;
+  --lg-saturate: 150%;
+}
+
+/* Sur fond sombre, une texture qui laisse passer la lumière tourne au brouillard
+   sale plutôt qu'au verre fumé : il faut nettement plus de matière. */
+:root[data-theme='dark'] .lg--thick {
+  --lg-tint-alpha: 0.74;
+  --lg-tint-alpha-edge: 0.84;
 }
 
 /* Petites surfaces : l'arête occupe proportionnellement plus de place, et la

@@ -297,6 +297,16 @@ function traceSprigs(
   seed: string,
   spine: number[],
   breeze: number,
+  /**
+   * Reçoit la pointe de chaque brindille tracée.
+   *
+   * Une brindille sans rien à son extrémité se lit comme un bâton cassé posé
+   * contre la branche — exactement ce qu'elle n'est pas censée être. Un
+   * bourgeon à la pointe suffit à la faire lire comme une pousse vivante ; il
+   * est peint à part, dans la couleur du feuillage, donc collecté ici plutôt
+   * que tracé sur-le-champ.
+   */
+  buds: Array<{ x: number; y: number; size: number; seed: string }>,
 ): void {
   const samples = spine.length / SPINE_STRIDE;
   if (samples < 4) return;
@@ -342,6 +352,10 @@ function traceSprigs(
         length * 0.16 * side,
       ),
     );
+
+    // Le bourgeon suit la taille de sa brindille : minuscule sur un gourmand
+    // fin, un peu plus fourni sur une pousse qui sort du fût.
+    buds.push({ x: tipX, y: tipY, size: Math.min(24, Math.max(5, half * 0.5)), seed: `${seed}!b${k}` });
   }
 }
 
@@ -548,19 +562,36 @@ function traceTrunk(
   // Fût, du sol jusqu'à la naissance des premières branches.
   //
   // Il part d'un empattement, sous la ligne de terre : un tronc qui sort du sol
-  // à section constante a l'air planté là comme un poteau, alors qu'un arbre
-  // s'évase en arrivant au sol, là où les racines se rassemblent. Le fût
-  // commence donc plus bas et plus large que sa section courante.
-  const flare = width * 1.34;
+  // à section constante a l'air planté là comme un poteau. Mais l'évasement ne
+  // doit durer qu'un instant. Étalé sur toute la hauteur du fût en un seul
+  // segment, il donnait une bouteille — large presque jusqu'en haut, puis une
+  // striction brusque à la coupe de l'écran. Un vrai empattement se referme
+  // vite : deux segments raccordés à la même épaisseur, un court et large sous
+  // le sol, un long et régulier au-dessus.
+  const flare = width * 1.2;
+  const collarWidth = width * 0.78;
+  const collarTop = groundY - ROW_HEIGHT * 0.24;
   traceBranch(
     ctx,
     trunk.x,
     groundY + ROW_HEIGHT * 0.16,
     trunk.x,
-    trunk.topY,
+    collarTop,
     flare,
+    collarWidth,
+    10,
+    width * 0.08,
+    shading,
+  );
+  traceBranch(
+    ctx,
+    trunk.x,
+    collarTop,
+    trunk.x,
+    trunk.topY,
+    collarWidth,
     width * 0.52,
-    20,
+    18,
     width * 0.1,
     shading,
   );
@@ -569,35 +600,68 @@ function traceTrunk(
   //
   // Elles divergent sous le sol en s'affinant, ce qui ancre l'arbre au lieu de
   // le laisser posé sur une pointe. Elles étaient bien trop maigres pour ce
-  // qu'elles portent : un fût de trois cents unités tenait sur des filaments de
-  // quarante. Une racine maîtresse fait la moitié du tronc, et elle va loin.
-  const rootCount = 9;
+  // qu'elles portent — corrigé — mais aussi parfaitement droites, toutes issues
+  // du même point : un éventail de rayons, ce qu'aucune racine n'a jamais été.
+  //
+  // Deux changements. Le départ de chacune est décalé le long de l'empattement,
+  // pas planté au centre exact : neuf racines nées du même pixel dessinent une
+  // étoile. Et chacune se coude une fois à mi-parcours — deux segments raccordés
+  // à la même épaisseur, exactement comme une branche qui se prolonge — car un
+  // seul arc de Bézier, aussi ample soit-il, se lit encore comme un rayon à
+  // peine incurvé.
+  const rootCount = 7;
   for (let i = 0; i < rootCount; i += 1) {
     const t = i / (rootCount - 1);
     const spread = (t - 0.5) * 2;
-    const wobble = jitter('root', i, 0.24);
+    const wobble = jitter('root', i, 0.28);
     const reach = width * (2.1 + Math.abs(spread) * 1.9) * (1 + wobble * 0.5);
-    const rootWidth = width * (0.66 - Math.abs(spread) * 0.24);
+    const rootWidth = width * (0.62 - Math.abs(spread) * 0.2);
+
+    const startX = trunk.x + jitter('root-start', i, width * 0.2);
+    const startY = groundY + ROW_HEIGHT * 0.1;
+    const dx = (spread + wobble * 0.4) * reach;
+    const dy = ROW_HEIGHT * (0.5 + Math.abs(spread) * 0.4);
+
+    const bendT = 0.4 + hashN('root-bend', i) * 0.24;
+    const midX = startX + dx * bendT + jitter('root-mid', i, Math.abs(dx) * 0.2);
+    const midY = startY + dy * bendT * 0.72;
+    const midWidth = Math.max(2.6, rootWidth * 0.52);
+    const tipWidth = Math.max(1.4, rootWidth * 0.1);
+
     traceBranch(
       ctx,
-      trunk.x,
-      groundY + ROW_HEIGHT * 0.1,
-      trunk.x + (spread + wobble * 0.4) * reach,
-      trunk.baseY + ROW_HEIGHT * (0.1 + Math.abs(spread) * 0.4),
+      startX,
+      startY,
+      midX,
+      midY,
       Math.max(3, rootWidth),
-      Math.max(1.5, rootWidth * 0.08),
-      8,
-      jitter('root-sway', i, width * 0.6),
+      midWidth,
+      6,
+      jitter('root-sway-a', i, Math.abs(dx) * 0.14),
+      shading,
+    );
+    traceBranch(
+      ctx,
+      midX,
+      midY,
+      startX + dx,
+      startY + dy,
+      midWidth,
+      tipWidth,
+      6,
+      jitter('root-sway-b', i, Math.abs(dx) * 0.12),
       shading,
     );
   }
 
-  // Radicelles : le même geste, en plus fin et plus profond. Ce sont elles qui
-  // font qu'on lit un enracinement plutôt qu'un trépied.
-  for (let i = 0; i < rootCount + 4; i += 1) {
+  // Radicelles : le même geste, en plus fin, plus profond et bien moins
+  // nombreux — ce sont elles qui font lire un enracinement plutôt qu'un
+  // trépied, mais un buisson de vingt traits fait l'inverse : du bruit.
+  const radicelleCount = 6;
+  for (let i = 0; i < radicelleCount; i += 1) {
     const roll = hashN('radicelle', i);
     const spread = (hashN('radicelle-x', i) - 0.5) * 2;
-    const start = width * spread * 0.9;
+    const start = width * spread * 0.85;
     traceBranch(
       ctx,
       trunk.x + start,
@@ -607,7 +671,7 @@ function traceTrunk(
       Math.max(2, width * (0.1 + roll * 0.1)),
       1.2,
       6,
-      jitter('radicelle-s', i, width * 0.4),
+      jitter('radicelle-s', i, width * 0.55),
       shading,
     );
   }
@@ -652,6 +716,7 @@ function traceTrunkSprigs(
   trunk: TrunkLayout,
   floor: number,
   breeze: number,
+  buds: Array<{ x: number; y: number; size: number; seed: string }>,
 ): void {
   if (trunk.roots.length === 0) return;
   const width = trunk.width;
@@ -662,6 +727,7 @@ function traceTrunkSprigs(
     'fut',
     sampleBranch(trunk.x, groundY, trunk.x, trunk.topY, width * 1.34, width * 0.52, 20, width * 0.1),
     breeze,
+    buds,
   );
 
   let total = 0;
@@ -687,6 +753,7 @@ function traceTrunkSprigs(
         (root.x - trunk.x) * 0.3 + jitter('founder', i, w * 4),
       ),
       breeze,
+      buds,
     );
   }
 }
@@ -1076,11 +1143,13 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   // paraissent qu'au-delà d'une certaine épaisseur à l'écran : plus fines que
   // le pixel, elles ne feraient qu'un duvet sale sur la silhouette.
   if (params.detailed && !hasSelection && boneOnScreen > 9) {
+    const buds: Array<{ x: number; y: number; size: number; seed: string }> = [];
+
     ctx.beginPath();
-    traceTrunkSprigs(ctx, params.trunk, floor, params.time);
+    traceTrunkSprigs(ctx, params.trunk, floor, params.time, buds);
     for (const union of normal) {
       traceUnion(ctx, union, weights, segments, floor, params.time, undefined, 0, (spine, seed) =>
-        traceSprigs(ctx, seed, spine, params.time),
+        traceSprigs(ctx, seed, spine, params.time, buds),
       );
     }
     ctx.fillStyle = wood;
@@ -1092,6 +1161,23 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.fillStyle = palette.woodLight;
     ctx.fill();
     ctx.globalAlpha = 1;
+
+    // Un bourgeon à chaque pointe.
+    //
+    // Sans lui, une brindille est un trait qui s'arrête dans le vide — et un
+    // trait qui s'arrête dans le vide se lit comme cassé, pas comme vivant.
+    // Peint à part, en couleur de feuillage : superposé au bois dans le même
+    // remplissage, il en aurait pris la teinte.
+    if (buds.length) {
+      ctx.beginPath();
+      for (const bud of buds) {
+        traceLeafCrown(ctx, bud.seed, bud.x, bud.y, bud.size * 0.4, bud.size, 3);
+      }
+      ctx.fillStyle = palette.leafAlt;
+      ctx.globalAlpha = 0.85;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
 
   // Passe 3 : l'écorce du fût. Seulement quand elle est assez large à l'écran
