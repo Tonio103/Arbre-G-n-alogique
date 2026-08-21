@@ -27,9 +27,96 @@
       content="Arbre généalogique interactif : parcourez plusieurs générations, recherchez une personne, explorez les branches familiales."
     />
     <title>Arbre généalogique</title>
+
+    <!-- Mise en forme du seul contenu de secours : le reste vient du bundle. -->
+    <style>
+      html {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        background: #eef1f7;
+        color: #1a2440;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      .boot {
+        max-width: 520px;
+        margin: 12vh auto;
+        padding: 0 24px;
+        line-height: 1.6;
+      }
+      .boot h1 {
+        margin: 0 0 18px;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+      .boot p {
+        margin: 0 0 14px;
+        color: #43506e;
+      }
+      .boot pre {
+        margin: 0 0 18px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(20, 34, 62, 0.06);
+        font-size: 13px;
+        line-height: 1.9;
+        overflow-x: auto;
+      }
+      .boot pre span {
+        color: #7c88a6;
+      }
+      .boot-note {
+        font-size: 13.5px;
+        color: #6a7794;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0b1020;
+          color: #e8eefc;
+        }
+        .boot p {
+          color: #a9b6d4;
+        }
+        .boot pre {
+          background: rgba(255, 255, 255, 0.07);
+        }
+        .boot pre span,
+        .boot-note {
+          color: #8a97b8;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Le contenu de secours.
+
+      Ce fichier est la source, pas le site : il charge un module TypeScript que
+      seul l'outil de construction sait transformer. Ouvert directement — par
+      double-clic, ou servi tel quel par un hébergeur — le module ne s'exécute
+      pas et la page reste vide. Un écran noir n'apprend rien à personne ; ces
+      quelques lignes, si. React les remplace par l'arbre dès qu'il démarre,
+      elles ne se voient donc jamais quand tout va bien.
+    -->
+    <div id="root">
+      <div class="boot">
+        <h1>Arbre généalogique</h1>
+        <p>
+          L'arbre ne s'est pas chargé. Cette page est le <strong>fichier source</strong> :
+          elle doit être construite avant d'être servie.
+        </p>
+        <pre>npm install
+npm run dev      <span>puis ouvrir http://localhost:5173</span></pre>
+        <p>Pour publier une version en ligne :</p>
+        <pre>npm run build    <span>produit le dossier dist/</span>
+npm run preview  <span>sert ce dossier</span></pre>
+        <p class="boot-note">
+          Sur GitHub&nbsp;: <em>Settings → Pages → Source : GitHub&nbsp;Actions</em>.
+          La publication est automatique à chaque envoi.
+        </p>
+      </div>
+    </div>
     <noscript>Cette application nécessite JavaScript pour afficher l'arbre généalogique.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

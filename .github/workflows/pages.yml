@@ -1,0 +1,69 @@
+# Construit l'arbre et le publie sur GitHub Pages.
+#
+# Sans cela, GitHub sert le dépôt tel quel : `index.html` y charge
+# `/src/main.tsx`, du TypeScript que le navigateur ne sait pas exécuter. La page
+# reste vide — un écran noir. Il faut passer par une construction.
+#
+# Une fois ce fichier sur la branche par défaut, il reste un réglage à faire une
+# seule fois dans le dépôt :
+#
+#   Settings → Pages → Build and deployment → Source : « GitHub Actions »
+#
+# L'adresse publiée s'affiche ensuite dans l'onglet Actions, à la fin du job
+# « deploy » — de la forme https://<compte>.github.io/<dépôt>/
+
+name: Publier sur GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - claude/family-tree-interactive-fowwm9
+  # Permet aussi de relancer la publication à la main depuis l'onglet Actions.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Une seule publication à la fois ; une nouvelle annule celle en cours.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` plutôt que `npm install` : il installe exactement ce que
+      # décrit package-lock.json, donc la publication ne peut pas différer de ce
+      # qui a été vérifié en local.
+      - run: npm ci
+
+      # Vérifie les types puis produit dist/ — voir le script « build ».
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

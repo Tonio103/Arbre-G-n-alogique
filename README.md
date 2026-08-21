@@ -29,6 +29,30 @@ npm run preview    # sert le résultat du build
 npm run typecheck  # types seuls
 ```
 
+## Publier en ligne
+
+**Ce dépôt n'est pas un site.** `index.html` charge `src/main.tsx`, du
+TypeScript qu'aucun navigateur ne sait exécuter : servi tel quel, il ne montre
+rien. Il faut le construire.
+
+Sur GitHub, c'est automatique — un seul réglage, une seule fois :
+
+> **Settings → Pages → Build and deployment → Source : GitHub Actions**
+
+À partir de là, chaque envoi déclenche `.github/workflows/pages.yml`, qui
+installe, vérifie les types, construit et publie. L'adresse s'affiche à la fin
+du job `deploy`, dans l'onglet **Actions** — de la forme
+`https://<compte>.github.io/<dépôt>/`.
+
+Le site fonctionne dans un sous-répertoire : `base: './'` dans
+`vite.config.ts` produit des chemins relatifs, ce qui est exactement ce dont
+GitHub Pages a besoin. Un hébergeur statique quelconque marche aussi — il suffit
+d'y déposer le contenu de `dist/`.
+
+Si l'adresse affiche un écran expliquant qu'il faut construire le projet, c'est
+que la page servie est la source : le réglage ci-dessus n'a pas encore été fait,
+ou la publication a échoué (voir l'onglet Actions).
+
 Aucune dépendance en dehors de React, TypeScript et Vite.
 
 ---
