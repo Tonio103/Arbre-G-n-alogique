@@ -562,36 +562,25 @@ function traceTrunk(
   // Fût, du sol jusqu'à la naissance des premières branches.
   //
   // Il part d'un empattement, sous la ligne de terre : un tronc qui sort du sol
-  // à section constante a l'air planté là comme un poteau. Mais l'évasement ne
-  // doit durer qu'un instant. Étalé sur toute la hauteur du fût en un seul
-  // segment, il donnait une bouteille — large presque jusqu'en haut, puis une
-  // striction brusque à la coupe de l'écran. Un vrai empattement se referme
-  // vite : deux segments raccordés à la même épaisseur, un court et large sous
-  // le sol, un long et régulier au-dessus.
+  // à section constante a l'air planté là comme un poteau. Mais deux segments
+  // raccordés à une épaisseur commune, essayés d'abord pour refermer
+  // l'évasement vite, donnaient pire : l'amincissement de `sampleBranch` suit
+  // une courbe en S, plate à ses deux bouts. Recoller un second segment juste
+  // après le premier, c'est recoller deux plats bout à bout — la largeur ne
+  // bouge presque plus sur toute la jonction, exactement le plateau qui fait
+  // lire une bouteille plutôt qu'un fût. Un seul segment, du sol jusqu'à la
+  // fourche, laisse cette même courbe faire son travail une seule fois :
+  // large et stable près du sol, puis un rétrécissement continu.
   const flare = width * 1.2;
-  const collarWidth = width * 0.78;
-  const collarTop = groundY - ROW_HEIGHT * 0.24;
   traceBranch(
     ctx,
     trunk.x,
     groundY + ROW_HEIGHT * 0.16,
     trunk.x,
-    collarTop,
-    flare,
-    collarWidth,
-    10,
-    width * 0.08,
-    shading,
-  );
-  traceBranch(
-    ctx,
-    trunk.x,
-    collarTop,
-    trunk.x,
     trunk.topY,
-    collarWidth,
+    flare,
     width * 0.52,
-    18,
+    22,
     width * 0.1,
     shading,
   );
