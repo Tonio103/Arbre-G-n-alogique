@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 
 export type Theme = 'dark' | 'light';
 
@@ -20,7 +20,15 @@ function initialTheme(): Theme {
 export function useTheme(): [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
-  useEffect(() => {
+  // Effet de disposition, et non effet ordinaire.
+  //
+  // La couche de canevas lit la palette de l'arbre dans les variables CSS au
+  // montage. Les effets ordinaires s'exécutent des enfants vers le parent :
+  // le canevas aurait donc lu ses couleurs avant que le thème soit posé sur
+  // <html>, et l'arbre serait resté peint aux teintes du thème sombre au
+  // milieu d'une interface claire. Les effets de disposition, eux, passent
+  // tous avant.
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);

@@ -185,6 +185,23 @@ export function DetailPanel({
           </Section>
         )}
 
+        {/*
+          * D'où vient cette personne ?
+          *
+          * Un arbre généalogique ne montre qu'une famille : les conjoints y
+          * entrent par le mariage, sans ascendance. Rien ne le disait, et une
+          * personne sans parents visibles avait l'air d'être tombée là. Deux
+          * lignes suffisent à lever l'ambiguïté — et à distinguer celui qui a
+          * épousé la famille de ceux par qui elle commence.
+          */}
+        {person.parents.length === 0 && (
+          <p className="detail-origin">
+            {person.generation === 0
+              ? 'Souche de la lignée : aucun ascendant connu dans cet arbre.'
+              : "Entré·e dans la famille par alliance : ses parents ne figurent pas dans cet arbre."}
+          </p>
+        )}
+
         {(person.parents.length > 0 ||
           spouseIds.length > 0 ||
           person.children.length > 0 ||

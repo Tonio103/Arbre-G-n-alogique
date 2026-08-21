@@ -1,5 +1,14 @@
 <!doctype html>
-<html lang="fr">
+<!--
+  Le thème par défaut est posé ici, pas au premier rendu de React.
+
+  Toute la palette de l'arbre est lue dans les variables CSS de <html> : si
+  l'attribut n'existe pas encore au moment où le canevas se peint, le décor
+  emprunte les couleurs du thème sombre pendant que l'interface, elle, est déjà
+  claire. Le choix mémorisé de l'utilisateur écrase cette valeur avant la
+  première image.
+-->
+<html lang="fr" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta

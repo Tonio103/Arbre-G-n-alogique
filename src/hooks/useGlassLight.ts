@@ -18,11 +18,30 @@ import { useEffect } from 'react';
  * qui les fait appartenir au même espace éclairé, plutôt que d'être des
  * panneaux décorés chacun de leur côté.
  */
+
+/** Délai sans geste au bout duquel la lumière reprend sa route toute seule. */
+const IDLE_DELAY = 2600;
+
+/**
+ * Cadence de la dérive au repos.
+ *
+ * Chaque écriture des variables invalide le style de toutes les surfaces de
+ * verre — et une surface de verre qu'on invalide, c'est un flou d'arrière-plan
+ * à refaire. C'est l'opération la plus chère de toute l'interface, et elle ne
+ * sert ici qu'à déplacer un reflet de quelques dixièmes de pourcent.
+ *
+ * Quatre fois par seconde. À la vitesse où cette lumière se promène — un tour
+ * complet en plus d'une minute — c'est indiscernable d'un mouvement continu,
+ * et c'est quinze fois moins de flous recalculés.
+ */
+const IDLE_FRAME = 250;
+
 export function useGlassLight(): void {
   useEffect(() => {
     // Sans pointeur fin, il n'y a rien à suivre : la lumière garde sa valeur
     // de repos plutôt que de sauter au gré des contacts tactiles.
     if (!window.matchMedia('(pointer: fine)').matches) return undefined;
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const root = document.documentElement;
     let frame = 0;
@@ -31,29 +50,60 @@ export function useGlassLight(): void {
     let currentX = 0.5;
     let currentY = 0.28;
 
-    const apply = (): void => {
-      frame = 0;
+    // Dérive au repos.
+    //
+    // Le reflet suit le pointeur ; quand celui-ci s'immobilise, tout le verre
+    // se fige avec lui et redevient un décor peint. Une source réelle, elle, ne
+    // s'arrête jamais tout à fait : un nuage passe, le jour tourne. Après
+    // quelques secondes sans geste, la lumière repart donc d'elle-même sur une
+    // trajectoire lente dont les deux périodes sont incommensurables — elle ne
+    // repasse jamais exactement au même endroit, et rien ne s'y lit comme une
+    // boucle.
+    let idleSince = performance.now();
+    let lastDrift = 0;
 
-      // Poursuite amortie : le reflet suit le pointeur avec un retard, comme le
-      // ferait une source lumineuse réelle sur une surface qu'on incline. Sans
-      // cet amortissement, le reflet colle au curseur et paraît accroché à lui.
-      currentX += (targetX - currentX) * 0.12;
-      currentY += (targetY - currentY) * 0.12;
-
+    const write = (): void => {
       // L'angle du dégradé conique se déduit de la position : le point le plus
       // clair de l'arête est celui qui fait face à la lumière.
       const angle = Math.round(
         (Math.atan2(currentY - 0.5, currentX - 0.5) * 180) / Math.PI + 270,
       );
-
       root.style.setProperty('--lg-light', `${angle}deg`);
       root.style.setProperty('--lg-glare-x', `${(currentX * 100).toFixed(1)}%`);
       root.style.setProperty('--lg-glare-y', `${(currentY * 100).toFixed(1)}%`);
+    };
 
-      // Tant que le reflet n'a pas rejoint sa cible, on continue de l'animer.
-      if (Math.abs(targetX - currentX) > 0.002 || Math.abs(targetY - currentY) > 0.002) {
-        frame = requestAnimationFrame(apply);
+    const apply = (now: number): void => {
+      frame = requestAnimationFrame(apply);
+
+      const idle = now - idleSince > IDLE_DELAY;
+      const settled =
+        Math.abs(targetX - currentX) < 0.002 && Math.abs(targetY - currentY) < 0.002;
+
+      if (idle) {
+        if (calm) return;
+        // À l'arrêt, on ne travaille qu'une image sur quinze.
+        if (now - lastDrift < IDLE_FRAME) return;
+        lastDrift = now;
+        const t = now / 1000;
+        targetX = 0.5 + Math.sin(t * 0.083) * 0.3;
+        targetY = 0.32 + Math.sin(t * 0.061 + 1.7) * 0.19;
+      } else if (settled) {
+        // Le pointeur vient de bouger mais le reflet l'a déjà rejoint : rien à
+        // écrire, et surtout rien à invalider.
+        return;
       }
+
+      // Poursuite amortie : le reflet suit sa cible avec un retard, comme le
+      // ferait une source lumineuse réelle sur une surface qu'on incline. Sans
+      // cet amortissement, le reflet colle au curseur et paraît accroché à lui.
+      // Le suivi du pointeur est vif, la dérive au repos très molle — c'est
+      // cette mollesse qui la fait passer pour une lumière du jour plutôt que
+      // pour un point qui se déplace.
+      const pull = idle ? 0.24 : 0.12;
+      currentX += (targetX - currentX) * pull;
+      currentY += (targetY - currentY) * pull;
+      write();
     };
 
     const onPointerMove = (event: PointerEvent): void => {
@@ -65,10 +115,12 @@ export function useGlassLight(): void {
 
       targetX = event.clientX / window.innerWidth;
       targetY = event.clientY / window.innerHeight;
-      if (!frame) frame = requestAnimationFrame(apply);
+      idleSince = performance.now();
     };
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
+    frame = requestAnimationFrame(apply);
+
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       if (frame) cancelAnimationFrame(frame);

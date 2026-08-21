@@ -27,12 +27,22 @@
   transition: opacity var(--dur-slow) var(--ease-out);
 }
 
+/*
+ * Le ciel du thème clair.
+ *
+ * Ce n'était pas un ciel mais un fond d'application : un blanc bleuté, uniforme
+ * à peu de chose près. Rien n'y tenait — un nuage blanc y disparaissait, le
+ * feuillage n'y avait pas de fond, et la scène restait un schéma posé sur une
+ * page. Un vrai dégradé de ciel, franc en haut et pâle à l'horizon, avec la
+ * lumière chaude qui traîne au ras du sol, donne à tout le reste une raison
+ * d'être là — et au verre quelque chose à réfracter.
+ */
 :root[data-theme='light'] .backdrop {
   background:
-    radial-gradient(60% 50% at 20% 18%, rgba(120, 165, 255, 0.34), transparent 70%),
-    radial-gradient(52% 46% at 82% 28%, rgba(196, 158, 255, 0.28), transparent 72%),
-    radial-gradient(58% 52% at 58% 88%, rgba(120, 216, 216, 0.26), transparent 74%),
-    linear-gradient(168deg, var(--bg-mid), var(--bg-deep) 60%, var(--bg-mid));
+    radial-gradient(120% 74% at 50% 118%, rgba(255, 246, 226, 0.72), transparent 62%),
+    radial-gradient(68% 50% at 20% 10%, rgba(126, 172, 244, 0.4), transparent 72%),
+    radial-gradient(58% 44% at 82% 20%, rgba(170, 186, 252, 0.34), transparent 74%),
+    linear-gradient(180deg, #b9d2f1 0%, #d7e5f7 44%, #edf1f6 100%);
 }
 
 /*

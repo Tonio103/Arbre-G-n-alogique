@@ -29,7 +29,8 @@ function readPalette(): TreePalette {
     styles.getPropertyValue(name).trim() || fallback;
   return {
     ground: read('--ground', 'rgba(126, 142, 112, 0.16)'),
-    soil: read('--soil', 'rgba(146, 126, 96, 0.5)'),
+    soil: read('--soil', 'rgba(126, 100, 70, 0.7)'),
+    soilDeep: read('--soil-deep', 'rgba(96, 74, 52, 0.42)'),
     groundShade: read('--ground-shade', 'rgba(60, 66, 52, 0.16)'),
     stone: read('--stone', 'rgba(196, 194, 188, 0.85)'),
     stoneShade: read('--stone-shade', 'rgba(126, 124, 118, 0.8)'),
@@ -37,6 +38,14 @@ function readPalette(): TreePalette {
     grassAlt: read('--grass-alt', 'rgba(82, 122, 76, 0.7)'),
     bloom: read('--bloom', 'rgba(240, 196, 120, 0.95)'),
     bloomAlt: read('--bloom-alt', 'rgba(216, 152, 190, 0.9)'),
+    bloomHeart: read('--bloom-heart', 'rgba(246, 190, 78, 0.95)'),
+    sunDapple: read('--sun-dapple', 'rgba(255, 246, 214, 0.5)'),
+    mote: read('--mote', 'rgba(228, 196, 132, 0.62)'),
+    petal: read('--petal', 'rgba(232, 158, 186, 0.6)'),
+    petalAlt: read('--petal-alt', 'rgba(224, 196, 132, 0.55)'),
+    bird: read('--bird', 'rgba(52, 64, 88, 0.3)'),
+    cloud: read('--cloud', 'rgba(255, 255, 255, 0.92)'),
+    cloudShade: read('--cloud-shade', 'rgba(178, 196, 232, 0.5)'),
     trunk: read('--wood-trunk', 'rgba(94,72,52,0.85)'),
     twig: read('--wood-twig', 'rgba(150,124,92,0.7)'),
     bark: read('--wood-bark', 'rgba(62,46,32,0.22)'),
@@ -135,8 +144,12 @@ export function BranchLayer({
       breezeFrame = requestAnimationFrame(animateBreeze);
     };
 
+    // Une scène qui bouge sans qu'on l'ait demandé n'est pas un agrément pour
+    // tout le monde : le réglage système fait foi, et la brise s'arrête net.
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     const startBreeze = (): void => {
-      if (breezeFrame) return;
+      if (breezeFrame || calm) return;
       lastTick = 0;
       breezeFrame = requestAnimationFrame(animateBreeze);
     };

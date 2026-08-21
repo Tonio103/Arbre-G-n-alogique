@@ -41,6 +41,21 @@
   line-height: 1.2;
 }
 
+/*
+ * Note d'origine : ce qui explique une personne sans ascendance. Traitée comme
+ * une remarque et non comme un fait d'état civil — elle ne dit rien de la
+ * personne, seulement de la place qu'elle occupe dans cet arbre.
+ */
+.detail-origin {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .detail-birthname,
 .detail-summary,
 .detail-headline {

@@ -51,13 +51,23 @@
   --node-deceased-ring: rgba(255, 255, 255, 0.16);
 
   --ground: rgba(96, 122, 104, 0.26);
-  --soil: rgba(92, 76, 56, 0.55);
+  --soil: rgba(64, 54, 40, 0.82);
+  --soil-deep: rgba(10, 14, 24, 0.72);
   --stone: rgba(146, 150, 152, 0.7);
   --stone-shade: rgba(84, 88, 92, 0.75);
   --grass: rgba(112, 158, 104, 0.75);
   --grass-alt: rgba(78, 116, 78, 0.6);
   --bloom: rgba(236, 198, 128, 0.85);
   --bloom-alt: rgba(214, 156, 190, 0.8);
+  --bloom-heart: rgba(255, 232, 168, 0.9);
+  /* Vie : lumière filtrée, poussière en suspension, pétales, oiseaux */
+  --sun-dapple: rgba(150, 186, 246, 0.08);
+  --mote: rgba(255, 232, 176, 0.7);
+  --petal: rgba(232, 172, 198, 0.55);
+  --petal-alt: rgba(214, 196, 148, 0.5);
+  --bird: rgba(214, 228, 255, 0.38);
+  --cloud: rgba(168, 190, 240, 0.13);
+  --cloud-shade: rgba(58, 76, 124, 0.3);
   --ground-shade: rgba(0, 0, 0, 0.3);
   --wood-bark: rgba(38, 28, 18, 0.3);
   --wood-light: rgba(255, 232, 198, 0.22);
@@ -137,13 +147,22 @@
   --node-deceased-ring: rgba(20, 34, 62, 0.12);
 
   --ground: rgba(122, 146, 116, 0.3);
-  --soil: rgba(150, 126, 94, 0.55);
+  --soil: rgba(126, 100, 70, 0.7);
+  --soil-deep: rgba(96, 74, 52, 0.42);
   --stone: rgba(202, 200, 194, 0.85);
   --stone-shade: rgba(140, 138, 132, 0.75);
   --grass: rgba(108, 154, 92, 0.85);
   --grass-alt: rgba(80, 120, 74, 0.7);
   --bloom: rgba(242, 196, 112, 0.95);
   --bloom-alt: rgba(222, 148, 186, 0.9);
+  --bloom-heart: rgba(246, 190, 78, 0.95);
+  --sun-dapple: rgba(255, 246, 214, 0.5);
+  --mote: rgba(228, 196, 132, 0.62);
+  --petal: rgba(232, 158, 186, 0.6);
+  --petal-alt: rgba(224, 196, 132, 0.55);
+  --bird: rgba(46, 58, 84, 0.5);
+  --cloud: rgba(255, 255, 255, 0.92);
+  --cloud-shade: rgba(178, 196, 232, 0.5);
   --ground-shade: rgba(58, 66, 50, 0.18);
   --wood-bark: rgba(52, 38, 24, 0.22);
   --wood-light: rgba(255, 240, 214, 0.34);

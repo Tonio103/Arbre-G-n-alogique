@@ -103,6 +103,11 @@ export const PersonNode = memo(function PersonNode({
         <span className="node-tooltip lg lg--clear" aria-hidden="true">
           <span className="node-tooltip-name">{person.displayName}</span>
           {person.birthName && <span className="node-tooltip-line">née {person.maidenName}</span>}
+          {person.parents.length === 0 && (
+            <span className="node-tooltip-line">
+              {person.generation === 0 ? 'Souche de la lignée' : 'Entré·e par alliance'}
+            </span>
+          )}
           {lifespan && <span className="node-tooltip-line">{lifespan}</span>}
           {person.headline && <span className="node-tooltip-line">{person.headline}</span>}
           {person.birthPlace && <span className="node-tooltip-line">{person.birthPlace}</span>}
