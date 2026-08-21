@@ -184,9 +184,9 @@ export default function App() {
     // silhouette, son ampleur — avant de descendre dans une branche.
     viewport.set(transformForBounds(layout.bounds, stageSize, FIT_PADDING, 0.92));
 
-    // Puis la vue s'approche doucement du pied, d'où l'on remonte à la molette.
-    // Ce mouvement d'ouverture dit en une seconde ce que l'espace contient et
-    // comment il se parcourt.
+    // Puis la vue s'approche doucement du pied, d'où l'on plonge à la molette
+    // ou en glissant. Ce mouvement d'ouverture dit en une seconde ce que
+    // l'espace contient et comment il se parcourt.
     const { trunk } = layout;
     const main = trunk.roots.reduce(
       (best, root) => (root.weight > best.weight ? root : best),

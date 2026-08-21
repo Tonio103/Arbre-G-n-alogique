@@ -60,18 +60,19 @@ Aucune dépendance en dehors de React, TypeScript et Vite.
 ## Navigation
 
 L'application ouvre au **pied de l'arbre**, sur la souche de la lignée
-principale : on remonte ensuite les générations à la molette, comme on remonte
-un arbre du tronc vers la cime. Le zoom se fait avec la touche de commande
-enfoncée.
+principale : on plonge ensuite dans une branche à la molette, comme on
+zoomerait sur une carte, et on se déplace en glissant.
 
 | Geste / touche | Effet |
 | --- | --- |
-| Molette | Zoom avant et arrière, centré sur le pointeur |
+| Molette (souris) | Zoom avant et arrière, centré sur le pointeur |
 | Pavé tactile à deux doigts | Déplacement libre |
+| `Maj` + molette | Déplacement horizontal |
 | Glisser | Déplacement, avec inertie |
 | Pincement | Zoom tactile |
 | Double-clic | Zoom sur le point visé |
 | Flèches | Déplacement (`Maj` pour aller plus vite) |
+| `⌥` + flèches | Suivre la parenté depuis la personne ouverte |
 | `+` / `-` | Zoom |
 | `0` | Vue d'ensemble de l'arbre entier |
 | `H` | Retour à la personne principale |

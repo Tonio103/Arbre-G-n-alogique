@@ -268,24 +268,16 @@ export function TreeCanvas({
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
-      // La molette remonte l'arbre.
-      //
-      // On parcourt un arbre du pied vers la cime : le geste de lecture est
-      // vertical, comme dans une page. Réserver la molette au zoom obligerait à
-      // pincer ou à glisser pour changer de génération, alors que c'est le
-      // mouvement le plus courant. Le zoom reste accessible avec la touche de
-      // commande enfoncée, comme dans n'importe quel plan.
       const step = event.deltaMode === 1 ? event.deltaY * 18 : event.deltaY;
       const sideways = event.deltaMode === 1 ? event.deltaX * 18 : event.deltaX;
 
       // Molette crantée ou pavé tactile ?
       //
-      // Les deux passent par le même événement et demandent l'inverse. Une
-      // souris envoie un saut isolé de cent pixels qu'il faut glisser sous
-      // peine de secousse ; un pavé tactile envoie un flot de petits
-      // déplacements déjà continus, que le moindre lissage retarderait. Le
+      // Les deux passent par le même événement, et une souris physique n'a pas
+      // de quoi pincer. Une souris envoie un saut isolé, en gros crans ; un
+      // pavé tactile envoie un flot de petits déplacements déjà continus. Le
       // volume du cran les sépare — c'est le seul indice disponible, et il
-      // suffit.
+      // suffit à savoir lequel des deux appareils est en jeu.
       const notched = event.deltaMode === 1 || Math.abs(step) >= 42 || Math.abs(sideways) >= 42;
 
       if (event.ctrlKey || event.metaKey) {
@@ -305,8 +297,18 @@ export function TreeCanvas({
         return;
       }
 
+      // Souris ou pavé tactile : le geste qu'on attend d'eux n'est pas le même.
+      //
+      // Un pavé tactile pince pour zoomer et glisse à deux doigts pour
+      // déplacer la vue — c'est déjà le geste naturel, et le laisser faire
+      // continue de parcourir l'arbre comme on tourne les pages d'un plan.
+      // Une souris, elle, n'a que sa molette : sur un si grand plan, en faire
+      // un défilement plutôt qu'un zoom est le contraire de ce que chacun a
+      // appris de toutes les cartes et de toutes les visionneuses qu'il a
+      // ouvertes. Le cran de la molette suffit à distinguer les deux, sans
+      // qu'aucun des deux gestes n'ait besoin d'une touche supplémentaire.
       if (notched) {
-        viewport.panBySmooth(-sideways, -step);
+        viewport.zoomAtSmooth(x, y, Math.exp(-step * 0.0022));
         return;
       }
 
