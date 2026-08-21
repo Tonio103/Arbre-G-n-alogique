@@ -8,8 +8,9 @@ import {
   SIBLING_GAP,
   cardBottom,
   cardCenterX,
-  cardCenterY,
   cardTop,
+  portraitCenterY,
+  portraitTop,
 } from '@/view/metrics';
 
 export interface NodePosition {
@@ -435,8 +436,8 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
     // deux cartes, ou du haut de la carte pour un parent seul.
     const anchorY =
       partners.length > 1 && adjacent
-        ? cardCenterY(Math.min(...partners.map((p) => p.y)))
-        : cardTop(partners[0].y);
+        ? portraitCenterY(Math.min(...partners.map((p) => p.y)))
+        : portraitTop(partners[0].y);
 
     const layoutUnion: LayoutUnion = {
       id: union.id,

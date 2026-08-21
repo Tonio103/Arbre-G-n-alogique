@@ -37,6 +37,7 @@ function readPalette(): TreePalette {
     dim: read('--wood-dim', 'rgba(120,100,80,0.12)'),
     highlight: read('--link-highlight', '#2f6fdb'),
     cross: read('--link-cross', 'rgba(194,118,28,0.55)'),
+    marriage: read('--link-marriage', 'rgba(150,110,64,0.9)'),
     leaf: read('--leaf', '#7ba86f'),
     leafAlt: read('--leaf-alt', '#5f8f5c'),
     leafLit: read('--leaf-lit', '#a8d18c'),

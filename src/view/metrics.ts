@@ -41,3 +41,26 @@ export const cardCenterX = (x: number): number => x + CARD_WIDTH / 2;
 export const cardCenterY = (y: number): number => y + CARD_HEIGHT / 2;
 export const cardTop = (y: number): number => y;
 export const cardBottom = (y: number): number => y + CARD_HEIGHT;
+
+/*
+ * Points d'attache des branches.
+ *
+ * Un médaillon n'est pas plein : le portrait occupe sa partie haute, le nom est
+ * posé dessous. Accrocher les branches aux bords de la boîte les fait donc
+ * arriver sous le texte, à quarante-cinq unités du portrait — elles semblent
+ * ne toucher personne. Le lien doit rejoindre le portrait lui-même, qui est ce
+ * que l'œil identifie à la personne.
+ *
+ * Ces valeurs doublent celles de `node.css` (padding et taille de l'avatar) :
+ * les modifier d'un côté impose de les modifier de l'autre.
+ */
+export const PORTRAIT_TOP = 5;
+export const PORTRAIT_SIZE = 50;
+export const PORTRAIT_RADIUS = PORTRAIT_SIZE / 2;
+
+/** Haut du portrait : d'où part une branche qui monte vers la descendance. */
+export const portraitTop = (y: number): number => y + PORTRAIT_TOP;
+/** Bas du portrait : où arrive la branche venant des parents. */
+export const portraitBottom = (y: number): number => y + PORTRAIT_TOP + PORTRAIT_SIZE;
+/** Centre du portrait : hauteur du trait qui unit deux conjoints. */
+export const portraitCenterY = (y: number): number => y + PORTRAIT_TOP + PORTRAIT_RADIUS;

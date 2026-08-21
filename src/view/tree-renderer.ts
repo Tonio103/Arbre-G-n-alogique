@@ -8,11 +8,12 @@ import type {
 import {
   CARD_HEIGHT,
   CARD_WIDTH,
+  PORTRAIT_RADIUS,
   ROW_HEIGHT,
-  cardBottom,
   cardCenterX,
-  cardCenterY,
-  cardTop,
+  portraitBottom,
+  portraitCenterY,
+  portraitTop,
 } from './metrics';
 import { hashN, jitter, traceBark, traceLeafCluster } from './organic';
 import type { Transform } from './viewport';
@@ -39,6 +40,8 @@ export interface TreePalette {
   highlight: string;
   /** Mariage entre deux branches éloignées. */
   cross: string;
+  /** Lien d'alliance entre deux conjoints voisins. */
+  marriage: string;
   /** Feuillage : personnes sans descendance connue. */
   leaf: string;
   /** Feuilles d'ombre, au fond de la couronne. */
@@ -89,7 +92,8 @@ function thickness(descendants: number): number {
 }
 
 /** Hauteur de la fourche d'où partent les branches vers les enfants. */
-const forkOffset = (parentY: number): number => cardTop(parentY) - (ROW_HEIGHT - CARD_HEIGHT) * 0.46;
+const forkOffset = (parentY: number): number =>
+  portraitTop(parentY) - (ROW_HEIGHT - CARD_HEIGHT) * 0.46;
 
 /**
  * Trace une branche fuselée entre deux points, en polygone plutôt qu'en trait :
@@ -208,7 +212,6 @@ function traceUnion(
   union: LayoutUnion,
   weights: Map<string, number>,
   segments: number,
-  drawCouple: boolean,
   /** Épaissit la ramure quand on s'éloigne, sans quoi elle disparaîtrait. */
   boost: number,
   /** Bande de modelé, ou rien pour le corps plein de la branche. */
@@ -222,25 +225,15 @@ function traceUnion(
 
   const parentY = Math.min(...partners.map((p) => p.y));
 
-  if (drawCouple && !shading && partners.length > 1 && union.adjacent) {
-    const left = partners[0];
-    const right = partners[partners.length - 1];
-    const y = cardCenterY(left.y);
-    const half = 1.6 * boost;
-    ctx.moveTo(left.x + CARD_WIDTH, y - half);
-    ctx.lineTo(right.x, y - half);
-    ctx.lineTo(right.x, y + half);
-    ctx.lineTo(left.x + CARD_WIDTH, y + half);
-    ctx.closePath();
-  }
-
   if (children.length === 0) return;
 
   // La fourche se déplace un peu d'une famille à l'autre : alignées à la même
   // altitude, toutes les divisions dessineraient une ligne d'horizon artificielle.
   const forkY = forkOffset(parentY) + jitter(union.id, 1, ROW_HEIGHT * 0.06);
   const startY =
-    partners.length > 1 && union.adjacent ? cardCenterY(parentY) : cardTop(partners[0].y);
+    partners.length > 1 && union.adjacent
+      ? portraitCenterY(parentY)
+      : portraitTop(partners[0].y);
 
   let carried = 0;
   for (const child of children) carried += 1 + (weights.get(child.id) ?? 0);
@@ -274,7 +267,7 @@ function traceUnion(
       union.anchorX,
       forkY,
       cardCenterX(child.x),
-      cardBottom(child.y),
+      portraitBottom(child.y),
       width,
       width * 0.62,
       segments,
@@ -363,11 +356,60 @@ function traceTrunk(
   }
 }
 
+/**
+ * Les liens de mariage.
+ *
+ * Dessinés dans leur propre passe, après le bois. Tracés avec les branches, ils
+ * partageaient un chemin où le tronc de la descendance les recouvrait : un
+ * couple avec enfants ne montrait aucune alliance, alors qu'un couple sans
+ * descendance en montrait une. Or l'alliance est l'information la plus lue d'un
+ * arbre après la filiation, et elle ne peut pas dépendre d'un ordre de tracé.
+ *
+ * Ils se distinguent aussi du bois par leur couleur : une union n'est pas une
+ * branche, c'est un lien entre deux personnes.
+ */
+function drawMarriages(
+  ctx: CanvasRenderingContext2D,
+  unions: LayoutUnion[],
+  palette: TreePalette,
+  scale: number,
+  dimmed: boolean,
+): void {
+  const height = Math.max(1.6, 3.4 / Math.max(scale, 0.25));
+  let drawn = 0;
+
+  ctx.beginPath();
+  for (const union of unions) {
+    const { partners } = union;
+    if (partners.length < 2 || !union.adjacent) continue;
+
+    const left = partners[0];
+    const right = partners[partners.length - 1];
+    const y = portraitCenterY(left.y);
+    // D'un bord de portrait à l'autre : le lien relie les visages, pas les
+    // boîtes qui les contiennent.
+    const from = cardCenterX(left.x) + PORTRAIT_RADIUS - 1;
+    const to = cardCenterX(right.x) - PORTRAIT_RADIUS + 1;
+    if (to <= from) continue;
+
+    ctx.moveTo(from, y - height / 2);
+    ctx.lineTo(to, y - height / 2);
+    ctx.lineTo(to, y + height / 2);
+    ctx.lineTo(from, y + height / 2);
+    ctx.closePath();
+    drawn += 1;
+  }
+
+  if (drawn === 0) return;
+  ctx.fillStyle = dimmed ? palette.dim : palette.marriage;
+  ctx.fill();
+}
+
 function traceCross(ctx: CanvasRenderingContext2D, link: CrossLink): void {
   const ax = cardCenterX(link.a.x);
-  const ay = cardCenterY(link.a.y);
+  const ay = portraitCenterY(link.a.y);
   const bx = cardCenterX(link.b.x);
-  const by = cardCenterY(link.b.y);
+  const by = portraitCenterY(link.b.y);
   const dip = Math.min(220, Math.abs(bx - ax) * 0.14 + 60);
   ctx.moveTo(ax, ay);
   ctx.bezierCurveTo(ax + (bx - ax) * 0.25, ay - dip, ax + (bx - ax) * 0.75, by - dip, bx, by);
@@ -418,7 +460,7 @@ function drawFoliage(
       // génération étant à la même altitude, un feuillage posé à hauteur fixe
       // dessine des lignes horizontales qui trahissent les rangées du plan.
       const y =
-        cardTop(node.y) - size * 0.25 + offset + jitter(node.id, 41, ROW_HEIGHT * 0.16);
+        portraitTop(node.y) - size * 0.25 + offset + jitter(node.id, 41, ROW_HEIGHT * 0.16);
       traceLeafCluster(ctx, node.id, x, y, size, perCluster);
     }
     ctx.fillStyle = color;
@@ -544,7 +586,7 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   // Passe 1 : le pied et toute la ramure, en un seul remplissage.
   ctx.beginPath();
   traceTrunk(ctx, params.trunk, segments, boost);
-  for (const union of normal) traceUnion(ctx, union, weights, segments, showCouples, boost);
+  for (const union of normal) traceUnion(ctx, union, weights, segments, boost);
   ctx.fillStyle = hasSelection ? palette.dim : wood;
   ctx.fill();
 
@@ -564,7 +606,7 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
       ctx.beginPath();
       traceTrunk(ctx, params.trunk, segments, boost, band);
       for (const union of normal) {
-        traceUnion(ctx, union, weights, segments, showCouples, boost, band, minShaded);
+        traceUnion(ctx, union, weights, segments, boost, band, minShaded);
       }
       ctx.fillStyle = color;
       ctx.fill();
@@ -596,7 +638,12 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.fill();
   }
 
-  // Passe 4 : mariages entre branches éloignées, en fil léger.
+  // Passe 4 : les alliances, par-dessus le bois pour ne jamais être recouvertes.
+  if (showCouples) {
+    drawMarriages(ctx, params.unions, palette, scale, hasSelection);
+  }
+
+  // Passe 5 : mariages entre branches éloignées, en fil léger.
   if (params.crossLinks.length && scale > 0.12) {
     ctx.save();
     ctx.setLineDash([7 / Math.max(scale, 0.3), 8 / Math.max(scale, 0.3)]);
@@ -608,14 +655,14 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.restore();
   }
 
-  // Passe 5 : le feuillage, posé sur la ramure.
+  // Passe 6 : le feuillage, posé sur la ramure.
   if (params.nodes.length) drawFoliage(ctx, params, scale);
 
-  // Passe 6 : la lignée sélectionnée, par-dessus, avec un halo.
+  // Passe 7 : la lignée sélectionnée, par-dessus, avec un halo.
   if (accent.length) {
     ctx.save();
     ctx.beginPath();
-    for (const union of accent) traceUnion(ctx, union, weights, segments, showCouples, boost);
+    for (const union of accent) traceUnion(ctx, union, weights, segments, boost);
     ctx.shadowColor = palette.highlight;
     ctx.shadowBlur = 26 / Math.max(scale, 0.25);
     ctx.fillStyle = palette.highlight;
