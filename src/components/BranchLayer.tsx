@@ -27,7 +27,14 @@ function readPalette(): TreePalette {
     styles.getPropertyValue(name).trim() || fallback;
   return {
     ground: read('--ground', 'rgba(126, 142, 112, 0.16)'),
+    soil: read('--soil', 'rgba(146, 126, 96, 0.5)'),
     groundShade: read('--ground-shade', 'rgba(60, 66, 52, 0.16)'),
+    stone: read('--stone', 'rgba(196, 194, 188, 0.85)'),
+    stoneShade: read('--stone-shade', 'rgba(126, 124, 118, 0.8)'),
+    grass: read('--grass', 'rgba(108, 152, 92, 0.85)'),
+    grassAlt: read('--grass-alt', 'rgba(82, 122, 76, 0.7)'),
+    bloom: read('--bloom', 'rgba(240, 196, 120, 0.95)'),
+    bloomAlt: read('--bloom-alt', 'rgba(216, 152, 190, 0.9)'),
     trunk: read('--wood-trunk', 'rgba(94,72,52,0.85)'),
     twig: read('--wood-twig', 'rgba(150,124,92,0.7)'),
     bark: read('--wood-bark', 'rgba(62,46,32,0.22)'),
@@ -95,6 +102,46 @@ export function BranchLayer({
     let moving = false;
     let settleTimer = 0;
 
+    // La brise.
+    //
+    // Elle n'avance que lorsque la vue est immobile : pendant un déplacement,
+    // le décor bouge déjà bien assez, et repeindre en continu coûterait des
+    // images à un mouvement que personne ne remarquerait. À l'arrêt en
+    // revanche, c'est ce léger balancement qui distingue une scène vivante
+    // d'une capture d'écran.
+    let breeze = 0;
+    let breezeFrame = 0;
+    let lastTick = 0;
+
+    // Un balancement lent n'a pas besoin de soixante images par seconde. En
+    // repeindre vingt suffit à le voir couler, et rend les deux tiers du temps
+    // de calcul — sur une scène qui, sinon, tournerait en permanence.
+    const BREEZE_INTERVAL = 50;
+    let lastPaint = 0;
+
+    const animateBreeze = (now: number): void => {
+      const delta = lastTick ? Math.min(0.05, (now - lastTick) / 1000) : 0;
+      lastTick = now;
+      breeze += delta;
+      if (now - lastPaint >= BREEZE_INTERVAL) {
+        lastPaint = now;
+        schedule();
+      }
+      breezeFrame = requestAnimationFrame(animateBreeze);
+    };
+
+    const startBreeze = (): void => {
+      if (breezeFrame) return;
+      lastTick = 0;
+      breezeFrame = requestAnimationFrame(animateBreeze);
+    };
+
+    const stopBreeze = (): void => {
+      if (!breezeFrame) return;
+      cancelAnimationFrame(breezeFrame);
+      breezeFrame = 0;
+    };
+
     const paint = (): void => {
       frameRef.current = 0;
       const palette = paletteRef.current ?? readPalette();
@@ -122,6 +169,7 @@ export function BranchLayer({
         hasSelection: hasSelectionRef.current,
         trunk: layout.trunk,
         nodes: visibleNodes,
+        time: breeze,
         detailed: !moving,
       });
 
@@ -162,14 +210,17 @@ export function BranchLayer({
 
     const onViewportChange = (): void => {
       moving = true;
+      stopBreeze();
       window.clearTimeout(settleTimer);
       settleTimer = window.setTimeout(() => {
         moving = false;
         schedule();
+        startBreeze();
       }, 170);
       schedule();
     };
 
+    startBreeze();
     const unsubscribeViewport = viewport.subscribe(onViewportChange);
     const unsubscribeHover = hoverStore.subscribe(schedule);
 
@@ -178,6 +229,7 @@ export function BranchLayer({
       unsubscribeViewport();
       unsubscribeHover();
       window.clearTimeout(settleTimer);
+      stopBreeze();
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       frameRef.current = 0;
     };

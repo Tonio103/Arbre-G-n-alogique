@@ -215,6 +215,23 @@ peut pas suivre en mouvement. Elle disparaît aussi, avec le flou, quand le
 navigateur ne les gère pas ou quand le système demande moins de transparence —
 le texte reste alors posé sur une surface pleine.
 
+### Le décor et la brise
+
+`view/scenery.ts` plante l'arbre : une clairière, une ligne de terre, des
+pierres, de l'herbe et quelques fleurs. Un arbre posé sur du vide reste un
+schéma — rien n'y dit où il pousse ni à quelle échelle.
+
+Les positions viennent d'une grille régulière que le hachage vient troubler.
+Une distribution purement aléatoire fait des paquets et des trous, une grille
+pure fait un motif ; et comme le pas est indexé sur la position absolue, un
+galet ne se déplace jamais parce qu'on a fait défiler la vue.
+
+L'herbe et le feuillage s'inclinent sous une même onde dont la phase dépend de
+l'abscisse : le vent **traverse** la scène au lieu de la secouer d'un bloc. La
+brise n'avance que lorsque la vue est immobile — pendant un déplacement, le
+décor bouge déjà bien assez — et ne repeint que vingt fois par seconde, ce qui
+suffit à la voir couler.
+
 ### Le dessin de l'arbre
 
 `view/tree-renderer.ts` dessine la ramure entière sur un seul canvas. Chaque
