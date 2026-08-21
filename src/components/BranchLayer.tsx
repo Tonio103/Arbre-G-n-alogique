@@ -176,7 +176,6 @@ export function BranchLayer({
 
     const paint = (): void => {
       frameRef.current = 0;
-      const startedAt = performance.now();
       const palette = paletteRef.current ?? readPalette();
       const transform = viewport.transform;
       const rect = visibleRect(transform, { width, height }, 320);

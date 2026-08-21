@@ -52,7 +52,15 @@ jobs:
       # Vérifie les types puis produit dist/ — voir le script « build ».
       - run: npm run build
 
+      # `enablement` demande à GitHub de basculer lui-même la source de Pages sur
+      # « GitHub Actions ». Sans cela, un dépôt configuré pour publier une
+      # branche telle quelle continue de servir le code source — c'est
+      # exactement ce qui donnait un écran noir — et l'étape de déploiement
+      # échoue. Si le jeton n'a pas le droit de changer ce réglage, il reste à
+      # le faire à la main : Settings → Pages → Source : GitHub Actions.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
