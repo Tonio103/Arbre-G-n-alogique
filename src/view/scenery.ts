@@ -147,10 +147,14 @@ export function drawGround(ctx: CanvasRenderingContext2D, params: SceneryParams)
   };
 
   // La masse de terre, du sol jusqu'à la profondeur où elle se perd.
+  // Elle ne s'éteint pas en profondeur : sous l'horizon, il y a de la terre
+  // jusqu'en bas du cadre. Le dégradé ne sert qu'à l'assombrir en descendant,
+  // comme une coupe de sol — un fond de ciel qui reparaissait sous la terre
+  // était le plus sûr moyen de défaire le paysage.
   const earth = ctx.createLinearGradient(0, y, 0, y + depth);
   earth.addColorStop(0, palette.soil);
-  earth.addColorStop(0.3, palette.soilDeep);
-  earth.addColorStop(1, fade(palette.soilDeep));
+  earth.addColorStop(0.35, palette.soilDeep);
+  earth.addColorStop(1, palette.soilDeep);
   traceSurface();
   ctx.lineTo(to, y + depth);
   ctx.lineTo(from, y + depth);

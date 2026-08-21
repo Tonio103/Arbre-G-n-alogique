@@ -140,8 +140,15 @@ interface BranchShading {
   offset: number;
 }
 
-function traceBranch(
-  ctx: CanvasRenderingContext2D,
+/**
+ * Échantillonne la courbe d'une branche.
+ *
+ * Renvoie, pour chaque point du parcours, sa position, la normale à la courbe
+ * et la demi-épaisseur du bois à cet endroit — de quoi dessiner le polygone,
+ * mais aussi de quoi accrocher quelque chose dessus : une brindille part
+ * toujours d'un point précis d'une branche, avec l'inclinaison de ce point.
+ */
+function sampleBranch(
   x0: number,
   y0: number,
   x1: number,
@@ -149,18 +156,8 @@ function traceBranch(
   w0: number,
   w1: number,
   segments: number,
-  sway = 0,
-  /**
-   * Bande de modelé, dessinée à l'intérieur de la branche.
-   *
-   * Une branche est un cylindre : elle reçoit la lumière d'un côté et
-   * s'assombrit de l'autre. Peinte d'un seul aplat, elle reste une découpe de
-   * papier. Comme un tracé de canvas ne porte qu'une couleur, le volume se
-   * construit en repassant la même courbe en plus étroit et décalé sur le
-   * côté, une fois en clair et une fois en sombre.
-   */
-  shading?: BranchShading,
-): void {
+  sway: number,
+): number[] {
   const dy = y1 - y0;
   const dx = x1 - x0;
 
@@ -184,8 +181,7 @@ function traceBranch(
   const c2x = x1 - sway * 0.45;
   const c2y = y1 - dy * 0.55;
 
-  const left: number[] = [];
-  const right: number[] = [];
+  const spine: number[] = [];
 
   for (let i = 0; i <= segments; i += 1) {
     const t = i / segments;
@@ -201,12 +197,49 @@ function traceBranch(
     const ty =
       3 * mt * mt * (c1y - y0) + 6 * mt * t * (c2y - c1y) + 3 * t * t * (y1 - c2y);
     const length = Math.hypot(tx, ty) || 1;
-    const nx = -ty / length;
-    const ny = tx / length;
 
     // L'amincissement suit une courbe, pas une droite : le renflement reste
     // près du départ, comme au départ d'une vraie branche.
     const half = (w0 + (w1 - w0) * (t * t * (3 - 2 * t))) / 2;
+
+    spine.push(x, y, -ty / length, tx / length, half);
+  }
+
+  return spine;
+}
+
+/** Nombre de points d'un parcours échantillonné. */
+const SPINE_STRIDE = 5;
+
+/**
+ * Pose le polygone d'une branche à partir de son parcours.
+ *
+ * En polygone plutôt qu'en trait : l'épaisseur doit décroître le long du
+ * parcours, ce qu'un `lineWidth` constant ne permet pas.
+ */
+function emitBranch(
+  ctx: CanvasRenderingContext2D,
+  spine: number[],
+  /**
+   * Bande de modelé, dessinée à l'intérieur de la branche.
+   *
+   * Une branche est un cylindre : elle reçoit la lumière d'un côté et
+   * s'assombrit de l'autre. Peinte d'un seul aplat, elle reste une découpe de
+   * papier. Comme un tracé de canvas ne porte qu'une couleur, le volume se
+   * construit en repassant la même courbe en plus étroit et décalé sur le
+   * côté, une fois en clair et une fois en sombre.
+   */
+  shading?: BranchShading,
+): void {
+  const left: number[] = [];
+  const right: number[] = [];
+
+  for (let i = 0; i < spine.length; i += SPINE_STRIDE) {
+    const x = spine[i];
+    const y = spine[i + 1];
+    const nx = spine[i + 2];
+    const ny = spine[i + 3];
+    const half = spine[i + 4];
 
     if (shading) {
       const band = half * shading.width;
@@ -223,6 +256,93 @@ function traceBranch(
   for (let i = 2; i < left.length; i += 2) ctx.lineTo(left[i], left[i + 1]);
   for (let i = right.length - 2; i >= 0; i -= 2) ctx.lineTo(right[i], right[i + 1]);
   ctx.closePath();
+}
+
+/**
+ * Trace une branche fuselée entre deux points.
+ *
+ * `sway` écarte la courbe de sa trajectoire idéale. Sans lui, toutes les
+ * branches d'une même fratrie décrivent exactement le même S et l'ensemble se
+ * lit comme un diagramme ; avec lui, chacune part chercher sa place.
+ */
+function traceBranch(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  w0: number,
+  w1: number,
+  segments: number,
+  sway = 0,
+  shading?: BranchShading,
+): void {
+  emitBranch(ctx, sampleBranch(x0, y0, x1, y1, w0, w1, segments, sway), shading);
+}
+
+/**
+ * Les brindilles.
+ *
+ * Une branche qui va d'une personne à l'autre sans jamais rien porter d'autre
+ * reste un trait de liaison : c'est le dessin d'un graphe, pas d'un arbre. Un
+ * arbre, ça bourgeonne partout — de petits rameaux qui ne mènent nulle part,
+ * qui n'ont pas de descendance et pas de raison d'être sinon qu'ils poussent.
+ *
+ * Elles sortent du bord du bois, pas de son axe, et repartent vers le haut :
+ * une pousse cherche la lumière. Chacune est tirée du hachage de la personne
+ * que la branche porte, donc toujours au même endroit.
+ */
+function traceSprigs(
+  ctx: CanvasRenderingContext2D,
+  seed: string,
+  spine: number[],
+  breeze: number,
+): void {
+  const samples = spine.length / SPINE_STRIDE;
+  if (samples < 4) return;
+  // Sous une certaine section, la branche n'a pas de quoi porter un rameau : la
+  // brindille serait plus épaisse que le bois dont elle sort.
+  if (spine[SPINE_STRIDE + 4] * 2 < 7) return;
+
+  const count = 1 + Math.floor(hashN(seed, 71) * 3);
+
+  for (let k = 0; k < count; k += 1) {
+    // Réparties le long de la seconde moitié : au ras de la fourche, une
+    // brindille se perd dans le nœud.
+    const t = 0.34 + ((k + 0.3 + hashN(seed, k * 5 + 72) * 0.6) / (count + 0.4)) * 0.58;
+    const i = Math.min(samples - 2, Math.max(1, Math.round(t * (samples - 1)))) * SPINE_STRIDE;
+
+    const half = spine[i + 4];
+    const nx = spine[i + 2];
+    const ny = spine[i + 3];
+    const side = hashN(seed, k * 5 + 73) < 0.5 ? 1 : -1;
+
+    const bx = spine[i] + nx * half * side * 0.6;
+    const by = spine[i + 1] + ny * half * side * 0.6;
+
+    // Une brindille a sa taille propre. Proportionnée à la branche qui la
+    // porte, elle devenait une barre de bois sur les grosses branches — ce qui
+    // pousse sur un tronc, ce sont des gourmands, et un gourmand est fin.
+    const length = Math.min(half * (4.5 + hashN(seed, k * 5 + 74) * 7), ROW_HEIGHT * 0.5);
+    // Vers l'extérieur, et vers le haut : la part verticale domine, sinon la
+    // brindille pousse à l'horizontale comme une épine.
+    const tipX = bx + nx * side * length * 0.72 + Math.sin(breeze * 1.4 + bx * 0.002) * length * 0.1;
+    const tipY = by - length * (0.72 + hashN(seed, k * 5 + 75) * 0.5);
+
+    emitBranch(
+      ctx,
+      sampleBranch(
+        bx,
+        by,
+        tipX,
+        tipY,
+        Math.min(half * 0.42, 13),
+        Math.min(half * 0.05, 1.6),
+        5,
+        length * 0.16 * side,
+      ),
+    );
+  }
 }
 
 /**
@@ -285,6 +405,13 @@ function traceUnion(
   /** En deçà de cette épaisseur, une branche ne reçoit pas de modelé : la
    *  bande y tiendrait dans moins d'un pixel et ne produirait qu'un liseré. */
   minShaded = 0,
+  /**
+   * Passe de brindilles : au lieu du bois lui-même, on ne trace que les petits
+   * rameaux qui en sortent. Ils sont remplis à part — superposés au bois dans
+   * un même chemin, leurs contours s'annuleraient par endroits avec la règle
+   * du non-zéro et la branche se trouerait à chaque départ.
+   */
+  sprigging = false,
 ): void {
   const { partners, children } = union;
   if (partners.length === 0) return;
@@ -308,19 +435,30 @@ function traceUnion(
   const shadeTrunk = shading && trunkWidth >= minShaded ? shading : undefined;
 
   // Tronc : du couple jusqu'à la fourche.
-  traceBranch(
-    ctx,
+  //
+  // Sans amincissement. Il s'affinait de dix pour cent en montant, si bien que
+  // la fourche était plus étroite que les branches qui en partent : le bois
+  // arrivait mince et repartait épais, et la jonction se lisait comme une
+  // rupture. Une branche ne se rétrécit pas avant de se diviser.
+  const spineTrunk = sampleBranch(
     union.anchorX,
     startY,
     union.anchorX + jitter(union.id, 2, trunkWidth * 0.18),
     forkY,
     trunkWidth,
-    trunkWidth * 0.9,
-    4,
+    trunkWidth,
+    5,
     jitter(union.id, 3, trunkWidth * 0.25),
-    shadeTrunk,
   );
-  if (!shading) traceKnot(ctx, union.anchorX, forkY, (trunkWidth * 0.9) / 2);
+  if (sprigging) {
+    traceSprigs(ctx, `${union.id}!f`, spineTrunk, breeze);
+  } else {
+    emitBranch(ctx, spineTrunk, shadeTrunk);
+    // Le renflement de la fourche, plus large que le bois : c'est lui qui
+    // rattrape les départs des branches et fait un nœud là où, sans lui, on
+    // verrait trois formes se recouvrir.
+    if (!shading) traceKnot(ctx, union.anchorX, forkY, trunkWidth * 0.62);
+  }
 
   // Écart le plus serré entre deux enfants voisins : c'est lui qui borne la
   // liberté qu'on peut laisser à chaque branche.
@@ -336,7 +474,13 @@ function traceUnion(
     // Épaisseur variée d'un rameau à l'autre : une fratrie parfaitement
     // régulière trahit le dessin automatique. La variation ne porte que sur le
     // départ — l'arrivée doit rester exacte, voir ci-dessous.
-    const width = boneWidth(carriedByChild, floor) * (0.88 + hashN(child.id, 4) * 0.28);
+    //
+    // Jamais plus large que la fourche d'où elle sort : au-delà, l'enfant
+    // semblerait porter son parent.
+    const width = Math.min(
+      trunkWidth * 0.96,
+      boneWidth(carriedByChild, floor) * (0.9 + hashN(child.id, 4) * 0.22),
+    );
     // L'arrivée vaut exactement ce que la branche suivante emportera.
     //
     // C'est la règle qui rend l'arbre continu. Une branche s'arrête au portrait
@@ -347,8 +491,7 @@ function traceUnion(
     // la suite, le bois traverse la personne au lieu de s'y interrompre.
     const tip = boneWidth(descendants, floor);
     const reach = Math.abs(cardCenterX(child.x) - union.anchorX);
-    traceBranch(
-      ctx,
+    const spine = sampleBranch(
       union.anchorX,
       forkY,
       cardCenterX(child.x),
@@ -364,8 +507,10 @@ function traceUnion(
       // jamais un détour — une famille se lit d'abord, elle ne se devine pas.
       jitter(child.id, 5, Math.min(spacing * 0.32, reach * 0.06 + width)) +
         breathe(breeze, cardCenterX(child.x), carriedByChild, reach, spacing),
-      shading && width >= minShaded ? shading : undefined,
     );
+
+    if (sprigging) traceSprigs(ctx, child.id, spine, breeze);
+    else emitBranch(ctx, spine, shading && width >= minShaded ? shading : undefined);
   }
 }
 
@@ -389,31 +534,68 @@ function traceTrunk(
   const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
 
   // Fût, du sol jusqu'à la naissance des premières branches.
-  // Le fût s'affine nettement en montant : à section constante, il se lit
-  // comme un poteau. L'évasement du pied vient des racines, pas du fût.
-  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.52, 20, width * 0.1, shading);
+  //
+  // Il part d'un empattement, sous la ligne de terre : un tronc qui sort du sol
+  // à section constante a l'air planté là comme un poteau, alors qu'un arbre
+  // s'évase en arrivant au sol, là où les racines se rassemblent. Le fût
+  // commence donc plus bas et plus large que sa section courante.
+  const flare = width * 1.34;
+  traceBranch(
+    ctx,
+    trunk.x,
+    groundY + ROW_HEIGHT * 0.16,
+    trunk.x,
+    trunk.topY,
+    flare,
+    width * 0.52,
+    20,
+    width * 0.1,
+    shading,
+  );
 
-  // Racines : elles divergent sous le sol en s'affinant, ce qui ancre l'arbre
-  // au lieu de le laisser posé sur une pointe.
-  const rootCount = 7;
+  // Racines.
+  //
+  // Elles divergent sous le sol en s'affinant, ce qui ancre l'arbre au lieu de
+  // le laisser posé sur une pointe. Elles étaient bien trop maigres pour ce
+  // qu'elles portent : un fût de trois cents unités tenait sur des filaments de
+  // quarante. Une racine maîtresse fait la moitié du tronc, et elle va loin.
+  const rootCount = 9;
   for (let i = 0; i < rootCount; i += 1) {
     const t = i / (rootCount - 1);
     const spread = (t - 0.5) * 2;
     const wobble = jitter('root', i, 0.24);
-    // Emprise au sol bornée à quelques largeurs de fût : proportionnelle à une
-    // épaisseur déjà compensée, elle balayait tout l'écran.
-    const reach = width * (1.5 + Math.abs(spread) * 1.3) * (1 + wobble * 0.5);
-    const rootWidth = width * (0.44 - Math.abs(spread) * 0.17);
+    const reach = width * (2.1 + Math.abs(spread) * 1.9) * (1 + wobble * 0.5);
+    const rootWidth = width * (0.66 - Math.abs(spread) * 0.24);
     traceBranch(
       ctx,
       trunk.x,
-      groundY,
+      groundY + ROW_HEIGHT * 0.1,
       trunk.x + (spread + wobble * 0.4) * reach,
-      trunk.baseY + Math.abs(spread) * ROW_HEIGHT * 0.16,
-      Math.max(2, rootWidth),
-      1.5,
+      trunk.baseY + ROW_HEIGHT * (0.1 + Math.abs(spread) * 0.4),
+      Math.max(3, rootWidth),
+      Math.max(1.5, rootWidth * 0.08),
+      8,
+      jitter('root-sway', i, width * 0.6),
+      shading,
+    );
+  }
+
+  // Radicelles : le même geste, en plus fin et plus profond. Ce sont elles qui
+  // font qu'on lit un enracinement plutôt qu'un trépied.
+  for (let i = 0; i < rootCount + 4; i += 1) {
+    const roll = hashN('radicelle', i);
+    const spread = (hashN('radicelle-x', i) - 0.5) * 2;
+    const start = width * spread * 0.9;
+    traceBranch(
+      ctx,
+      trunk.x + start,
+      groundY + ROW_HEIGHT * (0.12 + roll * 0.2),
+      trunk.x + start + spread * width * (1.2 + roll * 1.6),
+      trunk.baseY + ROW_HEIGHT * (0.35 + roll * 0.7),
+      Math.max(2, width * (0.1 + roll * 0.1)),
+      1.2,
       6,
-      jitter('root-sway', i, width * 0.5),
+      jitter('radicelle-s', i, width * 0.4),
       shading,
     );
   }
@@ -448,6 +630,51 @@ function traceTrunk(
       // sous leur lignée, au lieu de filer en ligne droite.
       (root.x - trunk.x) * 0.3 + jitter('founder', i, w * 4),
       shading,
+    );
+  }
+}
+
+/** Les brindilles du pied : sur le fût et sur les maîtresses branches. */
+function traceTrunkSprigs(
+  ctx: CanvasRenderingContext2D,
+  trunk: TrunkLayout,
+  floor: number,
+  breeze: number,
+): void {
+  if (trunk.roots.length === 0) return;
+  const width = trunk.width;
+  const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
+
+  traceSprigs(
+    ctx,
+    'fut',
+    sampleBranch(trunk.x, groundY, trunk.x, trunk.topY, width * 1.34, width * 0.52, 20, width * 0.1),
+    breeze,
+  );
+
+  let total = 0;
+  for (const root of trunk.roots) total += root.weight;
+  const trunkTop = width * 0.52;
+
+  for (let i = 0; i < trunk.roots.length; i += 1) {
+    const root = trunk.roots[i];
+    const share = Math.max(0.08, root.weight / Math.max(1, total));
+    const tip = boneWidth(root.weight, floor);
+    const w = Math.max(tip * 1.15, Math.min(trunkTop * 0.92, trunkTop * Math.sqrt(share)));
+    traceSprigs(
+      ctx,
+      `souche-${i}`,
+      sampleBranch(
+        trunk.x,
+        trunk.topY,
+        root.x,
+        root.y,
+        w,
+        tip,
+        12,
+        (root.x - trunk.x) * 0.3 + jitter('founder', i, w * 4),
+      ),
+      breeze,
     );
   }
 }
@@ -746,6 +973,16 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   const boneOnScreen = Math.max(26, floor) * scale;
   const shaded = params.detailed && boneOnScreen > 2.4;
 
+  // Épaisseur, à l'écran, de la plus grosse branche visible.
+  //
+  // C'est elle qui décide de la finesse du dégradé, pas une épaisseur moyenne :
+  // le nombre de paliers nécessaires dépend de la surface sur laquelle le
+  // fondu s'étale. Une branche de trois cents pixels laisse voir chaque marche
+  // là où une branche de trente n'en montre aucune.
+  let heaviest = 0;
+  for (const node of params.nodes) heaviest = Math.max(heaviest, weights.get(node.id) ?? 0);
+  const widestOnScreen = Math.max(boneOnScreen, thickness(heaviest) * scale);
+
   /** Pose le relief cylindrique sur une liste de branches. */
   const paintRelief = (list: LayoutUnion[], withTrunk: boolean): void => {
     // Seuil exprimé en unités de monde pour valoir quatre pixels à l'écran.
@@ -761,17 +998,28 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
       ctx.fill();
     };
 
-    // De près, deux bandes larges et transparentes viennent d'abord adoucir le
-    // passage. Un cylindre n'a pas d'arête : à quelques pixels d'épaisseur, la
-    // marche entre le clair et le sombre ne se voit pas, mais dès que la
-    // branche occupe la moitié de l'écran elle se lit comme un ruban peint.
-    // Elles ne coûtent que là où il n'y a plus grand-chose à dessiner.
-    if (boneOnScreen > 40) {
-      ctx.globalAlpha = 0.55;
-      paintBand({ width: 0.66, offset: 0.34 }, palette.woodShade);
-      paintBand({ width: 0.54, offset: -0.32 }, palette.woodLight);
-      ctx.globalAlpha = 1;
+    // De près, le relief se construit en marches successives.
+    //
+    // Un cylindre n'a pas d'arête. À quelques pixels d'épaisseur la marche
+    // entre le clair et le sombre ne se voit pas, mais dès que la branche
+    // occupe une bonne part de l'écran, deux aplats à bord franc se lisent
+    // comme un ruban peint. Quatre bandes de plus en plus étroites et de plus
+    // en plus opaques accumulent leurs transparences en un dégradé — c'est le
+    // seul moyen d'obtenir un fondu quand chaque tracé ne porte qu'une couleur.
+    // Elles ne coûtent que là où il ne reste plus grand-chose à dessiner.
+    //
+    // Le nombre de marches suit l'éloignement : trois suffisent quand la branche
+    // fait trente pixels, il en faut sept quand elle en fait trois cents, sinon
+    // on distingue chaque palier. Elles ne coûtent que là où il ne reste plus
+    // que quelques branches à l'écran.
+    const steps = widestOnScreen > 260 ? 8 : widestOnScreen > 90 ? 5 : widestOnScreen > 26 ? 3 : 0;
+    for (let k = 0; k < steps; k += 1) {
+      const span = 0.92 - (k * 0.42) / steps;
+      ctx.globalAlpha = 0.5 / steps + k * (0.24 / steps);
+      paintBand({ width: span, offset: 0.92 - span * 0.62 }, palette.woodShade);
+      paintBand({ width: span * 0.84, offset: -(0.92 - span * 0.62) }, palette.woodLight);
     }
+    ctx.globalAlpha = 1;
 
     // Du plus bas au plus haut du relief : l'ombre, la face éclairée, puis un
     // filet vif sur l'arête. Ce dernier trait est ce qui donne au bois son
@@ -782,6 +1030,30 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   };
 
   if (shaded && !hasSelection) paintRelief(normal, true);
+
+  // Passe 2 bis : les brindilles.
+  //
+  // Remplies à part, après le modelé : superposées au bois dans le même chemin,
+  // leurs contours s'annuleraient par endroits — la règle du non-zéro fait un
+  // trou là où deux formes de sens contraires se recouvrent. Elles ne
+  // paraissent qu'au-delà d'une certaine épaisseur à l'écran : plus fines que
+  // le pixel, elles ne feraient qu'un duvet sale sur la silhouette.
+  if (params.detailed && !hasSelection && boneOnScreen > 9) {
+    ctx.beginPath();
+    traceTrunkSprigs(ctx, params.trunk, floor, params.time);
+    for (const union of normal) {
+      traceUnion(ctx, union, weights, segments, floor, params.time, undefined, 0, true);
+    }
+    ctx.fillStyle = wood;
+    ctx.fill();
+    // Un rameau de l'année est plus clair que le bois dont il sort. Sans ce
+    // second passage, la brindille prend la teinte sombre du bas de l'arbre et
+    // se lit comme une fissure sur la branche plutôt que comme une pousse.
+    ctx.globalAlpha = 0.34;
+    ctx.fillStyle = palette.woodLight;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   // Passe 3 : l'écorce du fût. Seulement quand elle est assez large à l'écran
   // pour se lire — en dessous, ce ne serait qu'un bruit gris sur la silhouette.
