@@ -406,12 +406,17 @@ function traceUnion(
    *  bande y tiendrait dans moins d'un pixel et ne produirait qu'un liseré. */
   minShaded = 0,
   /**
-   * Passe de brindilles : au lieu du bois lui-même, on ne trace que les petits
-   * rameaux qui en sortent. Ils sont remplis à part — superposés au bois dans
-   * un même chemin, leurs contours s'annuleraient par endroits avec la règle
-   * du non-zéro et la branche se trouerait à chaque départ.
+   * Passe de décoration : au lieu du bois lui-même, on ne trace que ce qui
+   * pousse dessus — brindilles, feuillage. Ces formes sont remplies à part :
+   * superposées au bois dans un même chemin, leurs contours s'annuleraient par
+   * endroits avec la règle du non-zéro, et la branche se trouerait à chaque
+   * départ.
+   *
+   * Le décorateur reçoit le parcours de la branche — position, normale et
+   * demi-épaisseur en chaque point — donc de quoi accrocher quelque chose
+   * n'importe où le long du bois, à la bonne inclinaison.
    */
-  sprigging = false,
+  decorate?: (spine: number[], seed: string) => void,
 ): void {
   const { partners, children } = union;
   if (partners.length === 0) return;
@@ -422,7 +427,7 @@ function traceUnion(
 
   // La fourche se déplace un peu d'une famille à l'autre : alignées à la même
   // altitude, toutes les divisions dessineraient une ligne d'horizon artificielle.
-  const forkY = forkOffset(parentY) + jitter(union.id, 1, ROW_HEIGHT * 0.06);
+  const forkY = forkOffset(parentY) + jitter(union.id, 1, ROW_HEIGHT * 0.17);
   const startY =
     partners.length > 1 && union.adjacent
       ? portraitCenterY(parentY)
@@ -450,8 +455,8 @@ function traceUnion(
     5,
     jitter(union.id, 3, trunkWidth * 0.25),
   );
-  if (sprigging) {
-    traceSprigs(ctx, `${union.id}!f`, spineTrunk, breeze);
+  if (decorate) {
+    decorate(spineTrunk, `${union.id}!f`);
   } else {
     emitBranch(ctx, spineTrunk, shadeTrunk);
     // Le renflement de la fourche, plus large que le bois : c'est lui qui
@@ -505,11 +510,18 @@ function traceUnion(
       // les deux se croisent, et l'œil ne peut plus dire lequel des deux
       // rameaux mène à quel enfant. L'irrégularité doit rester une inflexion,
       // jamais un détour — une famille se lit d'abord, elle ne se devine pas.
-      jitter(child.id, 5, Math.min(spacing * 0.32, reach * 0.06 + width)) +
+      // Le terme constant est ce qui sauve les branches verticales.
+      //
+      // Quand l'enfant est à l'aplomb de ses parents, la déviation autorisée
+      // valait la largeur du bois — quelques unités — et la branche montait au
+      // fil à plomb. Dix rangées de ces traits parfaitement verticaux et
+      // parallèles, et la cime redevient un graphique. Un arc de quelques
+      // dizaines d'unités suffit à leur rendre leur bois.
+      jitter(child.id, 5, Math.min(spacing * 0.32, reach * 0.06 + width + ROW_HEIGHT * 0.06)) +
         breathe(breeze, cardCenterX(child.x), carriedByChild, reach, spacing),
     );
 
-    if (sprigging) traceSprigs(ctx, child.id, spine, breeze);
+    if (decorate) decorate(spine, child.id);
     else emitBranch(ctx, spine, shading && width >= minShaded ? shading : undefined);
   }
 }
@@ -752,7 +764,14 @@ function drawFoliage(
   scale: number,
 ): void {
   const { palette, weights, highlighted } = params;
-  const size = Math.max(14, Math.min(270, 23 / Math.max(scale, 0.02)));
+  // Le plafond décide si la cime est une masse ou un verger.
+  //
+  // À très faible échelle, chaque touffe se réduisait à quelques pixels et les
+  // familles restaient séparées par du vide : on lisait quarante petits arbres
+  // alignés au lieu d'une couronne. En laissant les touffes grandir, elles se
+  // recouvrent et le feuillage redevient continu — c'est le recouvrement, pas
+  // la densité, qui fait une cime.
+  const size = Math.max(14, Math.min(470, 23 / Math.max(scale, 0.02)));
   // De loin, une touffe fournie devient une masse illisible : on réduit le
   // nombre de feuilles à mesure que chacune perd en surface à l'écran.
   // En mouvement, une touffe de quatre feuilles suffit à tenir la silhouette.
@@ -777,7 +796,7 @@ function drawFoliage(
 
   for (const node of params.nodes) {
     if ((weights.get(node.id) ?? 0) > 0) {
-      if (filling && hashN(node.id, 61) < 0.72) inner.push(node);
+      if (filling) inner.push(node);
       continue;
     }
     const roll = hashN(node.id, 99);
@@ -829,10 +848,11 @@ function drawFoliage(
   };
 
   const faded = params.hasSelection ? 0.3 : 1;
-  // Le feuillage intérieur d'abord, au fond et en plus petit : il comble les
-  // vides entre les rameaux sans jamais passer devant les extrémités, qui
-  // restent ce qu'on doit voir.
-  if (inner.length) paint(inner, palette.leafAlt, size * 0.2, 0.5 * faded, 0.66);
+  // Le feuillage intérieur d'abord, au fond : il comble les vides entre les
+  // rameaux sans jamais passer devant les extrémités, qui restent ce qu'on doit
+  // voir. Vu de loin, c'est lui qui fait la masse — sans lui, la cime n'est
+  // qu'une rangée de tiges nues coiffées de petites touffes.
+  if (inner.length) paint(inner, palette.leafAlt, size * 0.16, 0.74 * faded, 0.92);
   // Du fond vers la lumière : le plan reculé est décalé vers le bas, ce qui
   // creuse la couronne au lieu de l'aplatir.
   paint(back, palette.leafAlt, size * 0.34, 0.7 * faded);
@@ -1059,7 +1079,9 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.beginPath();
     traceTrunkSprigs(ctx, params.trunk, floor, params.time);
     for (const union of normal) {
-      traceUnion(ctx, union, weights, segments, floor, params.time, undefined, 0, true);
+      traceUnion(ctx, union, weights, segments, floor, params.time, undefined, 0, (spine, seed) =>
+        traceSprigs(ctx, seed, spine, params.time),
+      );
     }
     ctx.fillStyle = wood;
     ctx.fill();
@@ -1105,6 +1127,69 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.lineWidth = Math.max(1, 1.6 / Math.max(scale, 0.35));
     ctx.stroke();
     ctx.restore();
+  }
+
+  // Passe 5 bis : le feuillage des longues branches.
+  //
+  // Le feuillage ne pousse qu'aux extrémités, là où vivent les personnes sans
+  // descendance. Une branche qui traverse la moitié de l'arbre pour aller
+  // chercher une famille éloignée reste alors un long fil nu, et la silhouette
+  // de l'arbre se hérisse de rayons. Quelques touffes réparties le long du bois
+  // suffisent : la branche redevient une branche feuillue, et le contour de la
+  // cime se referme.
+  //
+  // Seulement de loin, et seulement sur les branches assez longues : de près,
+  // le feuillage se lit personne par personne, et une touffe au milieu de nulle
+  // part ne voudrait plus rien dire.
+  if (scale < 0.34 && !hasSelection) {
+    const leafSize = Math.max(14, Math.min(470, 23 / Math.max(scale, 0.02)));
+    const minLength = ROW_HEIGHT * 1.1;
+
+    // Pré-tri, avant toute géométrie : une union dont aucun enfant n'est loin
+    // n'a aucune branche à garnir, et il est inutile de recalculer ses courbes
+    // pour s'en apercevoir. Sur la vue d'ensemble, cela ramène le travail d'un
+    // millier de branches à la trentaine qui le mérite.
+    const reaching = normal.filter((union) =>
+      union.children.some(
+        (child) => Math.abs(cardCenterX(child.x) - union.anchorX) > ROW_HEIGHT * 0.75,
+      ),
+    );
+
+    ctx.beginPath();
+    for (const union of reaching) {
+      traceUnion(ctx, union, weights, segments, floor, params.time, undefined, 0, (spine, seed) => {
+        const samples = spine.length / SPINE_STRIDE;
+        if (samples < 3) return;
+        const span = Math.hypot(
+          spine[(samples - 1) * SPINE_STRIDE] - spine[0],
+          spine[(samples - 1) * SPINE_STRIDE + 1] - spine[1],
+        );
+        if (span < minLength) return;
+
+        // Moitié moins de touffes, et moitié moins de feuilles par touffe,
+        // pendant un déplacement : la silhouette tient, le coût s'efface.
+        const count = Math.min(params.detailed ? 4 : 2, 1 + Math.floor(span / minLength));
+        for (let k = 0; k < count; k += 1) {
+          const t = (k + 0.5 + jitter(seed, k + 31, 0.3)) / count;
+          const i = Math.min(samples - 1, Math.max(0, Math.round(t * (samples - 1)))) * SPINE_STRIDE;
+          const side = hashN(seed, k + 41) < 0.5 ? 1 : -1;
+          const reach = spine[i + 4] + leafSize * 0.22;
+          traceLeafCrown(
+            ctx,
+            `${seed}!f${k}`,
+            spine[i] + spine[i + 2] * side * reach,
+            spine[i + 1] + spine[i + 3] * side * reach,
+            leafSize * 0.24,
+            leafSize * 0.82,
+            params.detailed ? 8 : 4,
+          );
+        }
+      });
+    }
+    ctx.fillStyle = palette.leafAlt;
+    ctx.globalAlpha = params.detailed ? 0.66 : 0.5;
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   // Passe 6 : le feuillage, posé sur la ramure.

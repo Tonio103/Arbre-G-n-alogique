@@ -6,37 +6,13 @@
  * feuilles. Un arbre réel n'a aucune symétrie — chaque branche a dévié pour
  * chercher la lumière, chaque rameau porte un nombre différent de feuilles.
  *
- * Ce module fournit cette irrégularité. Elle doit être **déterministe** : la
- * même personne produit la même forme à chaque image, sinon l'arbre frémirait
- * à chaque déplacement. Un hachage de l'identifiant remplace donc le hasard.
+ * Ce module fournit cette irrégularité, tirée du hachage déterministe de
+ * `lib/hash` : la même personne produit la même forme à chaque image, sinon
+ * l'arbre frémirait à chaque déplacement.
  */
 
-/**
- * Hachage FNV-1a, ramené dans [0, 1).
- *
- * Rapide, sans état, et surtout stable : deux exécutions, deux machines et deux
- * sessions donnent le même nombre pour le même identifiant.
- */
-export function hash01(seed: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < seed.length; i += 1) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  // Le décalage non signé écarte le bit de signe, qui rendrait la moitié des
-  // valeurs négatives.
-  return ((h >>> 0) % 100000) / 100000;
-}
-
-/** Variante du hachage : plusieurs valeurs indépendantes pour une même graine. */
-export function hashN(seed: string, index: number): number {
-  return hash01(`${seed}#${index}`);
-}
-
-/** Valeur centrée dans [-amplitude, +amplitude]. */
-export function jitter(seed: string, index: number, amplitude: number): number {
-  return (hashN(seed, index) - 0.5) * 2 * amplitude;
-}
+export { hash01, hashN, jitter } from '@/lib/hash';
+import { hashN, jitter } from '@/lib/hash';
 
 /**
  * Feuille, en amande.

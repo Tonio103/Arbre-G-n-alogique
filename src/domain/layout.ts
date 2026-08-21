@@ -1,3 +1,4 @@
+import { jitter } from '@/lib/hash';
 import type { FamilyGraph } from './graph';
 import {
   CARD_HEIGHT,
@@ -337,6 +338,21 @@ function assign(
   depth: number,
 ): void {
   let cursor = origin + node.blockOffset;
+
+  // Les générations ne sont pas des lignes tracées à la règle.
+  //
+  // Toutes les personnes d'une génération à la même altitude, c'est un tableau
+  // à double entrée : l'œil suit les rangées horizontales avant de suivre les
+  // filiations, et l'arbre se lit comme une grille. Un décalage vertical propre
+  // à chaque famille suffit à casser l'alignement sans jamais déranger la
+  // lecture — un dixième de la hauteur d'une génération, quand une carte en
+  // fait un huitième.
+  //
+  // Il est attribué au bloc entier, pas à chaque personne : deux conjoints
+  // doivent rester à la même hauteur, sinon leur trait d'alliance part en
+  // diagonale.
+  const lift = jitter(node.anchorId, 3, ROW_HEIGHT * 0.1);
+
   for (const memberId of node.members) {
     const generation = graph.people.get(memberId)?.generation ?? node.generation;
     positions.set(memberId, {
@@ -344,7 +360,7 @@ function assign(
       x: cursor,
       // Axe inversé : la génération la plus ancienne est en bas, à la racine.
       // L'arbre pousse alors vers le haut, du tronc vers le feuillage.
-      y: (depth - generation) * ROW_HEIGHT,
+      y: (depth - generation) * ROW_HEIGHT + lift,
       generation,
     });
     cursor += CARD_WIDTH + COUPLE_GAP;
@@ -423,8 +439,12 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
 
     if (partners.length === 0) continue;
 
+    // Tolérance calée sur le décalage de rangée : deux conjoints d'un même bloc
+    // le partagent, mais un mariage entre deux branches réunit deux blocs qui
+    // ne l'ont pas — et ce couple-là doit tout de même se lire comme un couple.
     const sameRow =
-      partners.length < 2 || Math.abs(partners[0].y - partners[partners.length - 1].y) < 1;
+      partners.length < 2 ||
+      Math.abs(partners[0].y - partners[partners.length - 1].y) < ROW_HEIGHT * 0.25;
     const span = partners.length > 1 ? partners[partners.length - 1].x - partners[0].x : 0;
     const adjacent = sameRow && span <= CARD_WIDTH + COUPLE_GAP + 1;
 
