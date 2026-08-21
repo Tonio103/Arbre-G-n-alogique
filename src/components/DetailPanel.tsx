@@ -1,10 +1,11 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { Person } from '@/data/schema';
 import { computeCurrentAge, formatDate } from '@/domain/dates';
+import { describeRelationship } from '@/domain/relations';
 import { Avatar } from './Avatar';
 import { RelationList } from './PersonRelations';
-import { CloseIcon, HomeIcon, PeopleIcon } from './icons';
+import { CloseIcon, HomeIcon, PeopleIcon, PinIcon } from './icons';
 
 export interface DetailPanelProps {
   graph: FamilyGraph;
@@ -12,6 +13,10 @@ export interface DetailPanelProps {
   onSelect: (id: string) => void;
   onClose: () => void;
   onCenter: () => void;
+  /** Personne de référence : la fiche dit ce qu'elle est pour elle. */
+  anchorId: string | null;
+  /** Désigne cette personne comme repère, ou l'en retire. */
+  onToggleAnchor: () => void;
   /** Passe en mise en évidence de toute la lignée. */
   onShowLineage: () => void;
   lineageActive: boolean;
@@ -88,7 +93,18 @@ export function DetailPanel({
   onCenter,
   onShowLineage,
   lineageActive,
+  anchorId,
+  onToggleAnchor,
 }: DetailPanelProps) {
+  // Ce que cette personne est pour le point de repère, en toutes lettres.
+  const kinship = useMemo(() => {
+    if (!anchorId || !person || anchorId === person.id) return undefined;
+    const anchor = graph.people.get(anchorId);
+    const label = describeRelationship(graph, anchorId, person.id);
+    if (!anchor || !label) return undefined;
+    return `${label} de ${anchor.firstName} ${anchor.lastName}`;
+  }, [graph, anchorId, person]);
+
   const panelRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -131,6 +147,7 @@ export function DetailPanel({
           <div className="detail-names">
             <h2 className="detail-name">{person.displayName}</h2>
             {person.birthName && <p className="detail-birthname">née {person.maidenName}</p>}
+            {kinship && <p className="detail-kinship">{kinship}</p>}
             {person.nickname && <p className="detail-birthname">dit·e « {person.nickname} »</p>}
             {summary && <p className="detail-summary">{summary}</p>}
             {person.headline && <p className="detail-headline">{person.headline}</p>}
@@ -155,6 +172,28 @@ export function DetailPanel({
         >
           <PeopleIcon />
           {lineageActive ? 'Famille proche' : 'Toute la lignée'}
+        </button>
+        {/*
+          * Le point de repère.
+          *
+          * « Eugénie Beaumont, 1843 – 1921 » ne dit rien dans un arbre de cinq
+          * cents personnes. Une fois quelqu'un désigné — soi, le plus souvent —
+          * chaque fiche et chaque résultat de recherche répond enfin à la seule
+          * question qu'on se pose vraiment : qui est-ce pour moi ?
+          */}
+        <button
+          type="button"
+          className="action-button"
+          onClick={onToggleAnchor}
+          data-pressed={anchorId === person.id || undefined}
+          title={
+            anchorId === person.id
+              ? 'Cette personne sert de point de repère'
+              : 'Situer tout le monde par rapport à cette personne'
+          }
+        >
+          <PinIcon />
+          {anchorId === person.id ? 'Repère' : 'Partir d’ici'}
         </button>
         <span className="detail-generation">Génération {person.generation + 1}</span>
       </div>

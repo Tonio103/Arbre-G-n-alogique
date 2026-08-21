@@ -248,6 +248,29 @@
   transition: none;
 }
 
+/*
+ * Du verre posé sur du verre.
+ *
+ * Une plaque posée sur une autre n'a rien à flouter : ce qu'elle a derrière
+ * elle, c'est déjà la surface de la première. Sommé de flouter un fond qui
+ * contient déjà du texte, le navigateur en fait un fantôme décalé — on lit les
+ * mots deux fois, l'un net, l'autre gris et de travers. Le défaut se voyait sur
+ * les pastilles de filtre et, plus discrètement, sur le champ de recherche
+ * depuis toujours.
+ *
+ * Une plaque intérieure garde donc sa masse, sa lumière et son arête, et laisse
+ * le flou à celle qui la porte. C'est aussi ce qui se passe dans le monde
+ * physique : deux vitres accolées ne floutent pas deux fois.
+ */
+.lg .lg {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.lg .lg::before {
+  display: none;
+}
+
 /* ---------------------------------------------------------------------------
  * 4. ARÊTE SPÉCULAIRE
  *

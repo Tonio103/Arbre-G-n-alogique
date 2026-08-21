@@ -95,3 +95,24 @@ export const HelpIcon = () => (
     <path d="M10 14.2h.01" strokeWidth="2" />
   </svg>
 );
+
+/**
+ * Le point de repère : une épingle.
+ *
+ * Le seul objet dont le geste — planter quelque chose quelque part pour ne
+ * plus le perdre — dise exactement ce que fait ce bouton.
+ */
+export function PinIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="icon">
+      <path
+        d="M10 2.6c2.5 0 4.5 2 4.5 4.5 0 3.2-4.5 8.3-4.5 8.3S5.5 10.3 5.5 7.1c0-2.5 2-4.5 4.5-4.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="7.1" r="1.7" fill="currentColor" />
+    </svg>
+  );
+}

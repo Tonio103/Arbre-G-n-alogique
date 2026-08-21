@@ -56,6 +56,20 @@
   line-height: 1.45;
 }
 
+/*
+ * Le lien de parenté avec le point de repère.
+ *
+ * Traité comme l'information la plus importante de la fiche après le nom :
+ * c'est la seule qui situe la personne dans une famille plutôt que dans une
+ * liste.
+ */
+.detail-kinship {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .detail-birthname,
 .detail-summary,
 .detail-headline {
@@ -79,8 +93,11 @@
   margin: -4px -4px 0 0;
 }
 
+/* La rangée d'actions déborde plutôt que de se faire couper : trois boutons et
+   un repère de génération ne tiennent pas toujours sur une ligne. */
 .detail-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   padding: 0 20px 14px;

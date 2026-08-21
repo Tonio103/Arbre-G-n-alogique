@@ -18,6 +18,8 @@ export interface TopBarProps {
   graph: FamilyGraph;
   searchIndex: SearchIndex;
   onPick: (id: string) => void;
+  /** Personne de référence, transmise à la recherche. */
+  anchorId: string | null;
   onHome: () => void;
   onFit: () => void;
   onZoomIn: () => void;
@@ -58,6 +60,7 @@ export function TopBar({
   graph,
   searchIndex,
   onPick,
+  anchorId,
   onHome,
   onFit,
   onZoomIn,
@@ -82,7 +85,13 @@ export function TopBar({
       </div>
 
       <div className="topbar-search">
-        <SearchField graph={graph} index={searchIndex} onPick={onPick} total={graph.people.size} />
+        <SearchField
+          graph={graph}
+          index={searchIndex}
+          onPick={onPick}
+          total={graph.people.size}
+          anchorId={anchorId}
+        />
       </div>
 
       <div className="topbar-controls">

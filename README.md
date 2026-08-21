@@ -65,6 +65,22 @@ l'un d'eux plonge dans la lignée correspondante.
 
 ---
 
+### Se situer dans la famille
+
+Le bouton **Partir d'ici** d'une fiche désigne cette personne comme point de
+repère — vous, en général. À partir de là, chaque fiche et chaque résultat de
+recherche dit ce que la personne est *pour ce repère* : « Arrière-grand-oncle
+de Camille », « Cousine germaine », « Ancêtre à la 6ᵉ génération ». Le choix
+est mémorisé d'une visite à l'autre ; le même bouton le retire.
+
+La recherche filtre aussi sans qu'on tape quoi que ce soit : les pastilles
+**Vivants / Disparus** et celles des branches transforment le champ en
+parcours — « qui est encore là dans la branche de Bretagne ? ».
+
+**⌥ + flèches** suit la parenté depuis la personne ouverte : vers le haut un
+parent, vers le bas un enfant, sur les côtés la fratrie — le conjoint quand il
+n'y a ni frère ni sœur. Les flèches seules continuent de déplacer la vue.
+
 ## Ajouter ou modifier des personnes
 
 Les données sont totalement séparées de l'interface. Tout se passe dans

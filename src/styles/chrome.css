@@ -706,3 +706,48 @@
     width: auto;
   }
 }
+
+/* Filtres de recherche : des pastilles de verre, au-dessus des résultats. */
+.search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 10px;
+}
+
+.search-chip {
+  padding: 5px 11px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-chip[data-on] {
+  color: var(--accent-strong);
+  --lg-tint: 47, 111, 219;
+  --lg-tint-alpha: 0.14;
+  --lg-tint-alpha-edge: 0.22;
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+:root[data-theme='dark'] .search-chip[data-on] {
+  --lg-tint: 127, 176, 255;
+  --lg-tint-alpha: 0.2;
+}
+
+/* Séparateur entre l'état civil et les branches. */
+.search-filters-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--glass-border-strong);
+}

@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import { searchPeople, type SearchIndex } from '@/domain/search';
+import { describeRelationship, descendantsOf } from '@/domain/relations';
 import { formatLifespan } from '@/domain/dates';
 import { Avatar } from './Avatar';
 
@@ -10,9 +11,14 @@ export interface SearchFieldProps {
   onPick: (id: string) => void;
   /** Compte total, affiché comme repère quand le champ est vide. */
   total: number;
+  /** Personne de référence : chaque résultat dit ce qu'il est pour elle. */
+  anchorId?: string | null;
 }
 
 const MAX_RESULTS = 24;
+
+/** Filtre sur l'état civil. */
+type Vitality = 'tous' | 'vivants' | 'disparus';
 
 /**
  * Recherche par prénom, nom ou nom complet.
@@ -20,24 +26,69 @@ const MAX_RESULTS = 24;
  * Le filtrage tourne sur un index préparé une seule fois : la frappe reste
  * fluide même quand l'arbre compte plusieurs milliers de personnes.
  */
-export function SearchField({ graph, index, onPick, total }: SearchFieldProps) {
+export function SearchField({ graph, index, onPick, total, anchorId }: SearchFieldProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [vitality, setVitality] = useState<Vitality>('tous');
+  const [branch, setBranch] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
 
   const deferredQuery = useDeferredValue(query);
 
+  /**
+   * Les membres d'une branche : la descendance de la personne qui lui donne
+   * son nom, et les conjoints qui l'ont rejointe — une branche coupée de ses
+   * pièces rapportées ne serait pas une famille.
+   */
+  const branchMembers = useMemo(() => {
+    if (!branch) return null;
+    const inside = new Set<string>([branch]);
+    for (const id of descendantsOf(graph, branch).keys()) inside.add(id);
+    for (const id of [...inside]) {
+      for (const link of graph.people.get(id)?.spouseLinks ?? []) inside.add(link.id);
+    }
+    return inside;
+  }, [graph, branch]);
+
+  const filtering = vitality !== 'tous' || branch !== null;
+
+  const keep = useCallback(
+    (id: string): boolean => {
+      if (branchMembers && !branchMembers.has(id)) return false;
+      if (vitality === 'tous') return true;
+      const gone = graph.people.get(id)?.deathDate !== undefined;
+      return vitality === 'disparus' ? gone : !gone;
+    },
+    [branchMembers, vitality, graph],
+  );
+
   const results = useMemo(() => {
-    if (deferredQuery.trim().length === 0) return [];
-    return searchPeople(index, deferredQuery, MAX_RESULTS);
-  }, [index, deferredQuery]);
+    const term = deferredQuery.trim();
+
+    // Sans texte mais avec un filtre, la recherche devient un parcours : on
+    // liste ce qui correspond, dans l'ordre de l'arbre. C'est ce qui permet de
+    // demander « qui est encore là dans la branche de Bretagne ? » sans
+    // connaître un seul nom.
+    if (term.length === 0) {
+      if (!filtering) return [];
+      const found: { id: string; score: number }[] = [];
+      for (const id of graph.order) {
+        if (!keep(id)) continue;
+        found.push({ id, score: 0 });
+        if (found.length >= MAX_RESULTS) break;
+      }
+      return found;
+    }
+
+    return searchPeople(index, term, MAX_RESULTS * 3).filter((hit) => keep(hit.id)).slice(0, MAX_RESULTS);
+  }, [index, deferredQuery, filtering, keep, graph.order]);
 
   useEffect(() => {
     setActive(0);
-  }, [deferredQuery]);
+  }, [deferredQuery, vitality, branch]);
 
   // Raccourci global : ⌘K ou Ctrl+K place le curseur dans le champ.
   useEffect(() => {
@@ -101,7 +152,7 @@ export function SearchField({ graph, index, onPick, total }: SearchFieldProps) {
     }
   };
 
-  const showResults = open && query.trim().length > 0;
+  const showResults = open && (query.trim().length > 0 || filtering);
 
   return (
     <div className="search" ref={containerRef}>
@@ -158,10 +209,54 @@ export function SearchField({ graph, index, onPick, total }: SearchFieldProps) {
         )}
       </div>
 
-      {showResults && (
+      {(open || filtering) && (
         <div className="search-results lg lg--thick lg--liquid" role="presentation">
+          {/*
+            * Les filtres.
+            *
+            * Ils servent autant à chercher qu'à parcourir : sans un mot tapé,
+            * ils répondent déjà à « qui est encore là ? » ou « qui est dans
+            * cette branche ? ».
+            */}
+          <div className="search-filters">
+            {(['tous', 'vivants', 'disparus'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                className="search-chip lg lg--chip lg--pill lg--interactive"
+                data-on={vitality === value || undefined}
+                onClick={() => setVitality(value)}
+              >
+                {value === 'tous' ? 'Tous' : value === 'vivants' ? 'Vivants' : 'Disparus'}
+              </button>
+            ))}
+
+            {graph.branches.length > 0 && <span className="search-filters-sep" aria-hidden="true" />}
+
+            {graph.branches.slice(0, 6).map((anchor) => (
+              <button
+                key={anchor.anchorId}
+                type="button"
+                className="search-chip lg lg--chip lg--pill lg--interactive"
+                data-on={branch === anchor.anchorId || undefined}
+                onClick={() =>
+                  setBranch((current) => (current === anchor.anchorId ? null : anchor.anchorId))
+                }
+                title={anchor.label}
+              >
+                {anchor.label.split(' — ')[0]}
+              </button>
+            ))}
+          </div>
+
           {results.length === 0 ? (
-            <p className="search-empty">Aucune personne ne correspond à « {query.trim()} ».</p>
+            <p className="search-empty">
+              {query.trim()
+                ? `Aucune personne ne correspond à « ${query.trim()} ».`
+                : filtering
+                  ? 'Aucune personne ne correspond à ce filtre.'
+                  : `Tapez un nom, ou choisissez un filtre pour parcourir les ${total} personnes.`}
+            </p>
           ) : (
             <>
               <p className="search-count">
@@ -174,6 +269,12 @@ export function SearchField({ graph, index, onPick, total }: SearchFieldProps) {
                   const person = graph.people.get(hit.id);
                   if (!person) return null;
                   const lifespan = formatLifespan(person.birthDate, person.deathDate);
+                  // Ce que cette personne est pour le point de repère. C'est
+                  // presque toujours plus parlant que son métier.
+                  const kinship =
+                    anchorId && anchorId !== person.id
+                      ? describeRelationship(graph, anchorId, person.id)
+                      : undefined;
                   return (
                     <li key={hit.id}>
                       <button
@@ -194,7 +295,7 @@ export function SearchField({ graph, index, onPick, total }: SearchFieldProps) {
                         <span className="search-result-text">
                           <span className="search-result-name">{person.displayName}</span>
                           <span className="search-result-meta">
-                            {[lifespan, person.profession ?? person.headline]
+                            {[lifespan, kinship ?? person.profession ?? person.headline]
                               .filter(Boolean)
                               .join(' · ')}
                           </span>

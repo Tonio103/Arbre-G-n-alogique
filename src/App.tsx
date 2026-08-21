@@ -42,6 +42,31 @@ export default function App() {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [hintVisible, setHintVisible] = useState(true);
 
+  /**
+   * Le point de repère.
+   *
+   * Dans un arbre de cinq cents personnes, « Eugénie Beaumont, 1843 – 1921 »
+   * ne dit rien : ce qu'on veut savoir, c'est qui elle est *pour soi*. En
+   * désignant une personne comme repère — soi-même, en général — chaque fiche
+   * et chaque résultat de recherche se met à répondre à cette question.
+   *
+   * Le choix est mémorisé : on ne redésigne pas son propre repère à chaque
+   * visite.
+   */
+  const [anchorId, setAnchorId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem('arbre-repere');
+  });
+
+  useEffect(() => {
+    if (anchorId && graph.people.has(anchorId)) {
+      window.localStorage.setItem('arbre-repere', anchorId);
+    } else {
+      window.localStorage.removeItem('arbre-repere');
+      if (anchorId) setAnchorId(null);
+    }
+  }, [anchorId, graph]);
+
   const hoverStore = useMemo(() => new HoverStore(), []);
   const viewport = useMemo(
     () => new ViewportController({ bounds: layout.bounds }),
@@ -92,6 +117,54 @@ export default function App() {
     setFlaggedId(graph.rootId);
     focusOn(graph.rootId, { scale: 1.05, duration: 820 });
   }, [graph.rootId, focusOn]);
+
+  /**
+   * Parcourir la famille au clavier.
+   *
+   * Les flèches seules déplacent la vue — c'est le geste de lecture d'un plan.
+   * Avec la touche Option, elles suivent la parenté : vers le haut on remonte
+   * à un parent, vers le bas on descend à un enfant, sur les côtés on longe la
+   * fratrie. C'est la seule façon de traverser un arbre sans souris, et la plus
+   * rapide même avec.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!event.altKey || event.metaKey || event.ctrlKey) return;
+      if (!selectedId) return;
+      const person = graph.people.get(selectedId);
+      if (!person) return;
+
+      let next: string | undefined;
+      if (event.key === 'ArrowUp') {
+        next = person.parents[0];
+      } else if (event.key === 'ArrowDown') {
+        next = person.children[0];
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const step = event.key === 'ArrowRight' ? 1 : -1;
+        // Fratrie d'abord, conjoint à défaut : une personne sans frère ni sœur
+        // n'est pas pour autant une impasse.
+        const family = [...person.siblings, selectedId].sort(
+          (a, b) =>
+            (graph.people.get(a)?.birthYear ?? 0) - (graph.people.get(b)?.birthYear ?? 0),
+        );
+        if (family.length > 1) {
+          const index = family.indexOf(selectedId);
+          next = family[(index + step + family.length) % family.length];
+        } else {
+          next = person.spouseLinks[0]?.id;
+        }
+      } else {
+        return;
+      }
+
+      if (!next || !graph.people.has(next)) return;
+      event.preventDefault();
+      selectPerson(next);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [graph, selectedId, selectPerson]);
 
   const fitAll = useCallback(() => {
     setFlaggedId(null);
@@ -226,6 +299,7 @@ export default function App() {
         graph={graph}
         searchIndex={searchIndex}
         onPick={pickFromSearch}
+        anchorId={anchorId}
         onHome={goHome}
         onFit={fitAll}
         onZoomIn={() => viewport.zoomBy(1.35)}
@@ -278,6 +352,10 @@ export default function App() {
           setHighlightMode((mode) => (mode === 'close' ? 'lineage' : 'close'))
         }
         lineageActive={highlightMode === 'lineage'}
+        anchorId={anchorId}
+        onToggleAnchor={() =>
+          setAnchorId((current) => (current === selectedId ? null : selectedId))
+        }
       />
 
       <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>
@@ -295,6 +373,10 @@ export default function App() {
         <span className="hint-sep" aria-hidden="true" />
         <span>
           <kbd>0</kbd> vue d’ensemble
+        </span>
+        <span className="hint-sep" aria-hidden="true" />
+        <span>
+          <kbd>⌥</kbd> <kbd>↑↓←→</kbd> suivre la parenté
         </span>
       </div>
     </div>
