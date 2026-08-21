@@ -86,11 +86,36 @@ export function TreeCanvas({
     if (!world || !stage) return undefined;
 
     let pending = 0;
+    // Transform au dernier recensement des cartes visibles.
+    let committed: { x: number; y: number; scale: number } | null = null;
 
     const commitVisible = (): void => {
       pending = 0;
       const box = stage.getBoundingClientRect();
       const transform = viewport.transform;
+
+      // Le recensement n'a pas à suivre chaque image.
+      //
+      // Il interroge l'index spatial, trie le résultat et, quand la liste
+      // change, remonte un état à React qui monte et démonte des dizaines de
+      // médaillons. À pleine vitesse, cela peut arriver soixante fois par
+      // seconde pour un déplacement de quelques pixels.
+      //
+      // Les cartes vivent dans le conteneur transformé : elles suivent le
+      // déplacement toutes seules. Seule la *liste* doit être rafraîchie, et
+      // comme on recense large — deux cent quatre-vingts pixels au-delà du
+      // cadre — on peut laisser la vue prendre cent pixels d'avance avant d'y
+      // revenir. Personne ne peut voir la différence ; la machine, si.
+      if (
+        committed !== null &&
+        committed.scale === transform.scale &&
+        Math.abs(committed.x - transform.x) < 100 &&
+        Math.abs(committed.y - transform.y) < 100
+      ) {
+        return;
+      }
+      committed = { x: transform.x, y: transform.y, scale: transform.scale };
+
       const detail = detailForScale(transform.scale);
       const rect = visibleRect(transform, { width: box.width, height: box.height }, 280);
       const nodes = detail === 'none' ? [] : spatial.visibleNodes(rect);
@@ -116,6 +141,9 @@ export function TreeCanvas({
     const resize = (): void => {
       const box = stage.getBoundingClientRect();
       viewport.setSize({ width: box.width, height: box.height });
+      // Le cadre a changé de taille : le recensement doit être refait même si
+      // la vue, elle, n'a pas bougé d'un pixel.
+      committed = null;
       apply();
     };
     resize();
@@ -248,26 +276,50 @@ export function TreeCanvas({
       // mouvement le plus courant. Le zoom reste accessible avec la touche de
       // commande enfoncée, comme dans n'importe quel plan.
       const step = event.deltaMode === 1 ? event.deltaY * 18 : event.deltaY;
+      const sideways = event.deltaMode === 1 ? event.deltaX * 18 : event.deltaX;
+
+      // Molette crantée ou pavé tactile ?
+      //
+      // Les deux passent par le même événement et demandent l'inverse. Une
+      // souris envoie un saut isolé de cent pixels qu'il faut glisser sous
+      // peine de secousse ; un pavé tactile envoie un flot de petits
+      // déplacements déjà continus, que le moindre lissage retarderait. Le
+      // volume du cran les sépare — c'est le seul indice disponible, et il
+      // suffit.
+      const notched = event.deltaMode === 1 || Math.abs(step) >= 42 || Math.abs(sideways) >= 42;
 
       if (event.ctrlKey || event.metaKey) {
         event.stopPropagation();
-        viewport.zoomAt(x, y, Math.exp(-step * 0.0022));
+        const factor = Math.exp(-step * 0.0022);
+        if (notched) viewport.zoomAtSmooth(x, y, factor);
+        else viewport.zoomAt(x, y, factor);
+        return;
+      }
+
+      if (event.shiftKey) {
+        if (notched) viewport.panBySmooth(-step, 0);
+        else {
+          viewport.stopAnimation();
+          viewport.panBy(-step, 0);
+        }
+        return;
+      }
+
+      if (notched) {
+        viewport.panBySmooth(-sideways, -step);
         return;
       }
 
       viewport.stopAnimation();
-      if (event.shiftKey) {
-        viewport.panBy(-step, 0);
-        return;
-      }
-
-      const sideways = event.deltaMode === 1 ? event.deltaX * 18 : event.deltaX;
       viewport.panBy(-sideways, -step);
     };
 
     const onDoubleClick = (event: MouseEvent): void => {
       const rect = stage.getBoundingClientRect();
-      viewport.zoomAt(event.clientX - rect.left, event.clientY - rect.top, 1.75);
+      // Un double-clic double presque l'échelle : d'un coup, on ne sait plus où
+      // l'on a atterri. Trois cent vingt millisecondes suffisent à ce que
+      // l'œil suive le point qu'il visait.
+      viewport.zoomAtSmooth(event.clientX - rect.left, event.clientY - rect.top, 1.75, 320);
     };
 
     stage.addEventListener('pointerdown', onPointerDown);
@@ -290,27 +342,31 @@ export function TreeCanvas({
   // --- Clavier : déplacement et zoom sans souris ---
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>): void => {
+      // Au clavier, chaque appui est un saut : tout est glissé. Maintenir une
+      // flèche enchaîne les cibles, ce qui donne un défilement continu plutôt
+      // qu'une succession de bonds.
       const step = event.shiftKey ? 260 : 90;
+      const half = { width: viewport.size.width / 2, height: viewport.size.height / 2 };
       switch (event.key) {
         case 'ArrowLeft':
-          viewport.panBy(step, 0);
+          viewport.panBySmooth(step, 0, 180);
           break;
         case 'ArrowRight':
-          viewport.panBy(-step, 0);
+          viewport.panBySmooth(-step, 0, 180);
           break;
         case 'ArrowUp':
-          viewport.panBy(0, step);
+          viewport.panBySmooth(0, step, 180);
           break;
         case 'ArrowDown':
-          viewport.panBy(0, -step);
+          viewport.panBySmooth(0, -step, 180);
           break;
         case '+':
         case '=':
-          viewport.zoomBy(1.3);
+          viewport.zoomAtSmooth(half.width, half.height, 1.3, 220);
           break;
         case '-':
         case '_':
-          viewport.zoomBy(1 / 1.3);
+          viewport.zoomAtSmooth(half.width, half.height, 1 / 1.3, 220);
           break;
         default:
           return;

@@ -55,6 +55,11 @@
   --lg-tint-alpha: 0.2;
   /* Un verre n'est pas uniforme : il est plus dense là où il est plus épais. */
   --lg-tint-alpha-edge: 0.34;
+  /* Densité de repli, le temps d'un déplacement : voir la règle
+     `[data-moving]` plus bas. Privé de son flou, le verre ne doit plus compter
+     que sur sa masse pour porter le texte. */
+  --lg-tint-alpha-moving: 0.87;
+  --lg-tint-alpha-edge-moving: 0.93;
 
   /* Reflet glissant ------------------------------------------------------ */
   /* Position par défaut, remplacée en continu par `useGlassLight`. */
@@ -106,6 +111,8 @@
   --lg-tint: 16, 24, 42;
   --lg-tint-alpha: 0.42;
   --lg-tint-alpha-edge: 0.26;
+  --lg-tint-alpha-moving: 0.86;
+  --lg-tint-alpha-edge-moving: 0.78;
 
   --lg-glare: rgba(255, 255, 255, 0.16);
   --lg-specular: rgba(255, 255, 255, 0.72);
@@ -212,6 +219,33 @@
    au-dessus de la scène, et coûte un tiers des images par seconde. */
 .app[data-moving='true'] .lg::before {
   display: none;
+}
+
+/*
+ * Le flou d'arrière-plan, suspendu le temps du geste.
+ *
+ * C'est, de loin, la dépense la plus lourde de l'interface : le navigateur doit
+ * relire le fond sous chaque panneau et le refondre à chaque image, et le fond
+ * change à chaque image dès que l'arbre bouge. Mesuré ici, il coûte la moitié
+ * du budget d'affichage — trente-deux images par seconde pendant un
+ * déplacement, soixante sans lui.
+ *
+ * Ce qu'on perd, personne ne le regarde : on ne contemple pas la texture d'un
+ * panneau pendant qu'on fait défiler ce qu'il y a derrière. Ce qu'on gagne se
+ * sent à chaque geste.
+ *
+ * La masse compense la perte : sans flou, un verre à vingt pour cent laisserait
+ * lire l'arbre au travers du texte. Le changement est instantané à l'aller —
+ * une transition laisserait, le temps du fondu, un panneau à la fois
+ * transparent et net — et se fond au retour, quand la règle normale reprend la
+ * main avec sa transition.
+ */
+.app[data-moving='true'] .lg {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  --lg-tint-alpha: var(--lg-tint-alpha-moving);
+  --lg-tint-alpha-edge: var(--lg-tint-alpha-edge-moving);
+  transition: none;
 }
 
 /* ---------------------------------------------------------------------------

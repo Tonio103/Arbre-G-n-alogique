@@ -971,7 +971,14 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   // d'un certain zoom — sous deux pixels d'épaisseur à l'écran, elles ne
   // produisent qu'un bruit sale sur la silhouette.
   const boneOnScreen = Math.max(26, floor) * scale;
-  const shaded = params.detailed && boneOnScreen > 2.4;
+  // Le modelé pendant le déplacement.
+  //
+  // Il triple le coût d'une image, ce qui n'est pas soutenable quand deux cents
+  // branches défilent. Mais sur une famille, où il n'y en a qu'une poignée,
+  // c'est le contraire : le supprimer se voit — les branches s'aplatissent dès
+  // qu'on pose la main sur la souris et reprennent du volume quand on la lâche.
+  // On le garde donc tant qu'il reste peu de bois à l'écran.
+  const shaded = boneOnScreen > 2.4 && (params.detailed || params.unions.length < 60);
 
   // Épaisseur, à l'écran, de la plus grosse branche visible.
   //
@@ -1012,7 +1019,17 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     // fait trente pixels, il en faut sept quand elle en fait trois cents, sinon
     // on distingue chaque palier. Elles ne coûtent que là où il ne reste plus
     // que quelques branches à l'écran.
-    const steps = widestOnScreen > 260 ? 8 : widestOnScreen > 90 ? 5 : widestOnScreen > 26 ? 3 : 0;
+    // Le fondu progressif, lui, n'a lieu qu'au repos : c'est un raffinement de
+    // contemplation, et il vaut à lui seul plusieurs remplissages.
+    const steps = !params.detailed
+      ? 0
+      : widestOnScreen > 260
+        ? 8
+        : widestOnScreen > 90
+          ? 5
+          : widestOnScreen > 26
+            ? 3
+            : 0;
     for (let k = 0; k < steps; k += 1) {
       const span = 0.92 - (k * 0.42) / steps;
       ctx.globalAlpha = 0.5 / steps + k * (0.24 / steps);

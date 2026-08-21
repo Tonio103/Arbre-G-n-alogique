@@ -128,17 +128,30 @@ export function BranchLayer({
     let breezeFrame = 0;
     let lastTick = 0;
 
-    // Un balancement lent n'a pas besoin de soixante images par seconde. En
-    // repeindre vingt suffit à le voir couler, et rend les deux tiers du temps
-    // de calcul — sur une scène qui, sinon, tournerait en permanence.
-    const BREEZE_INTERVAL = 50;
+    // La cadence de la brise s'ajuste à ce qu'elle coûte.
+    //
+    // Un balancement lent n'a pas besoin de soixante images par seconde : vingt
+    // suffisent à le voir couler. Mais « vingt » n'a de sens que si une image
+    // coûte peu. Sur la vue d'ensemble, repeindre l'arbre entier prend dix fois
+    // plus de temps que sur une famille — et la même cadence mangeait alors
+    // tout le budget d'une machine au repos, juste avant que l'utilisateur ne
+    // pose la main sur la souris.
+    //
+    // La règle : la brise ne s'accorde qu'un quart du temps. On mesure ce que
+    // coûte une image et on espace les suivantes en conséquence, entre vingt
+    // fois par seconde et cinq. Le décor reste vivant partout, et nulle part il
+    // ne prend la place du geste.
+    const BREEZE_MIN = 50;
+    const BREEZE_MAX = 230;
+    let breezeInterval = BREEZE_MIN;
+    let paintCost = 0;
     let lastPaint = 0;
 
     const animateBreeze = (now: number): void => {
       const delta = lastTick ? Math.min(0.05, (now - lastTick) / 1000) : 0;
       lastTick = now;
       breeze += delta;
-      if (now - lastPaint >= BREEZE_INTERVAL) {
+      if (now - lastPaint >= breezeInterval) {
         lastPaint = now;
         schedule();
       }
@@ -163,11 +176,13 @@ export function BranchLayer({
 
     const paint = (): void => {
       frameRef.current = 0;
+      const startedAt = performance.now();
       const palette = paletteRef.current ?? readPalette();
       const transform = viewport.transform;
       const rect = visibleRect(transform, { width, height }, 320);
 
       const visibleNodes = spatial.visibleNodes(rect);
+      const unions = spatial.visibleUnions(rect);
       const hovered = hoverStore.getSnapshot();
       const accentUnions = new Set(highlightUnionsRef.current);
       if (hovered) {
@@ -175,7 +190,7 @@ export function BranchLayer({
       }
 
       drawTree(context, {
-        unions: spatial.visibleUnions(rect),
+        unions,
         crossLinks: layout.crossLinks,
         weights: layout.weights,
         bounds: layout.bounds,
@@ -205,6 +220,15 @@ export function BranchLayer({
           scale: transform.scale,
         });
       }
+
+      // La cadence se règle sur la quantité de bois à l'écran, pas sur le temps
+      // mesuré ici : les commandes d'un canevas sont enregistrées puis
+      // rastérisées ailleurs, si bien qu'une image lourde s'exécute en une
+      // milliseconde de JavaScript et coûte trente millisecondes à la machine.
+      // Le nombre de branches visibles, lui, est connu tout de suite et suit
+      // fidèlement la dépense réelle.
+      paintCost = paintCost * 0.6 + unions.length * 0.4;
+      breezeInterval = Math.min(BREEZE_MAX, Math.max(BREEZE_MIN, 46 + paintCost * 0.7));
     };
 
     const schedule = (): void => {
@@ -212,9 +236,24 @@ export function BranchLayer({
       frameRef.current = requestAnimationFrame(paint);
     };
 
+    /**
+     * Définition de rendu du canevas.
+     *
+     * Au repos, la densité de l'écran, plafonnée à deux : le bois doit être net
+     * quand on le regarde. En mouvement, plafonnée à 1,35 — moitié moins de
+     * pixels à peindre sur un écran à deux fois la densité, cinq fois moins sur
+     * un téléphone à trois fois. La différence ne se voit pas sur une image qui
+     * défile : c'est exactement là que le détail ne sert à rien, et exactement
+     * là que la fluidité se gagne.
+     */
+    const renderDpr = (): number => {
+      const density = Math.min(window.devicePixelRatio || 1, 2);
+      return moving ? Math.min(density, 1.35) : density;
+    };
+
     const resize = (): void => {
       const box = parent.getBoundingClientRect();
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = renderDpr();
       width = Math.max(1, box.width);
       height = Math.max(1, box.height);
       canvas.width = Math.round(width * dpr);
@@ -224,16 +263,31 @@ export function BranchLayer({
       schedule();
     };
 
+    /** Change la définition sans toucher à la taille affichée. */
+    const rescale = (): void => {
+      const next = renderDpr();
+      if (Math.abs(next - dpr) < 0.01) return;
+      dpr = next;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+    };
+
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(parent);
 
     const onViewportChange = (): void => {
-      moving = true;
+      if (!moving) {
+        moving = true;
+        // Une seule fois par geste, jamais à chaque image : réallouer le
+        // tampon du canevas coûterait plus cher que ce qu'on économise.
+        rescale();
+      }
       stopBreeze();
       window.clearTimeout(settleTimer);
       settleTimer = window.setTimeout(() => {
         moving = false;
+        rescale();
         schedule();
         startBreeze();
       }, 170);

@@ -197,8 +197,49 @@ export class ViewportController {
     });
   }
 
+  /**
+   * Le même zoom, mais glissé.
+   *
+   * Un cran de molette vaut vingt pour cent d'échelle : appliqué d'un coup,
+   * l'arbre saute, et enchaîner les crans donne une succession de secousses.
+   * Amené en cent soixante millisecondes, le même cran devient un mouvement —
+   * et comme chaque nouveau cran repart de la cible en cours et non de l'image
+   * affichée, une roulée continue accélère au lieu de se contredire.
+   *
+   * Un pavé tactile, lui, envoie des dizaines de très petits crans par seconde :
+   * les animer ajouterait un retard à un geste déjà continu. C'est à l'appelant
+   * de distinguer les deux.
+   */
+  zoomAtSmooth(screenX: number, screenY: number, factor: number, duration = 170): void {
+    const base = this.animation ? this.animation.to : this.transform;
+    const scale = clampScale(base.scale * factor);
+    const applied = scale / base.scale;
+    this.animateTo(
+      {
+        scale,
+        x: screenX - (screenX - base.x) * applied,
+        y: screenY - (screenY - base.y) * applied,
+      },
+      duration,
+      'out',
+    );
+  }
+
+  /**
+   * Défilement glissé, pour la molette crantée.
+   *
+   * Même raison : une souris envoie des sauts de cent pixels. Les enchaîner
+   * sans les lisser donne une lecture par à-coups, alors que l'arbre se
+   * parcourt du regard.
+   */
+  panBySmooth(dx: number, dy: number, duration = 200): void {
+    const base = this.animation ? this.animation.to : this.transform;
+    this.animateTo({ scale: base.scale, x: base.x + dx, y: base.y + dy }, duration, 'out');
+  }
+
+  /** Boutons + et − : le zoom est glissé, comme au clavier. */
   zoomBy(factor: number): void {
-    this.zoomAt(this.size.width / 2, this.size.height / 2, factor);
+    this.zoomAtSmooth(this.size.width / 2, this.size.height / 2, factor, 240);
   }
 
   stopAnimation(): void {
@@ -216,7 +257,7 @@ export class ViewportController {
     this.interacting = false;
     this.velocityX = velocityX;
     this.velocityY = velocityY;
-    if (Math.abs(velocityX) > 0.02 || Math.abs(velocityY) > 0.02) this.ensureLoop();
+    if (Math.abs(velocityX) > 0.015 || Math.abs(velocityY) > 0.015) this.ensureLoop();
     else this.emit();
   }
 
@@ -264,8 +305,11 @@ export class ViewportController {
         } else {
           running = true;
         }
-      } else if (Math.abs(this.velocityX) > 0.02 || Math.abs(this.velocityY) > 0.02) {
-        const decay = Math.pow(0.94, delta / 16.6667);
+      } else if (Math.abs(this.velocityX) > 0.015 || Math.abs(this.velocityY) > 0.015) {
+        // L'inertie s'éteignait en deux dixièmes de seconde : le geste
+        // s'arrêtait presque avec le doigt, et on perdait ce qui fait qu'une
+        // carte se manipule — le fait qu'elle continue.
+        const decay = Math.pow(0.962, delta / 16.6667);
         this.velocityX *= decay;
         this.velocityY *= decay;
         const next = this.clampTransform({
@@ -278,7 +322,7 @@ export class ViewportController {
         if (next.y === this.transform.y) this.velocityY = 0;
         this.transform = next;
         this.emit();
-        running = Math.abs(this.velocityX) > 0.02 || Math.abs(this.velocityY) > 0.02;
+        running = Math.abs(this.velocityX) > 0.015 || Math.abs(this.velocityY) > 0.015;
       }
 
       if (running) this.frame = requestAnimationFrame(step);
