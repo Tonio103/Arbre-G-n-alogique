@@ -23,6 +23,8 @@ export interface SceneryPalette {
   soil: string;
   /** Terre en profondeur, sous la surface. */
   soilDeep: string;
+  /** Cailloux et gravier enfouis. */
+  soilGrain: string;
   /** Ombre portée au pied du tronc. */
   groundShade: string;
   /** Face éclairée des pierres. */
@@ -50,6 +52,8 @@ export interface SceneryParams {
   /** Étendue horizontale visible, pour ne semer que ce qui sera vu. */
   left: number;
   right: number;
+  /** Bas du cadre : la terre descend au moins jusque-là. */
+  bottom: number;
 }
 
 /** Altitude de référence du sol, avant le relief. */
@@ -130,7 +134,11 @@ export function drawGround(ctx: CanvasRenderingContext2D, params: SceneryParams)
   const step = RELIEF_STEP / 6;
   const from = Math.floor(left / step) * step;
   const to = Math.ceil(right / step) * step;
-  const depth = ROW_HEIGHT * 3.4;
+  // La terre descend jusqu'au bas du cadre, toujours. À profondeur fixe, elle
+  // s'arrêtait en pleine page dès qu'on prenait du recul : sous l'horizon
+  // s'ouvrait alors un vide de la couleur du ciel, ce qui n'est un paysage
+  // dans aucune direction.
+  const depth = Math.max(ROW_HEIGHT * 3.4, (params.bottom - y) * 1.08);
 
   const traceSurface = (): void => {
     ctx.beginPath();
@@ -266,6 +274,53 @@ export function drawStones(ctx: CanvasRenderingContext2D, params: SceneryParams)
 }
 
 /**
+ * Le grain de la terre.
+ *
+ * Sous l'horizon, la masse est uniforme : une couleur, un dégradé, rien à quoi
+ * l'œil puisse s'accrocher. Quelques cailloux enfouis et un peu de gravier
+ * suffisent à lui donner de la matière — on ne les regarde pas, on les voit.
+ */
+export function drawSoilGrain(ctx: CanvasRenderingContext2D, params: SceneryParams): void {
+  const { trunk, palette, scale } = params;
+  if (scale < 0.04) return;
+
+  const size = Math.max(4, Math.min(26, 6 / Math.max(scale, 0.03)));
+  const step = size * 9;
+  const top = groundLevel(trunk);
+  const depth = Math.min(ROW_HEIGHT * 2.2, (params.bottom - top) * 0.9);
+  if (depth <= 0) return;
+
+  ctx.beginPath();
+  let count = 0;
+  for (const { x, index, roll } of scatter(params.left, params.right, step, 'grain')) {
+    if (roll > 0.5) continue;
+    // Plusieurs grains par colonne : une seule rangée dessinerait un liseré.
+    const rows = 3 + Math.floor(hashN('grain-n', index) * 4);
+    for (let k = 0; k < rows; k += 1) {
+      const t = (k + hashN(`grain-t${index}`, k)) / rows;
+      const y = terrainY(trunk, x) + 40 + t * t * depth;
+      if (y > params.bottom) break;
+      const rx = size * (0.35 + hashN(`grain-r${index}`, k) * 0.9);
+      ctx.moveTo(x + rx, y);
+      ctx.ellipse(
+        x + jitter(`grain-x${index}`, k, step * 0.45),
+        y,
+        rx,
+        rx * (0.4 + hashN(`grain-h${index}`, k) * 0.4),
+        hashN(`grain-a${index}`, k) * Math.PI,
+        0,
+        Math.PI * 2,
+      );
+      count += 1;
+      if (count > 700) break;
+    }
+    if (count > 700) break;
+  }
+  ctx.fillStyle = palette.soilGrain;
+  ctx.fill();
+}
+
+/**
  * Herbe et fleurs.
  *
  * Les brins s'inclinent tous ensemble sous la brise, avec un décalage de phase
@@ -276,7 +331,9 @@ export function drawStones(ctx: CanvasRenderingContext2D, params: SceneryParams)
 export function drawUndergrowth(ctx: CanvasRenderingContext2D, params: SceneryParams): void {
   const { trunk, palette, scale, time } = params;
   const size = Math.max(11, Math.min(85, 17 / Math.max(scale, 0.03)));
-  const step = size * 3.4;
+  // Un pas serré : à trois largeurs de touffe, l'herbe n'est plus un tapis mais
+  // une rangée de brins plantés un par un.
+  const step = size * 1.9;
 
   const near: number[] = [];
   const far: number[] = [];
@@ -292,7 +349,7 @@ export function drawUndergrowth(ctx: CanvasRenderingContext2D, params: SceneryPa
     const height = size * (0.75 + hashN('herbe-h', index) * 0.8);
     const base = terrainY(trunk, x) + jitter('herbe-y', index, ROW_HEIGHT * 0.03);
 
-    const blades = 3 + Math.floor(hashN('herbe-n', index) * 3);
+    const blades = 4 + Math.floor(hashN('herbe-n', index) * 4);
     for (let k = 0; k < blades; k += 1) {
       const bx = x + jitter(`herbe-x${index}`, k, size * 1.1);
       const bh = height * (0.6 + hashN(`herbe-k${index}`, k) * 0.7);

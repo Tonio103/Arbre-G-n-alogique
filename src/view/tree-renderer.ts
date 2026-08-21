@@ -28,6 +28,7 @@ import {
 import {
   drawDapples,
   drawGround,
+  drawSoilGrain,
   drawStones,
   drawUndergrowth,
   groundLevel,
@@ -698,7 +699,13 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   //
   // Un arbre posé sur du vide reste un schéma : rien ne dit où il pousse ni à
   // quelle échelle. La clairière d'abord, puis ce qui s'y trouve.
-  if (!hasSelection) {
+  //
+  // Il est peint même quand une lignée est sélectionnée. On l'avait d'abord
+  // suspendu pour concentrer le regard, mais choisir quelqu'un faisait alors
+  // disparaître le ciel et la terre sous ses pieds : la fiche s'ouvrait sur un
+  // arbre qui flottait dans le vide. Le décor ne dispute rien à la lignée
+  // accentuée — il est derrière, et bien plus pâle qu'elle.
+  {
     const scenery = {
       trunk: params.trunk,
       palette,
@@ -706,10 +713,12 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
       time: params.time,
       left: rect.left,
       right: rect.right,
+      bottom: rect.bottom,
     };
     // Le ciel d'abord : tout le reste se pose devant.
     drawClouds(ctx, air);
     drawGround(ctx, scenery);
+    drawSoilGrain(ctx, scenery);
     // Les flaques de lumière passent sous l'herbe et les pierres : elles
     // éclairent la terre, elles ne se posent pas dessus.
     drawDapples(ctx, scenery);
@@ -735,19 +744,34 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   // d'un certain zoom — sous deux pixels d'épaisseur à l'écran, elles ne
   // produisent qu'un bruit sale sur la silhouette.
   const boneOnScreen = Math.max(26, floor) * scale;
-  if (params.detailed && boneOnScreen > 2.4 && !hasSelection) {
+  const shaded = params.detailed && boneOnScreen > 2.4;
+
+  /** Pose le relief cylindrique sur une liste de branches. */
+  const paintRelief = (list: LayoutUnion[], withTrunk: boolean): void => {
     // Seuil exprimé en unités de monde pour valoir quatre pixels à l'écran.
     const minShaded = 4 / scale;
 
     const paintBand = (band: BranchShading, color: string): void => {
       ctx.beginPath();
-      traceTrunk(ctx, params.trunk, segments, floor, band);
-      for (const union of normal) {
+      if (withTrunk) traceTrunk(ctx, params.trunk, segments, floor, band);
+      for (const union of list) {
         traceUnion(ctx, union, weights, segments, floor, params.time, band, minShaded);
       }
       ctx.fillStyle = color;
       ctx.fill();
     };
+
+    // De près, deux bandes larges et transparentes viennent d'abord adoucir le
+    // passage. Un cylindre n'a pas d'arête : à quelques pixels d'épaisseur, la
+    // marche entre le clair et le sombre ne se voit pas, mais dès que la
+    // branche occupe la moitié de l'écran elle se lit comme un ruban peint.
+    // Elles ne coûtent que là où il n'y a plus grand-chose à dessiner.
+    if (boneOnScreen > 40) {
+      ctx.globalAlpha = 0.55;
+      paintBand({ width: 0.66, offset: 0.34 }, palette.woodShade);
+      paintBand({ width: 0.54, offset: -0.32 }, palette.woodLight);
+      ctx.globalAlpha = 1;
+    }
 
     // Du plus bas au plus haut du relief : l'ombre, la face éclairée, puis un
     // filet vif sur l'arête. Ce dernier trait est ce qui donne au bois son
@@ -755,7 +779,9 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     paintBand({ width: 0.42, offset: 0.52 }, palette.woodShade);
     paintBand({ width: 0.3, offset: -0.5 }, palette.woodLight);
     if (boneOnScreen > 5) paintBand({ width: 0.1, offset: -0.66 }, palette.woodSheen);
-  }
+  };
+
+  if (shaded && !hasSelection) paintRelief(normal, true);
 
   // Passe 3 : l'écorce du fût. Seulement quand elle est assez large à l'écran
   // pour se lire — en dessous, ce ne serait qu'un bruit gris sur la silhouette.
@@ -816,6 +842,7 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
     ctx.beginPath();
     for (const union of accent) traceUnion(ctx, union, weights, segments, floor, params.time);
 
+
     // Le surlignage s'éteint en s'éloignant de la personne désignée.
     //
     // Une lignée s'étend sur tout le plan : un aïeul peut être à des milliers
@@ -844,6 +871,12 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
       ctx.fillStyle = palette.highlight;
     }
     ctx.fill();
+
+    // Et le même relief que sur le reste du bois. La couleur seule aplatissait
+    // la lignée : une maîtresse branche large de cent unités devenait un ruban
+    // posé sur le dessin. Avec son ombre et sa face éclairée, elle reste une
+    // branche — simplement, c'est celle qu'on regarde.
+    if (shaded) paintRelief(accent, false);
   }
 }
 

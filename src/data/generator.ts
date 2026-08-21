@@ -119,6 +119,13 @@ function biographyFor(rng: Rng, context: BiographyContext): string | undefined {
 interface QueueEntry {
   parentIds: string[];
   parentBirthYear: number;
+  /**
+   * Année où le premier des deux parents disparaît.
+   *
+   * Une fratrie s'échelonne sur vingt ans : sans cette borne, des enfants
+   * naissaient encore plusieurs années après la mort de leur mère.
+   */
+  parentDeathYear: number;
   /** Nom transmis aux enfants. */
   lastName: string;
   depth: number;
@@ -142,6 +149,16 @@ interface PersonInput {
   branchLabel: string;
   parents?: string[];
   maidenName?: string;
+  /**
+   * Âge minimal atteint par la personne.
+   *
+   * La mortalité est tirée au sort pour tout le monde, ce qui produisait des
+   * conjoints morts en bas âge : quelqu'un né et enterré la même année se
+   * retrouvait marié quarante ans plus tard, parce que l'époux était fabriqué
+   * sans qu'on regarde s'il avait vécu jusqu'au mariage. Une personne qu'on
+   * s'apprête à marier reçoit donc un plancher.
+   */
+  minAge?: number;
 }
 
 function makePerson(input: PersonInput): PersonRecord {
@@ -150,8 +167,10 @@ function makePerson(input: PersonInput): PersonRecord {
   const profession = professionFor(rng, birthYear, gender);
 
   // Mortalité : forte avant 1920, faible ensuite ; personne ne dépasse l'année courante.
-  const infantDeath = birthYear < 1925 && rng() < 0.05;
-  const span = infantDeath ? between(rng, 0, 4) : lifespan(rng, birthYear);
+  const infantDeath = input.minAge === undefined && birthYear < 1925 && rng() < 0.05;
+  const span = infantDeath
+    ? between(rng, 0, 4)
+    : Math.max(lifespan(rng, birthYear), (input.minAge ?? 0) + between(rng, 1, 14));
   const deathYear = birthYear + span;
   const isDead = deathYear <= CURRENT_YEAR;
 
@@ -232,6 +251,9 @@ export function expandLineage(seed: LineageSeed, founderBirthYear: number, rngSe
     {
       parentIds: [seed.founderId, seed.spouseId],
       parentBirthYear: founderBirthYear,
+      // Le couple fondateur est écrit à la main : sa cohérence ne dépend pas
+      // du tirage.
+      parentDeathYear: Number.POSITIVE_INFINITY,
       lastName: seed.lastName,
       depth: 0,
     },
@@ -256,6 +278,8 @@ export function expandLineage(seed: LineageSeed, founderBirthYear: number, rngSe
       const birthYear = index === 0 ? previousBirth : previousBirth + between(rng, 2, 5);
       previousBirth = birthYear;
       if (birthYear > LAST_BIRTH_YEAR) break;
+      // Un enfant posthume, à la rigueur ; deux ans après, non.
+      if (birthYear > entry.parentDeathYear + 1) break;
 
       const gender: 'f' | 'm' = rng() < 0.5 ? 'f' : 'm';
       const firstName = givenName(rng, birthYear, gender);
@@ -307,6 +331,8 @@ export function expandLineage(seed: LineageSeed, founderBirthYear: number, rngSe
         driftKey: seed.driftRegion,
         branchLabel: seed.label,
         maidenName: spouseGender === 'f' ? spouseSurname : undefined,
+        // Il se marie cette année-là : il faut au moins qu'il y soit encore.
+        minAge: Math.max(18, marriageYear - spouseBirthYear),
       });
 
       const divorced = birthYear > 1945 && rng() < 0.13;
@@ -326,9 +352,13 @@ export function expandLineage(seed: LineageSeed, founderBirthYear: number, rngSe
         child.lastName = husbandSurname;
       }
 
+      const deathOf = (record: PersonRecord): number =>
+        record.deathDate ? Number(record.deathDate.slice(0, 4)) : Number.POSITIVE_INFINITY;
+
       queue.push({
         parentIds: [childId, spouseId],
         parentBirthYear: birthYear,
+        parentDeathYear: Math.min(deathOf(child), deathOf(spouse)),
         lastName: husbandSurname,
         depth: entry.depth + 1,
       });

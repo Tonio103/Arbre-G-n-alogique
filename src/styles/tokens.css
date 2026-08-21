@@ -42,7 +42,7 @@
   /* Bois et feuillage de l'arbre */
   --wood-trunk: rgba(126, 96, 66, 0.96);
   --wood-twig: rgba(206, 182, 150, 0.72);
-  --wood-dim: rgba(170, 150, 128, 0.07);
+  --wood-dim: rgba(170, 150, 128, 0.16);
   /* Médaillon : halo, plaque du nom, cerne des personnes disparues */
   --node-halo-core: rgba(18, 28, 48, 0.5);
   --node-halo-mid: rgba(18, 28, 48, 0.26);
@@ -53,6 +53,7 @@
   --ground: rgba(96, 122, 104, 0.26);
   --soil: rgba(64, 54, 40, 0.82);
   --soil-deep: rgba(10, 14, 24, 0.72);
+  --soil-grain: rgba(12, 10, 8, 0.3);
   --stone: rgba(146, 150, 152, 0.7);
   --stone-shade: rgba(84, 88, 92, 0.75);
   --grass: rgba(112, 158, 104, 0.75);
@@ -139,7 +140,7 @@
 
   --wood-trunk: rgba(72, 52, 34, 0.96);
   --wood-twig: rgba(132, 104, 74, 0.82);
-  --wood-dim: rgba(110, 92, 72, 0.07);
+  --wood-dim: rgba(110, 92, 72, 0.18);
   --node-halo-core: rgba(255, 255, 255, 0.82);
   --node-halo-mid: rgba(255, 255, 255, 0.42);
   --node-plate: rgba(255, 255, 255, 0.5);
@@ -149,6 +150,7 @@
   --ground: rgba(122, 146, 116, 0.3);
   --soil: rgba(126, 100, 70, 0.7);
   --soil-deep: rgba(96, 74, 52, 0.42);
+  --soil-grain: rgba(74, 54, 34, 0.22);
   --stone: rgba(202, 200, 194, 0.85);
   --stone-shade: rgba(140, 138, 132, 0.75);
   --grass: rgba(108, 154, 92, 0.85);

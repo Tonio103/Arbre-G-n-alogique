@@ -31,6 +31,7 @@ function readPalette(): TreePalette {
     ground: read('--ground', 'rgba(126, 142, 112, 0.16)'),
     soil: read('--soil', 'rgba(126, 100, 70, 0.7)'),
     soilDeep: read('--soil-deep', 'rgba(96, 74, 52, 0.42)'),
+    soilGrain: read('--soil-grain', 'rgba(74, 54, 34, 0.22)'),
     groundShade: read('--ground-shade', 'rgba(60, 66, 52, 0.16)'),
     stone: read('--stone', 'rgba(196, 194, 188, 0.85)'),
     stoneShade: read('--stone-shade', 'rgba(126, 124, 118, 0.8)'),
