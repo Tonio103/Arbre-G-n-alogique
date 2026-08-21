@@ -70,6 +70,48 @@ l'un d'eux plonge dans la lignée correspondante.
 Les données sont totalement séparées de l'interface. Tout se passe dans
 `src/data/` — aucun composant à toucher.
 
+### Mettre sa propre famille
+
+Un seul fichier : **`src/data/ma-famille.ts`**. Tant qu'il exporte `null`,
+l'application affiche la famille fictive des Beaumont ; dès qu'il contient
+quelque chose, c'est votre arbre qui s'affiche. Un exemple complet y est écrit
+en commentaire, prêt à décommenter.
+
+```ts
+export const MA_FAMILLE: FamilyDataset | null = {
+  title: 'Durand — Petit',
+  rootId: 'marie-durand-1912',
+  people: [
+    { id: 'jean-durand-1880', firstName: 'Jean', lastName: 'Durand', birthDate: '1880' },
+    { id: 'marie-durand-1912', firstName: 'Marie', lastName: 'Durand',
+      birthDate: '1912', parents: ['jean-durand-1880'] },
+  ],
+};
+```
+
+Pour saisir en JSON plutôt qu'en TypeScript — pour l'exporter d'ailleurs, ou le
+confier à quelqu'un qui ne lit pas de code — il suffit d'importer le fichier :
+
+```ts
+import personnes from './ma-famille.json';
+export const MA_FAMILLE = { title: 'Ma famille', rootId: '…', people: personnes };
+```
+
+### La relecture des données
+
+À chaque chargement, l'arbre est relu par `domain/check.ts`. Il signale ce qui
+ne peut pas être vrai :
+
+- parent inconnu, identifiant en double, boucle de filiation
+- décès avant la naissance, vie de plus de 122 ans
+- parent de moins de 13 ans, enfant né plus d'un an après la mort d'un parent
+- mariage avant la naissance, après le décès, ou avant 14 ans
+
+Rien n'est corrigé ni bloqué — un arbre réel a ses zones douteuses, et c'est à
+vous de trancher. Tout est écrit dans la console, et un bandeau apparaît dans
+l'application avec les premières anomalies : chaque ligne ouvre la fiche de la
+personne concernée. Sur des données saines, il n'existe pas.
+
 Une personne minimale :
 
 ```ts
@@ -132,14 +174,15 @@ n'interrompent rien : elles sont collectées dans `graph.warnings`.
 | `data/core-family.ts` | Le noyau familial, écrit à la main, richement documenté |
 | `data/generator.ts` | Peuple les branches collatérales de façon déterministe |
 | `data/vocabulary.ts` | Prénoms, métiers et lieux par époque |
-| `data/index.ts` | Assemble le tout et déclare les branches nommées |
+| `data/ma-famille.ts` | **Votre famille.** Le seul fichier à remplir |
+| `data/index.ts` | Choisit entre votre famille et la démonstration |
 
 Pour un arbre plus grand ou plus petit, ajustez les `budget` des graines dans
 `core-family.ts` : c'est le seul réglage. Le générateur étant semé par une
 valeur fixe, le même arbre est reconstruit à chaque chargement.
 
-Pour partir de vos propres données, remplacez le contenu de `data/index.ts` par
-votre liste de `PersonRecord` : rien d'autre ne change.
+Pour partir de vos propres données, remplissez `data/ma-famille.ts` : rien
+d'autre ne change.
 
 ---
 

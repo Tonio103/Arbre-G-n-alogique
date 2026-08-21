@@ -14,6 +14,7 @@ import { BranchLabels } from '@/components/BranchLabels';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
+import { DataNotice } from '@/components/DataNotice';
 import { MiniMap } from '@/components/MiniMap';
 import { GenerationRail } from '@/components/GenerationRail';
 
@@ -29,7 +30,7 @@ import '@/styles/detail.css';
 const PANEL_OFFSET = 400;
 
 export default function App() {
-  const { graph, layout, spatial, searchIndex } = useFamilyTree(FAMILY_DATASET);
+  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(FAMILY_DATASET);
   const [theme, toggleTheme] = useTheme();
   // Une seule source de lumière pour tout le verre de l'interface.
   useGlassLight();
@@ -260,6 +261,8 @@ export default function App() {
       />
 
       <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />
+
+      <DataNotice anomalies={anomalies} onSelect={selectPerson} />
 
       {showMiniMap && !compact && (
         <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />

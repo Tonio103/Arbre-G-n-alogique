@@ -1,5 +1,6 @@
 import type { BranchAnchor, FamilyDataset, PersonRecord } from './schema';
 import { CORE_PEOPLE, LINEAGE_SEEDS } from './core-family';
+import { MA_FAMILLE } from './ma-famille';
 import { expandLineage, linkBranches, type GeneratedLineage } from './generator';
 import { parseYear } from '@/domain/dates';
 
@@ -44,10 +45,21 @@ const BRANCHES: BranchAnchor[] = [
   { label: 'Lignée directe — Avignon', anchorId: 'roger-beaumont-1921' },
 ];
 
-export const FAMILY_DATASET: FamilyDataset = {
+/** L'arbre de démonstration : la famille fictive des Beaumont. */
+const DEMONSTRATION: FamilyDataset = {
   title: 'Beaumont — Ferrand',
   subtitle: 'Sept générations, du moulin de la Sorgue à aujourd’hui',
   rootId: 'camille-beaumont-1985',
   people: assemblePeople(),
   branches: BRANCHES,
 };
+
+/**
+ * Le jeu de données affiché.
+ *
+ * Votre famille si vous en avez déclaré une dans `ma-famille.ts`, la
+ * démonstration sinon. C'est le seul endroit où les deux se rencontrent :
+ * l'interface, elle, ne connaît que `FAMILY_DATASET`.
+ */
+export const FAMILY_DATASET: FamilyDataset =
+  MA_FAMILLE && MA_FAMILLE.people.length > 0 ? MA_FAMILLE : DEMONSTRATION;

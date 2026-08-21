@@ -604,3 +604,105 @@
     font-size: 11px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * BANDEAU DES ANOMALIES
+ *
+ * Il ne s'adresse pas au visiteur mais à la personne qui saisit l'arbre. Il se
+ * tient donc à l'écart — en haut à droite, sous la barre — et se referme pour
+ * de bon. Sur un jeu de données sain, il n'existe pas.
+ * ------------------------------------------------------------------------- */
+
+.notice {
+  position: absolute;
+  top: calc(var(--topbar-height) + 26px);
+  right: 20px;
+  z-index: 7;
+  width: min(380px, calc(100vw - 40px));
+  padding: 14px 16px 12px;
+  border-radius: var(--radius-panel);
+  animation: notice-in 420ms var(--ease-spring) both;
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+}
+
+.notice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.notice-title {
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.notice-close {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notice-list li > * {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.notice-list li > button {
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.notice-list li > button:hover {
+  background: var(--glass-fill-hover);
+  color: var(--text-primary);
+}
+
+/* Un doute n'est pas une faute : il se dit plus bas. */
+.notice-list li[data-level='doute'] > * {
+  color: var(--text-tertiary);
+}
+
+.notice-more {
+  margin: 8px 0 0;
+  padding: 0 8px;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 720px) {
+  .notice {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
