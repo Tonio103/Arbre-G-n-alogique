@@ -492,11 +492,21 @@
   z-index: 8;
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--dur-slow) var(--ease-out);
+  /* Masqué pour de bon quand le zoom rend les étiquettes inutiles : une couche
+     transparente laisse ses surfaces de verre flouter l'arrière-plan à chaque
+     image, pour un contenu que personne ne voit. */
+  visibility: hidden;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    visibility 0s linear var(--dur-slow);
 }
 
 .branches[data-visible='true'] {
   opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    visibility 0s;
 }
 
 .branch-label {

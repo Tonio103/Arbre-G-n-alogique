@@ -31,11 +31,15 @@ function readPalette(): TreePalette {
     trunk: read('--wood-trunk', 'rgba(94,72,52,0.85)'),
     twig: read('--wood-twig', 'rgba(150,124,92,0.7)'),
     bark: read('--wood-bark', 'rgba(62,46,32,0.22)'),
+    woodLight: read('--wood-light', 'rgba(255,236,206,0.3)'),
+    woodShade: read('--wood-shade', 'rgba(46,32,20,0.22)'),
+    woodSheen: read('--wood-sheen', 'rgba(255,246,226,0.4)'),
     dim: read('--wood-dim', 'rgba(120,100,80,0.12)'),
     highlight: read('--link-highlight', '#2f6fdb'),
     cross: read('--link-cross', 'rgba(194,118,28,0.55)'),
     leaf: read('--leaf', '#7ba86f'),
     leafAlt: read('--leaf-alt', '#5f8f5c'),
+    leafLit: read('--leaf-lit', '#a8d18c'),
     node: read('--wood-twig', 'rgba(150,124,92,0.7)'),
   };
 }
@@ -85,6 +89,10 @@ export function BranchLayer({
     let width = 0;
     let height = 0;
     let dpr = 1;
+    // Le détail ne se dessine qu'au repos ; un dernier rendu le rétablit dès
+    // que la vue s'immobilise.
+    let moving = false;
+    let settleTimer = 0;
 
     const paint = (): void => {
       frameRef.current = 0;
@@ -113,6 +121,7 @@ export function BranchLayer({
         hasSelection: hasSelectionRef.current,
         trunk: layout.trunk,
         nodes: visibleNodes,
+        detailed: !moving,
       });
 
       if (transform.scale < LOD_COMPACT) {
@@ -150,13 +159,24 @@ export function BranchLayer({
     const observer = new ResizeObserver(resize);
     observer.observe(parent);
 
-    const unsubscribeViewport = viewport.subscribe(schedule);
+    const onViewportChange = (): void => {
+      moving = true;
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        moving = false;
+        schedule();
+      }, 170);
+      schedule();
+    };
+
+    const unsubscribeViewport = viewport.subscribe(onViewportChange);
     const unsubscribeHover = hoverStore.subscribe(schedule);
 
     return () => {
       observer.disconnect();
       unsubscribeViewport();
       unsubscribeHover();
+      window.clearTimeout(settleTimer);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       frameRef.current = 0;
     };

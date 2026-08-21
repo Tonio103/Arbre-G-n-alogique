@@ -204,10 +204,14 @@
 
 /* Le déplacement de bord n'a de sens qu'immobile. Pendant que l'arbre défile,
    la réfraction recalcule tout l'arrière-plan à chaque image pour un effet que
-   l'œil ne peut pas suivre : on la suspend. */
+   l'œil ne peut pas suivre : on la suspend.
+
+   La couche est retirée, pas seulement privée de son filtre. Depuis qu'elle
+   couvre toute la surface et non plus un liseré, la laisser en place — même
+   inerte — maintient une couche de composition de la taille du panneau
+   au-dessus de la scène, et coûte un tiers des images par seconde. */
 .app[data-moving='true'] .lg::before {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  display: none;
 }
 
 /* ---------------------------------------------------------------------------

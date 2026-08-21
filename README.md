@@ -211,9 +211,26 @@ le long du parcours, ce qu'une largeur de trait constante ne permet pas. Elle
 suit une racine carrée du nombre de descendants, comme dans un arbre réel où la
 section d'une branche équivaut à la somme des sections qu'elle nourrit.
 
-Le dessin se fait en six passes, du fond vers la surface : la clairière et
-l'ombre portée, le bois, l'écorce du fût, les mariages entre branches
-éloignées, le feuillage, puis la lignée sélectionnée.
+Le dessin se fait en sept passes, du fond vers la surface : la clairière et
+l'ombre portée, le bois, son modelé, l'écorce du fût, les mariages entre
+branches éloignées, le feuillage, puis la lignée sélectionnée.
+
+**Le modelé du bois.** Une branche est un cylindre : elle reçoit la lumière d'un
+côté et s'assombrit de l'autre. Peinte d'un seul aplat, elle reste une découpe
+de papier. Comme un tracé de canvas ne porte qu'une couleur, le volume se
+construit en repassant la même courbe en plus étroit et décalé sur le côté —
+une fois en ombre, une fois en lumière, puis un filet vif sur l'arête qui donne
+au bois son poli. Les bandes ne sont dessinées qu'au-delà de quatre pixels
+d'épaisseur à l'écran ; en deçà, elles ne produiraient qu'un liseré sale.
+
+**Le feuillage** compte trois plans de verdure. Une couronne d'une seule teinte
+se lit comme une tache : c'est l'écart entre les feuilles d'ombre, celles de
+plein jour et celles que la lumière traverse qui lui donne son épaisseur.
+
+Modelé, écorce et troisième plan de feuillage triplent le coût d'une image. Ce
+sont des détails qu'on regarde à l'arrêt, pas pendant qu'on fait défiler un
+arbre : ils sont suspendus en mouvement et rétablis dès la première image
+immobile.
 
 `view/organic.ts` fournit l'irrégularité sans laquelle une ramure se lit comme
 un diagramme : déviation des branches, décalage des fourches, variation des

@@ -57,6 +57,12 @@ export function useGlassLight(): void {
     };
 
     const onPointerMove = (event: PointerEvent): void => {
+      // Pas de suivi pendant qu'on tient un bouton : déplacer l'arbre bouge le
+      // pointeur en continu, et chaque écriture des variables repeint toutes
+      // les surfaces de verre à la fois. Le reflet reste donc figé le temps du
+      // geste, ce que personne ne regarde puisqu'on suit l'arbre.
+      if (event.buttons !== 0) return;
+
       targetX = event.clientX / window.innerWidth;
       targetY = event.clientY / window.innerHeight;
       if (!frame) frame = requestAnimationFrame(apply);

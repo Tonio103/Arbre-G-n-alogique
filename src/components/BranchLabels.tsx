@@ -62,8 +62,12 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         const element = itemsRef.current[index];
         if (!element) continue;
 
+        // `visibility` autant qu'opacité : une étiquette transparente garde
+        // sinon son flou d'arrière-plan actif. Quinze surfaces de verre
+        // invisibles coûtaient plus cher que tout le reste de la scène.
         const hide = (): void => {
           element.style.opacity = '0';
+          element.style.visibility = 'hidden';
           element.style.pointerEvents = 'none';
         };
 
@@ -104,6 +108,7 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         taken.push({ left, right, top: screenY });
         shown += 1;
         element.style.opacity = '1';
+        element.style.visibility = 'visible';
         element.style.pointerEvents = 'auto';
         element.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -100%)`;
       }

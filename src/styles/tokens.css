@@ -53,8 +53,12 @@
   --ground: rgba(96, 122, 104, 0.2);
   --ground-shade: rgba(0, 0, 0, 0.3);
   --wood-bark: rgba(38, 28, 18, 0.3);
+  --wood-light: rgba(255, 232, 198, 0.22);
+  --wood-sheen: rgba(255, 248, 232, 0.3);
+  --wood-shade: rgba(28, 18, 10, 0.3);
   --leaf: rgba(138, 200, 148, 0.85);
-  --leaf-alt: rgba(96, 158, 116, 0.7);
+  --leaf-alt: rgba(74, 122, 92, 0.78);
+  --leaf-lit: rgba(176, 220, 158, 0.9);
   --link-highlight: #9dc2ff;
   --link-cross: rgba(255, 201, 138, 0.42);
   --link-node: rgba(190, 210, 245, 0.5);
@@ -127,8 +131,12 @@
   --ground: rgba(122, 146, 116, 0.22);
   --ground-shade: rgba(58, 66, 50, 0.18);
   --wood-bark: rgba(52, 38, 24, 0.22);
+  --wood-light: rgba(255, 240, 214, 0.34);
+  --wood-sheen: rgba(255, 252, 240, 0.46);
+  --wood-shade: rgba(52, 34, 18, 0.26);
   --leaf: rgba(116, 168, 104, 0.88);
-  --leaf-alt: rgba(84, 134, 84, 0.72);
+  --leaf-alt: rgba(74, 116, 74, 0.8);
+  --leaf-lit: rgba(178, 214, 138, 0.92);
   --link-highlight: #2f6fdb;
   --link-cross: rgba(184, 112, 28, 0.6);
   --link-node: rgba(110, 92, 72, 0.6);

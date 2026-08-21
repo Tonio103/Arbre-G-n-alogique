@@ -5,7 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
 import { useIsCompact } from '@/hooks/useMediaQuery';
 import { computeHighlight, type HighlightMode } from '@/domain/relations';
-import { ViewportController } from '@/view/viewport';
+import { ViewportController, transformForBounds } from '@/view/viewport';
 import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING, ROW_HEIGHT } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
@@ -106,30 +106,22 @@ export default function App() {
     if (stageSize.width <= 1) return;
     introRef.current = true;
 
-    // On ouvre au pied de l'arbre, sur la souche qui porte la lignée principale.
-    //
-    // Montrer d'emblée l'arbre entier le réduit à une vignette où plus rien
-    // n'est lisible, et prive la découverte de son mouvement naturel : on
-    // remonte un arbre depuis ses racines vers ses branches.
-    //
-    // Le cadrage vise la souche la plus fournie, et non l'axe du tronc. Les
-    // souches sont écartées de plusieurs milliers d'unités : centré entre
-    // elles, on ouvrirait sur un fût sans personne autour, et sur un écran
-    // étroit il n'y aurait rien à toucher.
+    // L'arbre entier d'abord : on doit voir de quoi il s'agit — un arbre, sa
+    // silhouette, son ampleur — avant de descendre dans une branche.
+    viewport.set(transformForBounds(layout.bounds, stageSize, FIT_PADDING, 0.92));
+
+    // Puis la vue s'approche doucement du pied, d'où l'on remonte à la molette.
+    // Ce mouvement d'ouverture dit en une seconde ce que l'espace contient et
+    // comment il se parcourt.
     const { trunk } = layout;
     const main = trunk.roots.reduce(
       (best, root) => (root.weight > best.weight ? root : best),
       trunk.roots[0] ?? { x: trunk.x, y: trunk.baseY, weight: 0 },
     );
 
-    const enter = (scale: number, duration: number): void => {
-      viewport.focusPoint(main.x, main.y - ROW_HEIGHT * 0.55, scale, 0, duration);
-    };
-
-    // Le pied apparaît d'abord un peu plus loin, puis la vue s'approche : le
-    // mouvement dit d'emblée que l'espace se parcourt.
-    enter(0.3, 0);
-    const timer = window.setTimeout(() => enter(0.62, 1600), 420);
+    const timer = window.setTimeout(() => {
+      viewport.focusPoint(main.x, main.y - ROW_HEIGHT * 0.55, 0.55, 0, 1800);
+    }, 1500);
     return () => window.clearTimeout(timer);
   }, [viewport, layout]);
 
