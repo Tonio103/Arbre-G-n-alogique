@@ -123,6 +123,44 @@
   padding: 4px 20px 22px;
 }
 
+/*
+ * Arrivée en cascade.
+ *
+ * Une fiche dont tout le contenu paraît d'un bloc se lit comme une image :
+ * rien n'y a de durée, donc rien n'y semble vivant. Un décalage de quelques
+ * dizaines de millisecondes entre les sections suffit à donner au panneau le
+ * temps de se remplir — l'œil suit alors la lecture au lieu de la subir.
+ */
+.detail-section {
+  animation: detail-cascade 460ms var(--lg-ease) both;
+}
+
+@keyframes detail-cascade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.detail-section:nth-of-type(1) {
+  animation-delay: 120ms;
+}
+.detail-section:nth-of-type(2) {
+  animation-delay: 190ms;
+}
+.detail-section:nth-of-type(3) {
+  animation-delay: 250ms;
+}
+.detail-section:nth-of-type(4) {
+  animation-delay: 300ms;
+}
+.detail-section:nth-of-type(5) {
+  animation-delay: 340ms;
+}
+.detail-section:nth-of-type(n + 6) {
+  animation-delay: 370ms;
+}
+
 .detail-section {
   padding: 16px 0;
   border-bottom: 1px solid var(--glass-border);
@@ -233,7 +271,21 @@
 
 .relation:hover {
   background: var(--glass-fill-hover);
-  transform: translateX(2px);
+  transform: translateX(4px);
+}
+
+.relation .avatar {
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+/* Le portrait se soulève : c'est lui qu'on va rejoindre en cliquant. */
+.relation:hover .avatar {
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 2px var(--accent-ring),
+    0 6px 14px rgba(16, 26, 44, 0.24);
 }
 
 .relation-text {
@@ -446,5 +498,17 @@
 
   .fact {
     grid-template-columns: 104px 1fr;
+  }
+}
+
+/* Mouvement réduit : le contenu reste en place, seule la lisibilité compte. */
+@media (prefers-reduced-motion: reduce) {
+  .detail-section {
+    animation: none;
+  }
+
+  .relation:hover,
+  .relation:hover .avatar {
+    transform: none;
   }
 }

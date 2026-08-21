@@ -6,7 +6,13 @@ import type { SpatialIndex } from '@/view/spatial';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
 import type { HoverStore } from '@/view/hover-store';
-import { BLUR_BUDGET, LOD_COMPACT, LOD_FULL } from '@/view/metrics';
+import {
+  BLUR_BUDGET,
+  LOD_COMPACT,
+  LOD_FULL,
+  cardCenterX,
+  portraitCenterY,
+} from '@/view/metrics';
 import { PersonNode, type NodeDetail } from './PersonNode';
 import { BranchLayer } from './BranchLayer';
 
@@ -341,6 +347,14 @@ export function TreeCanvas({
   );
 
   const hasSelection = highlight.people.size > 0;
+
+  // Point d'où rayonne le surlignage : le portrait de la personne choisie.
+  const focusPoint = useMemo(() => {
+    if (!selectedId) return null;
+    const position = layout.positions.get(selectedId);
+    if (!position) return null;
+    return { x: cardCenterX(position.x), y: portraitCenterY(position.y) };
+  }, [selectedId, layout]);
   const detail = visible.detail;
 
   return (
@@ -362,6 +376,7 @@ export function TreeCanvas({
         highlightUnions={highlight.unions}
         highlightPeople={highlightPeople}
         hasSelection={hasSelection}
+        focus={focusPoint}
         theme={theme}
       />
 

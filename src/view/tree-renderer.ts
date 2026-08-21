@@ -66,6 +66,8 @@ export interface DrawParams {
   nodes: NodePosition[];
   /** Phase de la brise, en secondes : ce qui incline l'herbe et le feuillage. */
   time: number;
+  /** Position de la personne sélectionnée, d'où rayonne le surlignage. */
+  focus: { x: number; y: number } | null;
   /**
    * Vrai quand la vue est au repos.
    *
@@ -638,16 +640,45 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   // Passe 6 : le feuillage, posé sur la ramure.
   if (params.nodes.length) drawFoliage(ctx, params, scale);
 
-  // Passe 7 : la lignée sélectionnée, par-dessus, avec un halo.
+  // Passe 7 : la lignée sélectionnée, par-dessus.
+  //
+  // Sans halo. Une lignée traverse souvent tout le plan — un aïeul peut être à
+  // des milliers d'unités de sa descendance — et le flou d'un halo étalait ces
+  // branches en longs traits lumineux qui barraient l'écran et se voyaient au
+  // travers des panneaux. La couleur seule suffit à désigner la lignée, sans la
+  // faire traîner.
   if (accent.length) {
-    ctx.save();
     ctx.beginPath();
     for (const union of accent) traceUnion(ctx, union, weights, segments, boost);
-    ctx.shadowColor = palette.highlight;
-    ctx.shadowBlur = 26 / Math.max(scale, 0.25);
-    ctx.fillStyle = palette.highlight;
+
+    // Le surlignage s'éteint en s'éloignant de la personne désignée.
+    //
+    // Une lignée s'étend sur tout le plan : un aïeul peut être à des milliers
+    // d'unités de sa descendance, et sa branche traverse alors l'écran entier
+    // en un long trait qui se voit jusque sous les panneaux. Le dégradé garde
+    // la couleur là où elle informe — autour de la personne — et la laisse
+    // partir là où elle ne fait plus que traîner.
+    if (params.focus) {
+      // Calibré sur la vue, pas sur l'arbre : un rayon exprimé en unités de
+      // monde dépasse l'écran dès qu'on est un peu zoomé, et le dégradé
+      // n'atténue alors plus rien.
+      const reach = Math.min(ROW_HEIGHT * 3.2, (width / scale) * 0.4);
+      const glow = ctx.createRadialGradient(
+        params.focus.x,
+        params.focus.y,
+        0,
+        params.focus.x,
+        params.focus.y,
+        reach,
+      );
+      glow.addColorStop(0, palette.highlight);
+      glow.addColorStop(0.55, palette.highlight);
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+    } else {
+      ctx.fillStyle = palette.highlight;
+    }
     ctx.fill();
-    ctx.restore();
   }
 }
 

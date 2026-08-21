@@ -17,6 +17,8 @@ export interface BranchLayerProps {
   /** Personnes accentuées, utilisées pour le feuillage en vue lointaine. */
   highlightPeople: Set<string>;
   hasSelection: boolean;
+  /** Personne sélectionnée : le surlignage rayonne depuis elle. */
+  focus: { x: number; y: number } | null;
   /** Change quand le thème change : la palette est relue. */
   theme: string;
 }
@@ -69,6 +71,7 @@ export function BranchLayer({
   highlightUnions,
   highlightPeople,
   hasSelection,
+  focus,
   theme,
 }: BranchLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -78,6 +81,8 @@ export function BranchLayer({
   const highlightUnionsRef = useRef(highlightUnions);
   const highlightPeopleRef = useRef(highlightPeople);
   const hasSelectionRef = useRef(hasSelection);
+  const focusRef = useRef(focus);
+  focusRef.current = focus;
   highlightUnionsRef.current = highlightUnions;
   highlightPeopleRef.current = highlightPeople;
   hasSelectionRef.current = hasSelection;
@@ -170,6 +175,7 @@ export function BranchLayer({
         trunk: layout.trunk,
         nodes: visibleNodes,
         time: breeze,
+        focus: focusRef.current,
         detailed: !moving,
       });
 
@@ -242,7 +248,7 @@ export function BranchLayer({
       frameRef.current = 0;
       viewport.set(viewport.transform);
     });
-  }, [highlightUnions, highlightPeople, hasSelection, theme, viewport]);
+  }, [highlightUnions, highlightPeople, hasSelection, focus, theme, viewport]);
 
   return <canvas ref={canvasRef} className="stage-canvas" aria-hidden="true" />;
 }
