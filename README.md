@@ -35,6 +35,11 @@ Aucune dépendance en dehors de React, TypeScript et Vite.
 
 ## Navigation
 
+L'application ouvre au **pied de l'arbre**, sur la souche de la lignée
+principale : on remonte ensuite les générations à la molette, comme on remonte
+un arbre du tronc vers la cime. Le zoom se fait avec la touche de commande
+enfoncée.
+
 | Geste / touche | Effet |
 | --- | --- |
 | Molette | Zoom avant et arrière, centré sur le pointeur |
@@ -162,10 +167,30 @@ se dégrader seule :
 | Couche | Rôle | Support |
 | --- | --- | --- |
 | Substrat | flou, saturation et luminosité de l'arrière-plan | `backdrop-filter` |
-| Réfraction | les bords courbent ce qui passe derrière, comme une lentille | filtre SVG `feDisplacementMap`, dans `components/GlassFilters.tsx` |
+| Réfraction | la surface courbe ce qui passe derrière, comme une lentille | filtre SVG `feDisplacementMap`, dans `components/GlassFilters.tsx` |
 | Teinte | la masse colorée qui donne son épaisseur au matériau | dégradé, plus dense sur les bords |
-| Spéculaire | l'arête qui capte la lumière et dessine le contour | dégradé conique sur un anneau d'un pixel |
+| Reflet | le point lumineux qui glisse avec la source de lumière | dégradé radial piloté par `hooks/useGlassLight.ts` |
+| Spéculaire | l'arête qui capte la lumière, frange colorée comprise | dégradé conique sur un anneau d'un pixel |
+| Tranche | les ombres internes, qui donnent au verre son épaisseur | trois ombres `inset` |
 | Élévation | l'ombre portée qui décolle la surface du fond | trois ombres superposées |
+
+La lentille couvre **toute** la surface, et non un liseré de bord : une plaque de
+verre réfracte partout, simplement moins en son centre où elle est plane. C'est
+la carte de déplacement qui porte ce profil. Restreindre l'effet à un anneau
+laisse une couture nette là où la déformation démarre, et le procédé devient
+visible.
+
+La dispersion chromatique, elle, est portée par l'arête en CSS et non par le
+filtre. Séparer les trois canaux pour les déplacer différemment est la méthode
+exacte, mais les filtres SVG travaillent en alpha prémultiplié : recomposer un
+arrière-plan translucide lui fait perdre sa luminosité et laisse des franges
+cyan très visibles au lieu d'un liseré discret.
+
+Une seule source de lumière éclaire tout le verre, `useGlassLight`, qui suit le
+pointeur avec un amortissement. Une arête dont le reflet ne bouge jamais se lit
+comme un trait peint ; c'est le déplacement du reflet qui fait percevoir une
+surface. Les portraits de l'arbre partagent cet angle, si bien que médaillons et
+panneaux sont éclairés depuis le même point.
 
 Les variantes s'obtiennent par classes : `lg--clear`, `lg--thick`,
 `lg--control`, `lg--chip`, `lg--pill`, `lg--interactive`. Un seul jeu de

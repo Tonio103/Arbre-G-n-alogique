@@ -250,7 +250,7 @@ function traceTrunk(
   const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
 
   // Fût, du sol jusqu'à la naissance des premières branches.
-  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.72, 5, width * 0.12);
+  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.74, 18, width * 0.12);
 
   // Racines : elles divergent sous le sol en s'affinant, ce qui ancre l'arbre
   // au lieu de le laisser posé sur une pointe.

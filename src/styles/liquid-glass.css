@@ -2,29 +2,32 @@
  *
  *  MATÉRIAU DE VERRE
  *
- *  Un seul matériau, décliné. Tout ce qui flotte au-dessus de l'arbre —
- *  barre supérieure, fiche, recherche, vue d'ensemble, étiquettes — est fait
- *  de cette matière, avec les mêmes règles physiques.
+ *  Un seul matériau, décliné. Tout ce qui flotte au-dessus de l'arbre — barre
+ *  supérieure, fiche, recherche, vue d'ensemble, étiquettes — est fait de cette
+ *  matière et obéit aux mêmes règles physiques.
  *
  *  Un panneau translucide n'est pas du verre. Ce qui fait le verre, c'est la
- *  superposition de cinq phénomènes, empilés ici du fond vers la surface :
+ *  superposition de sept phénomènes, empilés ici du fond vers la surface :
  *
  *    1. SUBSTRAT     ce qu'on voit à travers : flou, saturation, luminosité
- *    2. RÉFRACTION   les bords courbent l'arrière-plan, comme une lentille
- *    3. TEINTE       une masse colorée qui donne son épaisseur au matériau
- *    4. SPÉCULAIRE   l'arête qui capte la lumière et dessine le contour
- *    5. ÉLÉVATION    l'ombre portée, qui décolle la surface du fond
+ *    2. RÉFRACTION   la surface courbe l'arrière-plan comme une lentille,
+ *                    et sépare légèrement les couleurs sur ses bords
+ *    3. TEINTE       la masse colorée, qui donne son épaisseur au matériau
+ *    4. REFLET       le point lumineux qui glisse quand la lumière se déplace
+ *    5. SPÉCULAIRE   l'arête qui capte la lumière et dessine le contour
+ *    6. TRANCHE      les ombres internes, qui donnent au verre son épaisseur
+ *    7. ÉLÉVATION    l'ombre portée, qui décolle la surface du fond
  *
- *  Chaque couche est isolée pour pouvoir se dégrader seule : un navigateur
- *  sans réfraction garde les quatre autres, un utilisateur qui refuse la
- *  transparence obtient une surface opaque parfaitement lisible.
+ *  Chaque couche est isolée pour se dégrader seule : un navigateur sans
+ *  réfraction garde les six autres, un utilisateur qui refuse la transparence
+ *  obtient une surface pleine parfaitement lisible.
  *
  *  Utilisation :
- *      <div class="lg">…</div>                      surface par défaut
- *      <div class="lg lg--clear">…</div>            plus transparente
- *      <div class="lg lg--thick">…</div>            plus dense
- *      <div class="lg lg--control">…</div>          petite surface
- *      <div class="lg lg--interactive">…</div>      réagit au pointeur
+ *      <div class="lg">…</div>                 surface par défaut
+ *      <div class="lg lg--clear">…</div>       plus transparente
+ *      <div class="lg lg--thick">…</div>       plus dense
+ *      <div class="lg lg--control">…</div>     petite surface
+ *      <div class="lg lg--interactive">…</div> réagit au pointeur
  *
  * ========================================================================== */
 
@@ -37,35 +40,46 @@
 
 :root {
   /* Substrat ------------------------------------------------------------- */
-  --lg-blur: 26px;
-  --lg-saturate: 190%;
-  --lg-brightness: 1.06;
-  /* Le verre clarifie légèrement ce qu'il couvre plutôt que de l'assombrir. */
+  --lg-blur: 28px;
+  /* La saturation forte est ce qui donne au verre sa teinte adaptative : il
+     prend la couleur de ce qu'il couvre au lieu de rester gris. */
+  --lg-saturate: 200%;
+  --lg-brightness: 1.03;
   --lg-contrast: 1.02;
 
   /* Réfraction ----------------------------------------------------------- */
   --lg-lens: url(#lg-lens-panel);
-  /* Largeur de l'arête qui réfracte. Au-delà de ~14 px l'effet devient une
-     déformation visible plutôt qu'une épaisseur de matériau. */
-  --lg-edge: 11px;
 
   /* Teinte --------------------------------------------------------------- */
   --lg-tint: 255, 255, 255;
-  --lg-tint-alpha: 0.34;
+  --lg-tint-alpha: 0.2;
   /* Un verre n'est pas uniforme : il est plus dense là où il est plus épais. */
-  --lg-tint-alpha-edge: 0.5;
+  --lg-tint-alpha-edge: 0.34;
+
+  /* Reflet glissant ------------------------------------------------------ */
+  /* Position par défaut, remplacée en continu par `useGlassLight`. */
+  --lg-glare-x: 50%;
+  --lg-glare-y: 28%;
+  --lg-glare: rgba(255, 255, 255, 0.26);
+  --lg-glare-size: 62%;
 
   /* Spéculaire ----------------------------------------------------------- */
   --lg-specular: rgba(255, 255, 255, 1);
   --lg-specular-soft: rgba(255, 255, 255, 0.5);
   --lg-specular-width: 1.2px;
-  /* Direction de la source lumineuse. Tout ce qui est en verre s'éclaire
-     depuis le même point : c'est ce qui rend l'ensemble cohérent. */
+  /* Dispersion : les deux extrémités du spectre visible, posées de part et
+     d'autre du reflet blanc. Une épaisseur de verre réelle sépare légèrement
+     les couleurs sur son arête ; ce sont ces deux touches, à peine
+     perceptibles isolément, qui font lire une tranche plutôt qu'un trait. */
+  --lg-fringe-warm: rgba(255, 214, 168, 0.55);
+  --lg-fringe-cool: rgba(168, 214, 255, 0.55);
+  /* Direction de la source lumineuse, partagée par toutes les surfaces. */
   --lg-light: 305deg;
 
-  /* Arête intérieure : la tranche du verre, vue depuis l'intérieur. */
-  --lg-inner-light: rgba(255, 255, 255, 0.85);
+  /* Tranche : le verre vu par l'intérieur -------------------------------- */
+  --lg-inner-light: rgba(255, 255, 255, 0.9);
   --lg-inner-shade: rgba(14, 24, 44, 0.07);
+  --lg-inner-depth: rgba(14, 24, 44, 0.05);
 
   /* Élévation ------------------------------------------------------------ */
   --lg-shadow-contact: 0 1px 2px rgba(18, 28, 48, 0.07);
@@ -77,25 +91,31 @@
 
   /* Mouvement ------------------------------------------------------------ */
   --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --lg-ease-press: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* Détente élastique : une surface de verre qu'on relâche revient en
+     dépassant très légèrement sa position, comme une matière souple. */
+  --lg-ease-press: cubic-bezier(0.34, 1.56, 0.64, 1);
   --lg-dur: 260ms;
 }
 
-/* Sur fond sombre, le matériau s'inverse : la masse devient sombre, et c'est
-   la lumière qui devient rare et donc précieuse sur les arêtes. */
+/* Sur fond sombre le matériau s'inverse : la masse devient sombre, et la
+   lumière, devenue rare, se concentre sur les arêtes. */
 :root[data-theme='dark'] {
-  --lg-brightness: 1.14;
+  --lg-brightness: 1.16;
   --lg-contrast: 1;
 
   --lg-tint: 16, 24, 42;
-  --lg-tint-alpha: 0.44;
-  --lg-tint-alpha-edge: 0.28;
+  --lg-tint-alpha: 0.42;
+  --lg-tint-alpha-edge: 0.26;
 
-  --lg-specular: rgba(255, 255, 255, 0.7);
+  --lg-glare: rgba(255, 255, 255, 0.16);
+  --lg-specular: rgba(255, 255, 255, 0.72);
   --lg-specular-soft: rgba(255, 255, 255, 0.16);
+  --lg-fringe-warm: rgba(255, 206, 150, 0.32);
+  --lg-fringe-cool: rgba(150, 200, 255, 0.32);
 
-  --lg-inner-light: rgba(255, 255, 255, 0.16);
-  --lg-inner-shade: rgba(0, 0, 0, 0.3);
+  --lg-inner-light: rgba(255, 255, 255, 0.17);
+  --lg-inner-shade: rgba(0, 0, 0, 0.32);
+  --lg-inner-depth: rgba(0, 0, 0, 0.24);
 
   --lg-shadow-contact: 0 1px 2px rgba(0, 0, 0, 0.4);
   --lg-shadow-near: 0 8px 20px rgba(0, 0, 0, 0.3);
@@ -105,25 +125,33 @@
 /* ---------------------------------------------------------------------------
  * 2. LA SURFACE
  *
- * L'élément lui-même porte le substrat, la teinte et l'élévation. Les deux
- * pseudo-éléments portent la réfraction et le spéculaire.
+ * L'élément porte le substrat, la teinte, le reflet et l'élévation. Ses deux
+ * pseudo-éléments portent la réfraction et l'arête spéculaire.
  * ------------------------------------------------------------------------- */
 
 .lg {
   position: relative;
   border-radius: var(--lg-radius);
   /* `isolation` confine les couches : sans elle, l'arête lumineuse d'un
-     panneau pourrait se mélanger au contenu d'un autre. */
+     panneau se mélangerait au contenu d'un autre. */
   isolation: isolate;
 
-  /* 3. TEINTE — une masse colorée, plus dense sur les bords qu'au centre,
-     comme un verre dont la tranche est plus épaisse que le cœur. */
+  /* 4. REFLET, puis 3. TEINTE.
+     Le reflet passe devant la masse : c'est de la lumière posée sur la
+     surface, pas une couleur mêlée à la matière. Sa position vient de
+     `useGlassLight` et glisse avec le pointeur. */
+  background-image:
+    radial-gradient(
+      var(--lg-glare-size) var(--lg-glare-size) at var(--lg-glare-x) var(--lg-glare-y),
+      var(--lg-glare) 0%,
+      transparent 100%
+    ),
+    radial-gradient(
+      130% 130% at 50% 0%,
+      rgba(var(--lg-tint), 0) 40%,
+      rgba(var(--lg-tint), calc(var(--lg-tint-alpha-edge) - var(--lg-tint-alpha))) 100%
+    );
   background-color: rgba(var(--lg-tint), var(--lg-tint-alpha));
-  background-image: radial-gradient(
-    130% 130% at 50% 0%,
-    rgba(var(--lg-tint), 0) 40%,
-    rgba(var(--lg-tint), calc(var(--lg-tint-alpha-edge) - var(--lg-tint-alpha))) 100%
-  );
 
   /* 1. SUBSTRAT */
   backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate))
@@ -131,27 +159,35 @@
   -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate))
     brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
 
-  /* 5. ÉLÉVATION, et la tranche intérieure du verre.
-     Trois ombres : le contact au ras de la surface, la proximité, le lointain.
-     Une seule ombre donne toujours un rendu de carton découpé. */
+  /* 6. TRANCHE et 7. ÉLÉVATION.
+     Trois ombres portées — contact, proximité, lointain — parce qu'une ombre
+     unique donne toujours un rendu de carton découpé. Trois ombres internes
+     ensuite : la lumière reçue par le haut de la tranche, l'ombre du bas, et
+     un assombrissement diffus qui creuse la masse. */
   box-shadow:
     var(--lg-shadow-contact),
     var(--lg-shadow-near),
     var(--lg-shadow-far),
     inset 0 1px 0 0 var(--lg-inner-light),
-    inset 0 -1px 0 0 var(--lg-inner-shade);
+    inset 0 -1px 0 0 var(--lg-inner-shade),
+    inset 0 0 22px -6px var(--lg-inner-depth);
+
+  transition:
+    background-color var(--lg-dur) var(--lg-ease),
+    box-shadow var(--lg-dur) var(--lg-ease);
 }
 
 /* ---------------------------------------------------------------------------
- * 3. RÉFRACTION DE BORD
+ * 3. RÉFRACTION
  *
- * La couche est réduite à un anneau : seuls les bords courbent l'arrière-plan.
- * Appliquer le déplacement à toute la surface rendrait le contenu illisible et
- * ne correspondrait à aucune réalité optique — le centre d'une vitre est plan.
+ * La couche couvre toute la surface, et non un liseré de bord : une plaque de
+ * verre réfracte partout, simplement moins en son centre où elle est plane.
+ * C'est la carte de déplacement, définie dans `GlassFilters`, qui porte ce
+ * profil — plat au milieu, de plus en plus courbe vers le pourtour.
  *
- * Le masque à double dégradé découpe cet anneau : une copie couvre toute la
- * boîte, l'autre s'arrête à la boîte de contenu, et la composition en
- * exclusion ne conserve que la différence, c'est-à-dire le pourtour.
+ * Restreindre l'effet à un anneau, comme on le fait souvent, laisse une couture
+ * nette là où la déformation démarre : le procédé devient visible, et l'illusion
+ * d'épaisseur disparaît.
  * ------------------------------------------------------------------------- */
 
 .lg::before {
@@ -160,23 +196,15 @@
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  padding: var(--lg-edge);
   pointer-events: none;
 
   backdrop-filter: var(--lg-lens);
   -webkit-backdrop-filter: var(--lg-lens);
-
-  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-  -webkit-mask-clip: content-box, border-box;
-  -webkit-mask-composite: xor;
-  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-  mask-clip: content-box, border-box;
-  mask-composite: exclude;
 }
 
 /* Le déplacement de bord n'a de sens qu'immobile. Pendant que l'arbre défile,
    la réfraction recalcule tout l'arrière-plan à chaque image pour un effet que
-   l'œil ne peut de toute façon pas suivre : on la suspend. */
+   l'œil ne peut pas suivre : on la suspend. */
 .app[data-moving='true'] .lg::before {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -188,8 +216,8 @@
  * Le contour ne doit pas être un trait d'épaisseur constante : une arête de
  * verre s'allume là où elle fait face à la lumière et s'éteint ailleurs. Un
  * dégradé conique posé sur un anneau d'un pixel produit exactement cela, et
- * l'angle commun `--lg-light` fait que toutes les surfaces s'éclairent depuis
- * le même point.
+ * l'angle partagé `--lg-light` fait que toutes les surfaces s'éclairent depuis
+ * le même point — y compris les portraits de l'arbre.
  * ------------------------------------------------------------------------- */
 
 .lg::after {
@@ -204,15 +232,22 @@
   background: conic-gradient(
     from var(--lg-light) at 50% 50%,
     transparent 0deg,
-    var(--lg-specular) 26deg,
-    var(--lg-specular-soft) 74deg,
+    var(--lg-fringe-warm) 14deg,
+    var(--lg-specular) 30deg,
+    var(--lg-fringe-cool) 48deg,
+    var(--lg-specular-soft) 78deg,
     transparent 128deg,
     transparent 186deg,
-    var(--lg-specular-soft) 232deg,
-    var(--lg-specular) 268deg,
+    var(--lg-specular-soft) 230deg,
+    var(--lg-fringe-cool) 252deg,
+    var(--lg-specular) 270deg,
+    var(--lg-fringe-warm) 288deg,
     transparent 320deg
   );
 
+  /* Le masque à double dégradé découpe l'anneau : une copie couvre toute la
+     boîte, l'autre s'arrête à la boîte de contenu, et la composition en
+     exclusion ne conserve que la différence — le pourtour. */
   -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
   -webkit-mask-clip: content-box, border-box;
   -webkit-mask-composite: xor;
@@ -236,41 +271,42 @@
 /* Verre clair : on voit nettement au travers. Pour ce qui doit rester léger,
    posé sur du contenu — étiquettes, pilules d'information. */
 .lg--clear {
-  --lg-blur: 14px;
-  --lg-tint-alpha: 0.2;
-  --lg-tint-alpha-edge: 0.32;
-  --lg-saturate: 160%;
+  --lg-blur: 15px;
+  --lg-tint-alpha: 0.13;
+  --lg-tint-alpha-edge: 0.24;
+  --lg-saturate: 170%;
+  --lg-glare: rgba(255, 255, 255, 0.2);
 }
 
-/* Verre dense : pour ce qui porte du texte long et doit rester lisible
-   quoi qu'il y ait derrière. */
+/* Verre dense : pour ce qui porte du texte long et doit rester lisible quoi
+   qu'il y ait derrière. */
 .lg--thick {
-  --lg-blur: 40px;
-  --lg-tint-alpha: 0.58;
-  --lg-tint-alpha-edge: 0.7;
-  --lg-saturate: 210%;
+  --lg-blur: 46px;
+  --lg-tint-alpha: 0.4;
+  --lg-tint-alpha-edge: 0.54;
+  --lg-saturate: 215%;
 }
 
 /* Petites surfaces : l'arête occupe proportionnellement plus de place, et la
    lentille doit être plus douce sinon elle avale le contenu. */
 .lg--control {
   --lg-lens: url(#lg-lens-control);
-  --lg-edge: 7px;
   --lg-radius: 16px;
-  --lg-blur: 18px;
-  --lg-tint-alpha: 0.28;
-  --lg-tint-alpha-edge: 0.44;
+  --lg-blur: 20px;
+  --lg-tint-alpha: 0.18;
+  --lg-tint-alpha-edge: 0.32;
+  --lg-glare-size: 90%;
 }
 
 .lg--chip {
   --lg-lens: url(#lg-lens-chip);
-  --lg-edge: 5px;
   --lg-radius: 999px;
-  --lg-blur: 12px;
-  --lg-tint-alpha: 0.4;
+  --lg-blur: 14px;
+  --lg-tint-alpha: 0.36;
+  --lg-glare-size: 110%;
 }
 
-/* Surface entièrement arrondie : le conique doit alors tourner sur un cercle
+/* Surface entièrement arrondie : le conique tourne alors sur un cercle
    parfait, ce que le rayon en pilule donne naturellement. */
 .lg--pill {
   --lg-radius: 999px;
@@ -292,7 +328,8 @@
 }
 
 .lg--interactive:hover {
-  --lg-tint-alpha: 0.5;
+  --lg-tint-alpha: 0.34;
+  --lg-glare: rgba(255, 255, 255, 0.42);
   --lg-specular: rgba(255, 255, 255, 1);
   box-shadow:
     var(--lg-shadow-contact),
@@ -300,17 +337,15 @@
     var(--lg-shadow-far),
     inset 0 1px 0 0 var(--lg-inner-light),
     inset 0 -1px 0 0 var(--lg-inner-shade),
+    inset 0 0 22px -6px var(--lg-inner-depth),
     0 0 0 1px rgba(var(--lg-tint), 0.4);
 }
 
+/* Enfoncement : la surface se comprime, et son reflet se resserre comme sur
+   une matière qui cède sous la pression. */
 .lg--interactive:active {
-  transform: scale(0.985);
-}
-
-/* La lumière tourne légèrement au survol : c'est ce déplacement du reflet,
-   plus que le changement de teinte, qui fait percevoir une vraie surface. */
-.lg--interactive:hover::after {
-  --lg-light: 330deg;
+  transform: scale(0.984);
+  --lg-glare-size: 44%;
 }
 
 /* ---------------------------------------------------------------------------
@@ -338,6 +373,7 @@
   .lg {
     --lg-tint-alpha: 0.97;
     --lg-tint-alpha-edge: 1;
+    --lg-glare: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -348,6 +384,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .lg,
   .lg--interactive,
   .lg::after {
     transition: none;

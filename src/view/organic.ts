@@ -127,22 +127,14 @@ export function traceBark(
     if (endY <= startY) continue;
 
     const bend = jitter(seed, i * 2 + 11, width * 0.06);
-    const thickness = width * (0.012 + hashN(seed, i * 2 + 5) * 0.022);
+    // Effilée aux deux bouts : une strie d'épaisseur constante se lit comme une
+    // planche collée sur le tronc, pas comme un pli d'écorce.
+    const thickness = width * (0.005 + hashN(seed, i * 2 + 5) * 0.011);
+    const midY = (startY + endY) / 2;
 
-    ctx.moveTo(x + offset - thickness, startY);
-    ctx.quadraticCurveTo(
-      x + offset + bend - thickness,
-      (startY + endY) / 2,
-      x + offset * 0.82 - thickness,
-      endY,
-    );
-    ctx.lineTo(x + offset * 0.82 + thickness, endY);
-    ctx.quadraticCurveTo(
-      x + offset + bend + thickness,
-      (startY + endY) / 2,
-      x + offset + thickness,
-      startY,
-    );
+    ctx.moveTo(x + offset, startY);
+    ctx.quadraticCurveTo(x + offset + bend - thickness, midY, x + offset * 0.82, endY);
+    ctx.quadraticCurveTo(x + offset + bend + thickness, midY, x + offset, startY);
     ctx.closePath();
   }
 }

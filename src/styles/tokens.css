@@ -40,7 +40,7 @@
   --accent-mint: #86e0c8;
 
   /* Bois et feuillage de l'arbre */
-  --wood-trunk: rgba(163, 130, 94, 0.92);
+  --wood-trunk: rgba(126, 96, 66, 0.96);
   --wood-twig: rgba(206, 182, 150, 0.72);
   --wood-dim: rgba(170, 150, 128, 0.07);
   /* Médaillon : halo, plaque du nom, cerne des personnes disparues */
@@ -115,7 +115,7 @@
   --accent-rose: #c2497e;
   --accent-mint: #1c8f74;
 
-  --wood-trunk: rgba(88, 66, 45, 0.92);
+  --wood-trunk: rgba(72, 52, 34, 0.96);
   --wood-twig: rgba(132, 104, 74, 0.82);
   --wood-dim: rgba(110, 92, 72, 0.07);
   --node-halo-core: rgba(255, 255, 255, 0.82);

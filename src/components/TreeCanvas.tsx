@@ -154,7 +154,6 @@ export function TreeCanvas({
         velocityY = 0;
         viewport.beginInteraction();
         setGrabbing(true);
-        stage.setPointerCapture(event.pointerId);
       } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         pinchDistance = distance(a, b);
@@ -187,7 +186,15 @@ export function TreeCanvas({
       const dy = event.clientY - lastY;
       if (!draggedRef.current && Math.hypot(event.clientX - lastX, event.clientY - lastY) > 0) {
         // Seuil : un léger tremblement pendant le clic ne doit pas annuler la sélection.
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) draggedRef.current = true;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          draggedRef.current = true;
+          // La capture n'est prise qu'ici, une fois le déplacement avéré.
+          //
+          // Capturer dès l'appui détourne vers la zone de navigation le clic
+          // que le navigateur synthétise après un toucher : sur mobile, appuyer
+          // sur une personne n'ouvrait alors jamais sa fiche.
+          stage.setPointerCapture(event.pointerId);
+        }
       }
 
       const elapsed = Math.max(1, event.timeStamp - lastTime);
@@ -227,22 +234,29 @@ export function TreeCanvas({
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
-      // Un pavé tactile envoie un delta horizontal : c'est un déplacement.
-      // Une molette n'en envoie pas : c'est un zoom, comme sur une carte.
-      const isTrackpadPan = Math.abs(event.deltaX) > 0.4 && !event.ctrlKey && !event.metaKey;
-      if (isTrackpadPan) {
-        viewport.stopAnimation();
-        viewport.panBy(-event.deltaX, -event.deltaY);
-        return;
-      }
-      if (event.shiftKey) {
-        viewport.stopAnimation();
-        viewport.panBy(-event.deltaY, 0);
+      // La molette remonte l'arbre.
+      //
+      // On parcourt un arbre du pied vers la cime : le geste de lecture est
+      // vertical, comme dans une page. Réserver la molette au zoom obligerait à
+      // pincer ou à glisser pour changer de génération, alors que c'est le
+      // mouvement le plus courant. Le zoom reste accessible avec la touche de
+      // commande enfoncée, comme dans n'importe quel plan.
+      const step = event.deltaMode === 1 ? event.deltaY * 18 : event.deltaY;
+
+      if (event.ctrlKey || event.metaKey) {
+        event.stopPropagation();
+        viewport.zoomAt(x, y, Math.exp(-step * 0.0022));
         return;
       }
 
-      const step = event.deltaMode === 1 ? event.deltaY * 18 : event.deltaY;
-      viewport.zoomAt(x, y, Math.exp(-step * 0.0022));
+      viewport.stopAnimation();
+      if (event.shiftKey) {
+        viewport.panBy(-step, 0);
+        return;
+      }
+
+      const sideways = event.deltaMode === 1 ? event.deltaX * 18 : event.deltaX;
+      viewport.panBy(-sideways, -step);
     };
 
     const onDoubleClick = (event: MouseEvent): void => {
