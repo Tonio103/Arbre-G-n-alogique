@@ -584,7 +584,14 @@ function computeRegions(
 
 
 /** Hauteur du fût, sous la génération la plus ancienne. */
-const TRUNK_RISE = ROW_HEIGHT * 2.2;
+/*
+ * Hauteur du fût.
+ *
+ * Un tronc court et large fait un bloc, pas un arbre : c'est l'élancement qui
+ * le désigne comme tel. Le fût doit donc rester plusieurs fois plus haut que
+ * large, même quand l'arbre porte des centaines de personnes.
+ */
+const TRUNK_RISE = ROW_HEIGHT * 3.1;
 /** Profondeur des racines sous le sol. */
 const ROOT_DEPTH = ROW_HEIGHT * 0.5;
 
@@ -651,7 +658,7 @@ function computeTrunk(
     // rigoureusement horizontaux, et le pied de l'arbre devient une barre.
     topY: lowest + TRUNK_RISE * 0.62,
     baseY: lowest + TRUNK_RISE + ROOT_DEPTH,
-    width: Math.min(760, 50 + 24 * Math.sqrt(totalWeight)),
+    width: Math.min(430, 40 + 13 * Math.sqrt(totalWeight)),
     roots,
   };
 }

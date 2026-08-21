@@ -146,7 +146,10 @@ function traceBranch(
   // devient un câble tendu. On lui donne donc de quoi s'élever d'abord, en
   // proportion de la distance à parcourir : elle monte, puis s'incline vers son
   // enfant — ce que fait une branche qui s'étale.
-  const rise = Math.max(Math.abs(dy) * 0.55, Math.min(Math.abs(dx) * 0.4, Math.abs(dy) * 1.9));
+  // L'élan de départ reste sous la hauteur d'une génération : au-delà, la
+  // branche dépasse la rangée de son enfant puis redescend, et ce retour
+  // croise les branches voisines.
+  const rise = Math.max(Math.abs(dy) * 0.55, Math.min(Math.abs(dx) * 0.22, Math.abs(dy) * 0.95));
   const lift = dy < 0 ? -rise : rise;
 
   const c1x = x0 + sway;
@@ -247,15 +250,23 @@ function traceUnion(
     ctx,
     union.anchorX,
     startY,
-    union.anchorX + jitter(union.id, 2, trunkWidth * 0.35),
+    union.anchorX + jitter(union.id, 2, trunkWidth * 0.18),
     forkY,
     trunkWidth,
     trunkWidth * 0.9,
     4,
-    jitter(union.id, 3, trunkWidth * 0.5),
+    jitter(union.id, 3, trunkWidth * 0.25),
     shadeTrunk,
   );
   if (!shading) traceKnot(ctx, union.anchorX, forkY, (trunkWidth * 0.9) / 2);
+
+  // Écart le plus serré entre deux enfants voisins : c'est lui qui borne la
+  // liberté qu'on peut laisser à chaque branche.
+  let spacing = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < children.length; i += 1) {
+    spacing = Math.min(spacing, Math.abs(children[i].x - children[i - 1].x));
+  }
+  if (!Number.isFinite(spacing)) spacing = CARD_WIDTH * 2;
 
   for (const child of children) {
     const carriedByChild = 1 + (weights.get(child.id) ?? 0);
@@ -272,9 +283,13 @@ function traceUnion(
       width,
       width * 0.62,
       segments,
-      // La déviation croît avec la portée : une branche qui va loin s'arque,
-      // une branche courte reste droite.
-      jitter(child.id, 5, Math.min(ROW_HEIGHT * 0.22, reach * 0.16 + width * 2)),
+      // La déviation reste sous la moitié de l'écart entre deux enfants.
+      //
+      // Une branche qui s'écarte davantage passe devant celle de sa voisine :
+      // les deux se croisent, et l'œil ne peut plus dire lequel des deux
+      // rameaux mène à quel enfant. L'irrégularité doit rester une inflexion,
+      // jamais un détour — une famille se lit d'abord, elle ne se devine pas.
+      jitter(child.id, 5, Math.min(spacing * 0.32, reach * 0.06 + width)),
       shading && width >= minShaded ? shading : undefined,
     );
   }
@@ -302,7 +317,9 @@ function traceTrunk(
   const groundY = trunk.baseY - ROW_HEIGHT * 0.5;
 
   // Fût, du sol jusqu'à la naissance des premières branches.
-  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.74, 18, width * 0.12, shading);
+  // Le fût s'affine nettement en montant : à section constante, il se lit
+  // comme un poteau. L'évasement du pied vient des racines, pas du fût.
+  traceBranch(ctx, trunk.x, groundY, trunk.x, trunk.topY, width, width * 0.52, 20, width * 0.1, shading);
 
   // Racines : elles divergent sous le sol en s'affinant, ce qui ancre l'arbre
   // au lieu de le laisser posé sur une pointe.

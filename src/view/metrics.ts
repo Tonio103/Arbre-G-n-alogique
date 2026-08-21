@@ -17,8 +17,15 @@ export const SIBLING_GAP = 14;
 export const COUPLE_GAP = 10;
 /** Écart entre deux familles racines indépendantes. */
 export const FAMILY_GAP = 52;
-/** Hauteur d'une génération. */
-export const ROW_HEIGHT = 1150;
+/*
+ * Hauteur d'une génération.
+ *
+ * C'est le réglage qui arbitre entre la silhouette et la lecture. Trop courte,
+ * l'arbre s'aplatit en frise ; trop haute, chaque filiation devient une longue
+ * ligne qui traverse un vide, et une fratrie n'est plus qu'un faisceau de
+ * traits parallèles dont on ne sait plus ce qu'il relie.
+ */
+export const ROW_HEIGHT = 820;
 
 /** Marge autour de l'arbre lors d'un recentrage. */
 export const FIT_PADDING = 120;
