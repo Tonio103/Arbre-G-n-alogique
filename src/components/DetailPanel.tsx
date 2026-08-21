@@ -115,7 +115,7 @@ export function DetailPanel({
   return (
     <aside
       ref={panelRef}
-      className="detail lg lg--thick"
+      className="detail lg lg--thick lg--liquid"
       aria-label={`Fiche de ${person.displayName}`}
       key={person.id}
     >

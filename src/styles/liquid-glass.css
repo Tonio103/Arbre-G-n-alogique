@@ -345,13 +345,6 @@
     0 0 0 1px rgba(var(--lg-tint), 0.4);
 }
 
-/* Enfoncement : la surface se comprime, et son reflet se resserre comme sur
-   une matière qui cède sous la pression. */
-.lg--interactive:active {
-  transform: scale(0.984);
-  --lg-glare-size: 44%;
-}
-
 /* ---------------------------------------------------------------------------
  * 7. REPLIS
  *
@@ -396,6 +389,124 @@
 
   .lg--interactive:active {
     transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 8. MOUVEMENT LIQUIDE
+ *
+ * Ce qui distingue une matière liquide d'une plaque de verre, ce n'est pas son
+ * aspect au repos — c'est sa façon de changer d'état. Une goutte qui s'installe
+ * dépasse sa forme finale puis se rétracte ; sa tension de surface la garde
+ * ronde tant qu'elle est petite, et la laisse s'aplatir en s'étalant. Une
+ * surface figée qui se contente d'apparaître en fondu reste une image.
+ *
+ * Trois principes gouvernent donc toutes les transitions du matériau :
+ *
+ *   TENSION      une forme naissante est plus ronde que sa forme finale ;
+ *                le rayon se détend en même temps qu'elle s'étale
+ *   DÉPASSEMENT  elle franchit sa taille cible avant d'y revenir
+ *   DÉCALAGE     le contenu suit la surface avec un retard, comme porté par
+ *                elle plutôt que peint dessus
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* Détente d'une masse liquide : départ vif, dépassement, retour amorti. */
+  --lg-ease-liquid: cubic-bezier(0.2, 1.5, 0.35, 1);
+  --lg-dur-liquid: 520ms;
+}
+
+/*
+ * Naissance d'une surface.
+ *
+ * Le rayon part très au-dessus du rayon final : la forme est d'abord une
+ * goutte, et ne devient un panneau qu'en s'étalant. C'est cette détente du
+ * rayon, plus que le changement d'échelle, qui donne la sensation de matière.
+ */
+@keyframes lg-emerge {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) translateY(14px);
+    border-radius: 999px;
+  }
+  45% {
+    opacity: 1;
+  }
+  62% {
+    transform: scale(1.028) translateY(-3px);
+    border-radius: calc(var(--lg-radius) * 1.55);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    border-radius: var(--lg-radius);
+  }
+}
+
+/* Le contenu suit la surface avec un retard : il est porté, pas peint dessus. */
+@keyframes lg-carry {
+  0% {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  35% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lg--liquid {
+  animation: lg-emerge var(--lg-dur-liquid) var(--lg-ease-liquid) both;
+}
+
+.lg--liquid > * {
+  animation: lg-carry var(--lg-dur-liquid) var(--lg-ease) both;
+}
+
+/*
+ * Tension de surface au contact.
+ *
+ * Sous le doigt, une masse liquide s'aplatit et s'arrondit : elle cède. Le
+ * rayon augmente donc pendant l'appui, en même temps que la surface se
+ * comprime — deux effets minuscules qui, ensemble, se sentent comme de la
+ * matière plutôt que comme un bouton.
+ */
+.lg--interactive {
+  transition:
+    transform var(--lg-dur) var(--lg-ease-press),
+    border-radius var(--lg-dur) var(--lg-ease-press),
+    box-shadow var(--lg-dur) var(--lg-ease),
+    background-color var(--lg-dur) var(--lg-ease);
+}
+
+.lg--interactive:active {
+  transform: scale(0.972);
+  border-radius: calc(var(--lg-radius) * 1.4);
+  --lg-glare-size: 44%;
+}
+
+/*
+ * Fusion des surfaces voisines.
+ *
+ * À poser sur un groupe dont les éléments se touchent presque : ils se
+ * rejoignent alors par un col de matière au lieu de rester côte à côte.
+ * Le filtre remplace les ombres portées du groupe, qu'il durcirait.
+ */
+.lg-merge {
+  filter: url(#lg-merge);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg--liquid,
+  .lg--liquid > * {
+    animation: none;
+  }
+
+  .lg--interactive:active {
+    border-radius: var(--lg-radius);
   }
 }
 

@@ -172,6 +172,14 @@ export default function App() {
 
   const highlightPeople = useMemo(() => new Set(highlight.people.keys()), [highlight]);
 
+  // Diagnostic : en développement, le graphe et le placement sont exposés pour
+  // pouvoir vérifier depuis l'extérieur que chaque personne affichée est
+  // réellement reliée à sa parenté.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as Record<string, unknown>).__arbre = { graph, layout };
+  }, [graph, layout]);
+
   const selectedPerson = selectedId ? (graph.people.get(selectedId) ?? null) : null;
 
   // Marque les périodes où la vue bouge. La réfraction du verre recalcule tout

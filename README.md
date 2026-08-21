@@ -186,6 +186,18 @@ exacte, mais les filtres SVG travaillent en alpha prémultiplié : recomposer un
 arrière-plan translucide lui fait perdre sa luminosité et laisse des franges
 cyan très visibles au lieu d'un liseré discret.
 
+**Le mouvement liquide.** Ce qui distingue une matière liquide d'une plaque de
+verre n'est pas son aspect au repos, c'est sa façon de changer d'état. Trois
+principes gouvernent donc les transitions du matériau : une forme naissante est
+plus **ronde** que sa forme finale et son rayon se détend en s'étalant ; elle
+**dépasse** sa taille cible avant d'y revenir ; et le contenu **suit** la
+surface avec un retard, comme porté par elle. Sous le doigt, la surface cède —
+elle se comprime et s'arrondit à la fois.
+
+Le filtre `lg-merge` permet en outre à deux surfaces voisines de se rejoindre
+par un col de matière plutôt que de se chevaucher : on floute le groupe, on
+durcit l'alpha, et le recouvrement des halos repasse au-dessus du seuil.
+
 Une seule source de lumière éclaire tout le verre, `useGlassLight`, qui suit le
 pointeur avec un amortissement. Une arête dont le reflet ne bouge jamais se lit
 comme un trait peint ; c'est le déplacement du reflet qui fait percevoir une

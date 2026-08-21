@@ -118,6 +118,29 @@ export function GlassFilters() {
   return (
     <svg className="glass-filters" aria-hidden="true" focusable="false">
       <defs>
+        {/*
+         * Fusion.
+         *
+         * Deux surfaces de verre qui s'approchent ne se chevauchent pas comme
+         * deux cartes : elles se rejoignent par un pont, à la manière de deux
+         * gouttes qui se touchent. C'est ce comportement, plus que la
+         * transparence, qui fait dire d'une interface qu'elle est liquide.
+         *
+         * Le procédé : flouter le groupe, puis durcir brutalement l'alpha. Les
+         * halos de deux formes voisines se recouvrent, et ce recouvrement
+         * repasse au-dessus du seuil — un col de matière apparaît entre elles.
+         * Le contraste ramène ensuite les bords à leur netteté.
+         */}
+        <filter id="lg-merge" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="soft" />
+          <feColorMatrix
+            in="soft"
+            type="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
+            result="sharp"
+          />
+          <feComposite in="SourceGraphic" in2="sharp" operator="atop" />
+        </filter>
         {LENSES.map((lens) => (
           <filter
             key={lens.id}

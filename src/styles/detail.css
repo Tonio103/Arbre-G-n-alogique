@@ -12,14 +12,7 @@
   max-width: calc(100vw - 28px);
   border-radius: var(--radius-panel);
   overflow: hidden;
-  animation: detail-in 420ms var(--ease-out) both;
-}
-
-@keyframes detail-in {
-  from {
-    opacity: 0;
-    transform: translateX(28px) scale(0.985);
-  }
+  /* L'apparition est portée par `lg--liquid`, dans le matériau de verre. */
 }
 
 .detail-head {

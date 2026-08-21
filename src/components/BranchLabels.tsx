@@ -147,6 +147,11 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         >
           <span className="branch-name">{region.label}</span>
           <span className="branch-count">{region.count}</span>
+          {/* Amarre vers l'endroit désigné : sans elle, l'étiquette flotte au
+              milieu de l'arbre sans qu'on sache de quoi elle parle. Portée par
+              un élément dédié, les pseudo-éléments du verre étant pris par la
+              réfraction et l'arête. */}
+          <span className="branch-tether" aria-hidden="true" />
         </button>
       ))}
     </div>

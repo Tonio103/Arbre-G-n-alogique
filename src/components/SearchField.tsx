@@ -159,7 +159,7 @@ export function SearchField({ graph, index, onPick, total }: SearchFieldProps) {
       </div>
 
       {showResults && (
-        <div className="search-results lg lg--thick" role="presentation">
+        <div className="search-results lg lg--thick lg--liquid" role="presentation">
           {results.length === 0 ? (
             <p className="search-empty">Aucune personne ne correspond à « {query.trim()} ».</p>
           ) : (

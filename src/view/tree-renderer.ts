@@ -455,12 +455,16 @@ function drawFoliage(
     if (group.length === 0) return;
     ctx.beginPath();
     for (const node of group) {
-      const x = cardCenterX(node.x) + jitter(node.id, 21, size * 0.6);
-      // Le décalage vertical est essentiel : toutes les personnes d'une même
-      // génération étant à la même altitude, un feuillage posé à hauteur fixe
-      // dessine des lignes horizontales qui trahissent les rangées du plan.
+      const x = cardCenterX(node.x) + jitter(node.id, 21, size * 0.5);
+      // Le décalage vertical casse l'alignement des rangées — toutes les
+      // personnes d'une génération étant à la même altitude, un feuillage posé
+      // à hauteur fixe dessine des lignes horizontales qui trahissent le plan.
+      //
+      // Il se mesure sur la taille de la touffe, jamais sur la hauteur d'une
+      // génération : cette dernière vaut plusieurs centaines d'unités, et les
+      // feuilles s'en allaient flotter loin de tout rameau.
       const y =
-        portraitTop(node.y) - size * 0.25 + offset + jitter(node.id, 41, ROW_HEIGHT * 0.16);
+        portraitTop(node.y) - size * 0.3 + offset + jitter(node.id, 41, size * 1.1);
       traceLeafCluster(ctx, node.id, x, y, size, perCluster);
     }
     ctx.fillStyle = color;

@@ -221,15 +221,8 @@
   right: 0;
   padding: 8px;
   border-radius: 22px;
-  animation: results-in 220ms var(--ease-out) both;
   z-index: 30;
-}
-
-@keyframes results-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.985);
-  }
+  /* L'apparition est portée par `lg--liquid`, dans le matériau de verre. */
 }
 
 .search-count,
@@ -509,6 +502,31 @@
     visibility 0s;
 }
 
+/* Fil reliant l'étiquette au point de l'arbre qu'elle nomme. */
+.branch-tether {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 50%;
+  width: 1.5px;
+  height: 16px;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: linear-gradient(var(--glass-border-strong), transparent);
+  pointer-events: none;
+}
+
+.branch-tether::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--glass-border-strong);
+}
+
 .branch-label {
   position: absolute;
   top: 0;
@@ -552,7 +570,32 @@
 }
 
 @media (max-width: 720px) {
-  .branch-label {
+  /* Fil reliant l'étiquette au point de l'arbre qu'elle nomme. */
+.branch-tether {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 50%;
+  width: 1.5px;
+  height: 16px;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: linear-gradient(var(--glass-border-strong), transparent);
+  pointer-events: none;
+}
+
+.branch-tether::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--glass-border-strong);
+}
+
+.branch-label {
     max-width: 170px;
     padding: 5px 9px;
   }
