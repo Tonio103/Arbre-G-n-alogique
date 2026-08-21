@@ -1058,14 +1058,16 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   // d'un certain zoom — sous deux pixels d'épaisseur à l'écran, elles ne
   // produisent qu'un bruit sale sur la silhouette.
   const boneOnScreen = Math.max(26, floor) * scale;
-  // Le modelé pendant le déplacement.
+  // Le modelé, y compris pendant le déplacement.
   //
-  // Il triple le coût d'une image, ce qui n'est pas soutenable quand deux cents
-  // branches défilent. Mais sur une famille, où il n'y en a qu'une poignée,
-  // c'est le contraire : le supprimer se voit — les branches s'aplatissent dès
-  // qu'on pose la main sur la souris et reprennent du volume quand on la lâche.
-  // On le garde donc tant qu'il reste peu de bois à l'écran.
-  const shaded = boneOnScreen > 2.4 && (params.detailed || params.unions.length < 60);
+  // Il fut un temps suspendu au-delà de soixante branches visibles : le
+  // supprimer aplatissait tout l'arbre à chaque geste, et la molette étant
+  // maintenant le zoom lui-même, cet aplatissement se voyait à chaque
+  // exploration. Mesuré : sur une vue d'ensemble, `boneOnScreen` est déjà trop
+  // fin pour déclencher le relief, donc rien à perdre à l'y autoriser ; sur une
+  // vue à soixante branches, le garder coûte trois images par seconde sur la
+  // trentaine disponible — largement moins cher que ce qu'il évite de perdre.
+  const shaded = boneOnScreen > 2.4;
 
   // Épaisseur, à l'écran, de la plus grosse branche visible.
   //
