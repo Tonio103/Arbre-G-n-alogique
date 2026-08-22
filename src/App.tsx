@@ -5,6 +5,16 @@ import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
 import { useIsCompact } from '@/hooks/useMediaQuery';
 import { computeHighlight, relationPath, type HighlightMode } from '@/domain/relations';
+import {
+  addChild,
+  addParent,
+  addSpouse,
+  createPerson,
+  deletePerson,
+  upsertPerson,
+  type NewPersonInput,
+} from '@/domain/edit';
+import type { PersonRecord, UnionStatus } from '@/data/schema';
 import { ViewportController, transformForBounds } from '@/view/viewport';
 import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
@@ -286,6 +296,58 @@ export default function App() {
     [graph, anchorId, selectedId],
   );
 
+  /*
+   * Retouches.
+   *
+   * Chacune passe par `datasetCtrl.mutate`, qui persiste dans le navigateur
+   * et laisse `useFamilyTree` reconstruire graphe, placement et index à
+   * partir de la nouvelle liste — la même mécanique qu'un import, à
+   * l'échelle d'une seule personne.
+   */
+  const updatePerson = useCallback(
+    (record: PersonRecord) => {
+      datasetCtrl.mutate((people) => upsertPerson(people, record));
+    },
+    [datasetCtrl],
+  );
+
+  const removePerson = useCallback(
+    (id: string) => {
+      datasetCtrl.mutate((people) => deletePerson(people, id));
+      setSelectedId((current) => (current === id ? null : current));
+      setFlaggedId((current) => (current === id ? null : current));
+    },
+    [datasetCtrl],
+  );
+
+  const addPersonParent = useCallback(
+    (childId: string, input: NewPersonInput) => {
+      const existingIds = new Set(graph.people.keys());
+      const parent = createPerson(input, existingIds);
+      datasetCtrl.mutate((people) => addParent(people, childId, parent));
+    },
+    [datasetCtrl, graph],
+  );
+
+  const addPersonSpouse = useCallback(
+    (personId: string, input: NewPersonInput, union?: { status: UnionStatus; since?: string; place?: string }) => {
+      const existingIds = new Set(graph.people.keys());
+      const spouse = createPerson(input, existingIds);
+      datasetCtrl.mutate((people) => addSpouse(people, personId, spouse, union));
+    },
+    [datasetCtrl, graph],
+  );
+
+  const addPersonChild = useCallback(
+    (parentId: string, input: NewPersonInput, otherParentId: string | null) => {
+      const existingIds = new Set(graph.people.keys());
+      const child = createPerson(input, existingIds);
+      const parentIds = otherParentId ? [parentId, otherParentId] : [parentId];
+      datasetCtrl.mutate((people) => addChild(people, parentIds, child));
+    },
+    [datasetCtrl, graph],
+  );
+
   // Diagnostic : en développement, le graphe et le placement sont exposés pour
   // pouvoir vérifier depuis l'extérieur que chaque personne affichée est
   // réellement reliée à sa parenté.
@@ -442,6 +504,11 @@ export default function App() {
         onToggleAnchor={() =>
           setAnchorId((current) => (current === selectedId ? null : selectedId))
         }
+        onUpdatePerson={updatePerson}
+        onDeletePerson={removePerson}
+        onAddParent={(input) => selectedId && addPersonParent(selectedId, input)}
+        onAddSpouse={(input, union) => selectedId && addPersonSpouse(selectedId, input, union)}
+        onAddChild={(input, otherParentId) => selectedId && addPersonChild(selectedId, input, otherParentId)}
       />
 
       <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>

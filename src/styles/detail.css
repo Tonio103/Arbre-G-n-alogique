@@ -676,6 +676,90 @@
   }
 }
 
+/* ------------------------------ Formulaires ------------------------------ */
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 20px 20px;
+}
+
+.edit-form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-form-row--split > * {
+  flex: 1 1 0;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.edit-field input,
+.edit-field select,
+.edit-field textarea {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.edit-field input:focus,
+.edit-field select:focus,
+.edit-field textarea:focus {
+  outline: none;
+  border-color: var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.edit-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-form-danger {
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.edit-form-delete {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.edit-form-delete:hover {
+  color: #d64c3c;
+}
+
+.relative-form {
+  padding: 0;
+}
+
+.relative-form .detail-subtitle {
+  margin-bottom: 2px;
+}
+
+.relative-add-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* Mouvement réduit : le contenu reste en place, seule la lisibilité compte. */
 @media (prefers-reduced-motion: reduce) {
   .detail-section {

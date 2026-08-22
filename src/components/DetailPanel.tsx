@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
-import type { Person } from '@/data/schema';
+import type { Person, PersonRecord, UnionStatus } from '@/data/schema';
 import { computeCurrentAge, formatDate } from '@/domain/dates';
 import { describeRelationship, type RelationPath } from '@/domain/relations';
 import { lifeTrace } from '@/domain/timeline';
+import type { NewPersonInput } from '@/domain/edit';
 import { Avatar } from './Avatar';
 import { RelationList } from './PersonRelations';
-import { CloseIcon, HomeIcon, PeopleIcon, PinIcon } from './icons';
+import { PersonEditForm } from './PersonEditForm';
+import { AddRelativeForm, type RelativeKind } from './AddRelativeForm';
+import { AddPersonIcon, CloseIcon, EditIcon, HomeIcon, PeopleIcon, PinIcon } from './icons';
 
 export interface DetailPanelProps {
   graph: FamilyGraph;
@@ -23,6 +26,11 @@ export interface DetailPanelProps {
   lineageActive: boolean;
   /** Chemin de parenté entre le repère et cette personne, s'il existe. */
   relation?: RelationPath;
+  onUpdatePerson: (record: PersonRecord) => void;
+  onDeletePerson: (id: string) => void;
+  onAddParent: (input: NewPersonInput) => void;
+  onAddSpouse: (input: NewPersonInput, union?: { status: UnionStatus; since?: string; place?: string }) => void;
+  onAddChild: (input: NewPersonInput, otherParentId: string | null) => void;
 }
 
 function Section({
@@ -99,7 +107,14 @@ export function DetailPanel({
   anchorId,
   onToggleAnchor,
   relation,
+  onUpdatePerson,
+  onDeletePerson,
+  onAddParent,
+  onAddSpouse,
+  onAddChild,
 }: DetailPanelProps) {
+  const [editing, setEditing] = useState(false);
+  const [addingRelative, setAddingRelative] = useState<RelativeKind | null>(null);
   // Ce que cette personne est pour le point de repère, en toutes lettres.
   const kinship = useMemo(() => {
     if (!anchorId || !person || anchorId === person.id) return undefined;
@@ -116,9 +131,11 @@ export function DetailPanel({
   const panelRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Repartir du haut quand on passe d'une personne à l'autre.
+  // Repartir du haut — et hors édition — quand on passe d'une personne à l'autre.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    setEditing(false);
+    setAddingRelative(null);
   }, [person?.id]);
 
   useEffect(() => {
@@ -223,9 +240,31 @@ export function DetailPanel({
           <PinIcon />
           {anchorId === person.id ? 'Repère' : 'Partir d’ici'}
         </button>
+        <button
+          type="button"
+          className="action-button"
+          onClick={() => setEditing((value) => !value)}
+          data-pressed={editing || undefined}
+        >
+          <EditIcon />
+          Modifier
+        </button>
         <span className="detail-generation">Génération {person.generation + 1}</span>
       </div>
 
+      {editing ? (
+        <div className="detail-body scroll-area" ref={scrollRef}>
+          <PersonEditForm
+            person={person}
+            onSave={(record) => {
+              onUpdatePerson(record);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+            onDelete={() => onDeletePerson(person.id)}
+          />
+        </div>
+      ) : (
       <div className="detail-body scroll-area" ref={scrollRef}>
         <Section title="État civil">
           <dl className="fact-list">
@@ -359,6 +398,42 @@ export function DetailPanel({
           </Section>
         )}
 
+        <Section title="Ajouter un proche">
+          {addingRelative ? (
+            <AddRelativeForm
+              kind={addingRelative}
+              spouseOptions={person.spouseLinks.map((link) => {
+                const spouse = graph.people.get(link.id);
+                return { id: link.id, name: spouse?.displayName ?? link.id };
+              })}
+              onCancel={() => setAddingRelative(null)}
+              onSubmit={(input, otherParentId, union) => {
+                if (addingRelative === 'parent') onAddParent(input);
+                else if (addingRelative === 'spouse') onAddSpouse(input, union);
+                else onAddChild(input, otherParentId);
+                setAddingRelative(null);
+              }}
+            />
+          ) : (
+            <div className="relative-add-buttons">
+              {person.parents.length < 2 && (
+                <button type="button" className="action-button" onClick={() => setAddingRelative('parent')}>
+                  <AddPersonIcon />
+                  Parent
+                </button>
+              )}
+              <button type="button" className="action-button" onClick={() => setAddingRelative('spouse')}>
+                <AddPersonIcon />
+                Conjoint·e
+              </button>
+              <button type="button" className="action-button" onClick={() => setAddingRelative('child')}>
+                <AddPersonIcon />
+                Enfant
+              </button>
+            </div>
+          )}
+        </Section>
+
         {person.interests && person.interests.length > 0 && (
           <Section title="Ce qu’elle ou il aimait">
             <Chips items={person.interests} />
@@ -441,6 +516,7 @@ export function DetailPanel({
 
         <p className="detail-id">Identifiant : {person.id}</p>
       </div>
+      )}
     </aside>
   );
 }

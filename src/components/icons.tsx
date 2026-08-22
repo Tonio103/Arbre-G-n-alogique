@@ -68,6 +68,20 @@ export const MapIcon = () => (
   </svg>
 );
 
+export const EditIcon = () => (
+  <svg {...base}>
+    <path d="M12.9 3.6 16.4 7.1 6.8 16.7 3 17.3l0.6-3.8Z" />
+  </svg>
+);
+
+export const AddPersonIcon = () => (
+  <svg {...base}>
+    <circle cx="8" cy="7.2" r="3" />
+    <path d="M2.6 16.6c0-3 2.4-4.8 5.4-4.8" />
+    <path d="M14.8 8.4v6M11.8 11.4h6" />
+  </svg>
+);
+
 export const ImportIcon = () => (
   <svg {...base}>
     <path d="M10 3v9M6.5 8.5 10 12l3.5-3.5" />
