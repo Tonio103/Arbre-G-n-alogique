@@ -205,6 +205,43 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
 
   ctx.shadowBlur = 0;
 
+  /*
+   * Le jalon de chaque union.
+   *
+   * Un trait qui bifurque a besoin d'un point où bifurquer — sans lui, le
+   * réseau de traits reste un pur vecteur, sans rien qui dise « c'est ici
+   * qu'une famille commence ». Ciel : une étoile de plus, dans la même
+   * couleur que le fil de lumière des traits. Atlas : un point d'encre, là
+   * où la plume a posé le paraphe du mariage.
+   */
+  const hubRadius = 2 / Math.max(transform.scale, 0.05);
+  ctx.beginPath();
+  for (const union of params.unions) {
+    const hub = unionHub(union);
+    if (!hub) continue;
+    ctx.moveTo(hub.x + hubRadius, hub.y);
+    ctx.arc(hub.x, hub.y, hubRadius, 0, Math.PI * 2);
+  }
+  ctx.fillStyle = palette.glow.color;
+  ctx.globalAlpha = hasSelection ? 0.32 : 0.85;
+  ctx.fill();
+
+  if (hasSelection && highlighted.size > 0) {
+    const hubRadiusStrong = 2.6 / Math.max(transform.scale, 0.05);
+    ctx.beginPath();
+    for (const union of params.unions) {
+      if (!highlighted.has(union.id)) continue;
+      const hub = unionHub(union);
+      if (!hub) continue;
+      ctx.moveTo(hub.x + hubRadiusStrong, hub.y);
+      ctx.arc(hub.x, hub.y, hubRadiusStrong, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = palette.strong;
+    ctx.globalAlpha = 1;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
   // Alliances entre branches éloignées : en pointillé, pour qu'on ne les
   // confonde jamais avec une filiation.
   if (params.crossLinks.length > 0) {
@@ -221,6 +258,21 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     ctx.stroke();
     ctx.setLineDash([]);
   }
+}
+
+/** Le point où une union « se noue » : le milieu du trait d'alliance pour un
+ *  couple, le bas de la carte pour un parent seul. */
+function unionHub(union: LayoutUnion): { x: number; y: number } | undefined {
+  const { partners } = union;
+  if (partners.length === 0) return undefined;
+  const sorted = [...partners].sort((a, b) => a.x - b.x);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (sorted.length > 1 && union.adjacent) {
+    const y = portraitCenterY(Math.min(first.y, last.y));
+    return { x: (cardCenterX(first.x) + cardCenterX(last.x)) / 2, y };
+  }
+  return { x: cardCenterX(first.x), y: cardBottom(first.y) };
 }
 
 function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion): void {

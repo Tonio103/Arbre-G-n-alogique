@@ -48,43 +48,19 @@
   transition: opacity var(--dur-slow) var(--ease-out);
 }
 
+/*
+ * Atlas généalogique, suite : le filigrane de courbes de niveau concentriques
+ * de la première version ne lisait pas comme une carte ancienne mais comme
+ * des ronds — retiré. Même principe que le ciel étoilé (quatre passes de
+ * points, pas de répétition sans diviseur commun) mais en poussière d'encre
+ * sur papier plutôt qu'en poussière d'étoiles : plus discret, sans motif
+ * géométrique reconnaissable qui attire l'œil pour de mauvaises raisons.
+ */
 :root[data-theme='light'] .backdrop {
   background:
-    /* courbes de niveau, trois foyers pour rester irrégulier */
-    radial-gradient(
-      circle at 14% 82%,
-      transparent 0 7.5%,
-      var(--motif-dot-dim) 7.5% 7.9%,
-      transparent 7.9% 15.5%,
-      var(--motif-dot-dim) 15.5% 15.9%,
-      transparent 15.9% 23.5%,
-      var(--motif-dot-dim) 23.5% 23.9%,
-      transparent 23.9% 32%,
-      var(--motif-dot-dim) 32% 32.4%,
-      transparent 32.4%
-    ),
-    radial-gradient(
-      circle at 90% 12%,
-      transparent 0 9%,
-      var(--motif-dot-dim) 9% 9.4%,
-      transparent 9.4% 18.5%,
-      var(--motif-dot-dim) 18.5% 18.9%,
-      transparent 18.9% 28%,
-      var(--motif-dot-dim) 28% 28.4%,
-      transparent 28.4%
-    ),
-    radial-gradient(
-      circle at 46% 46%,
-      transparent 0 12%,
-      var(--motif-dot) 12% 12.35%,
-      transparent 12.35% 24%,
-      var(--motif-dot) 24% 24.35%,
-      transparent 24.35% 36%,
-      var(--motif-dot) 36% 36.35%,
-      transparent 36.35% 48%,
-      var(--motif-dot) 48% 48.35%,
-      transparent 48.35%
-    ),
+    radial-gradient(circle at 1px 1px, var(--motif-dot-dim) 0.6px, transparent 0) 5px 11px / 32px 32px repeat,
+    radial-gradient(circle at 1px 1px, var(--motif-dot-dim) 1px, transparent 0) 21px 47px / 76px 76px repeat,
+    radial-gradient(circle at 1px 1px, var(--motif-dot) 1.1px, transparent 0) 52px 98px / 168px 168px repeat,
     radial-gradient(60% 46% at 12% 6%, var(--motif-nebula-a), transparent 65%),
     radial-gradient(55% 42% at 90% 90%, var(--motif-nebula-b), transparent 62%),
     linear-gradient(165deg, var(--bg-deep) 0%, var(--bg-mid) 48%, var(--bg-deep) 100%);

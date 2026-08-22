@@ -230,6 +230,20 @@
     inset 0 0 0 2.5px hsl(var(--branch-hue) 55% 96% / 0.9);
 }
 
+/* Le portrait, lui aussi, doit porter la couleur de sa lignée — sans quoi
+   l'Atlas reste plus terne que le Ciel alors que les deux partagent la même
+   idée. Un lavis, pas une lueur : la teinte d'une aquarelle sur du papier,
+   pas la lumière d'une étoile. */
+:root[data-theme='light'] .node[data-branch] .node-halo {
+  background: radial-gradient(
+    circle at 50% 42%,
+    hsl(var(--branch-hue) 55% 62% / 0.4) 0%,
+    hsl(var(--branch-hue) 48% 55% / 0.16) 48%,
+    transparent 74%
+  );
+  opacity: 1;
+}
+
 /*
  * Les personnes disparues.
  *
