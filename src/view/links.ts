@@ -41,6 +41,15 @@ export interface LinkPalette {
   band: string;
   /** Étiquette de décennie, dans la marge de chaque bande. */
   bandLabel: string;
+  /**
+   * La touche du thème, portée jusque sur le trait.
+   *
+   * Ciel : un fil de lumière plutôt qu'un vecteur froid — une lueur portée
+   * sous le trait, comme les liaisons d'une carte du ciel. Atlas : un trait
+   * encré plutôt qu'une ligne de logiciel — une ombre très courte et sombre,
+   * comme l'encre qui bave à peine dans le papier.
+   */
+  glow: { color: string; blur: number };
 }
 
 export interface DrawLinksParams {
@@ -164,6 +173,12 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ]
     : [{ list: params.unions, color: palette.line, weight: 1.7 }];
 
+  // L'ombre du trait suit l'échelle comme son épaisseur, sinon la lueur du
+  // ciel ou le bavure de l'encre grossirait avec le zoom au lieu de rester
+  // une propriété du trait lui-même.
+  ctx.shadowColor = palette.glow.color;
+  ctx.shadowBlur = palette.glow.blur / Math.max(transform.scale, 0.05);
+
   for (const group of groups) {
     if (group.list.length === 0) continue;
     ctx.beginPath();
@@ -187,6 +202,8 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ctx.stroke();
     }
   }
+
+  ctx.shadowBlur = 0;
 
   // Alliances entre branches éloignées : en pointillé, pour qu'on ne les
   // confonde jamais avec une filiation.

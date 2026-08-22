@@ -1,4 +1,12 @@
 @import './tokens.css';
+/*
+ * Une seule police d'appoint, réservée aux titres du thème clair — le
+ * cartouche d'un atlas ancien n'a jamais été composé dans la même linéale
+ * que ses légendes. Le thème sombre garde la police du corps de texte
+ * partout : sa singularité tient à la couleur et à la lueur, pas à la
+ * lettre.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,440;0,9..144,600;1,9..144,500&display=swap');
 
 *,
 *::before,

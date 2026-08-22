@@ -18,7 +18,7 @@ export interface LinkLayerProps {
   theme: string;
 }
 
-function readPalette(): LinkPalette {
+function readPalette(theme: string): LinkPalette {
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string): string =>
     styles.getPropertyValue(name).trim() || fallback;
@@ -29,6 +29,13 @@ function readPalette(): LinkPalette {
     cross: read('--link-cross', 'rgba(194, 118, 28, 0.5)'),
     band: read('--row-band', 'rgba(118, 136, 170, 0.05)'),
     bandLabel: read('--row-label', 'rgba(118, 136, 170, 0.4)'),
+    // Ciel : un fil de lumière, large et doux, comme les liaisons d'une
+    // carte du ciel. Atlas : un trait encré, l'ombre à peine plus large que
+    // le trait lui-même, comme l'encre qui bave un rien dans le papier.
+    glow:
+      theme === 'dark'
+        ? { color: read('--star-glow', 'rgba(255,255,255,0.9)'), blur: 5 }
+        : { color: read('--star-glow', 'rgba(154,91,35,0.5)'), blur: 1.1 },
   };
 }
 
@@ -56,7 +63,7 @@ export function LinkLayer({
   stateRef.current = { highlightUnions, hasSelection, pathUnions };
 
   useEffect(() => {
-    paletteRef.current = readPalette();
+    paletteRef.current = readPalette(theme);
   }, [theme]);
 
   useEffect(() => {
@@ -82,7 +89,7 @@ export function LinkLayer({
         width,
         height,
         dpr,
-        palette: paletteRef.current ?? readPalette(),
+        palette: paletteRef.current ?? readPalette(theme),
         highlighted: stateRef.current.highlightUnions,
         hasSelection: stateRef.current.hasSelection,
         pathUnions: stateRef.current.pathUnions,

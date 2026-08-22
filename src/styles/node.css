@@ -206,6 +206,31 @@
 }
 
 /*
+ * La touche du thème.
+ *
+ * Ciel : chaque carte de lignée devient une étoile — une lueur douce dans la
+ * couleur de sa branche, derrière le portrait. Atlas : la plaque du nom
+ * prend l'air d'un cartouche de carte ancienne, un mince double-liseré
+ * plutôt qu'un simple fond teinté.
+ */
+:root[data-theme='dark'] .node[data-branch] .node-halo {
+  background: radial-gradient(
+    circle at 50% 42%,
+    hsl(var(--branch-hue) 70% 68% / 0.55) 0%,
+    hsl(var(--branch-hue) 62% 58% / 0.22) 46%,
+    transparent 72%
+  );
+  opacity: 1;
+}
+
+:root[data-theme='light'] .node[data-branch] .node-plate {
+  box-shadow:
+    inset 2.5px 0 0 0 hsl(var(--branch-hue) 58% 45% / 0.9),
+    0 0 0 1px hsl(var(--branch-hue) 55% 40% / 0.28),
+    inset 0 0 0 2.5px hsl(var(--branch-hue) 55% 96% / 0.9);
+}
+
+/*
  * Les personnes disparues.
  *
  * Un point suffit, et il doit rester discret : c'est une information d'état

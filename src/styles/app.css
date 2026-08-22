@@ -6,15 +6,21 @@
 }
 
 /*
- * Décor : une trame de points très fine, deux halos colorés très flous, et un
- * dégradé de fond, déplacés en parallaxe avec la navigation. C'est ce qui
- * donne la sensation de se déplacer dans un volume plutôt que sur une image
- * plate — et ce qui évite qu'un fond presque uni ne se lise comme une page
- * blanche derrière le diagramme.
+ * Décor : le fond n'est plus un simple dégradé, c'est le thème lui-même.
  *
- * La trame est peinte une fois puis simplement recomposée (voir Backdrop.tsx :
- * cette couche ne bouge que par `transform`), donc son coût est le même,
- * qu'il y ait cinquante ou cinq mille points à l'écran.
+ * Sombre = un ciel étoilé (« Ciel de famille ») : quatre passes de points de
+ * tailles et d'opacités différentes, sur des pas de répétition sans diviseur
+ * commun (28, 64, 140, 340px) pour qu'aucune grille ne se devine, plus deux
+ * nébuleuses très diffuses. Clair = un atlas ancien (« Atlas généalogique ») :
+ * des courbes de niveau concentriques, comme sur une carte topographique —
+ * un clin d'œil : les cercles d'une carte IGN et les générations d'un arbre
+ * sont tous deux des courbes de niveau.
+ *
+ * Aucune image matricielle : chaque motif est un dégradé CSS pur, procédural
+ * — testé cette nuit même, une trame en image coûtait cher à chaque cran de
+ * zoom, un dégradé ne coûte rien de plus. La couche entière ne bouge que par
+ * `transform` (voir Backdrop.tsx), donc son coût est le même à cinquante
+ * points ou à cinq mille.
  */
 .backdrop {
   position: fixed;
@@ -25,29 +31,63 @@
   pointer-events: none;
   contain: layout paint style;
   background:
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.1) 1px, transparent 0) 0 0 / 64px 64px repeat,
-    radial-gradient(72% 55% at 12% -4%, rgba(122, 145, 210, 0.15), transparent 62%),
-    radial-gradient(66% 52% at 102% 104%, rgba(196, 142, 96, 0.1), transparent 60%),
+    /* poussière d'étoiles */
+    radial-gradient(circle at 1px 1px, var(--motif-dot-dim) 0.6px, transparent 0) 3px 9px / 28px 28px repeat,
+    /* petites étoiles */
+    radial-gradient(circle at 1px 1px, var(--motif-dot) 1px, transparent 0) 17px 41px / 64px 64px repeat,
+    /* étoiles moyennes */
+    radial-gradient(circle at 1px 1px, var(--motif-dot) 1.4px, transparent 0) 48px 92px / 140px 140px repeat,
+    /* étoiles vedettes, avec leur propre lueur */
+    radial-gradient(3px 3px at 130px 210px, var(--star-glow), transparent 70%) 0 0 / 340px 340px repeat,
+    radial-gradient(circle at 130px 210px, var(--motif-dot) 1.8px, transparent 0) 0 0 / 340px 340px repeat,
+    /* nébuleuses */
+    radial-gradient(60% 46% at 16% 8%, var(--motif-nebula-a), transparent 65%),
+    radial-gradient(55% 42% at 88% 82%, var(--motif-nebula-b), transparent 62%),
     linear-gradient(175deg, var(--bg-deep), var(--bg-mid) 55%, var(--bg-deep));
   will-change: transform;
   transition: opacity var(--dur-slow) var(--ease-out);
 }
 
-/*
- * Le fond du thème clair.
- *
- * Un plan de travail, pas un ciel : le diagramme est ce qu'on regarde, et un
- * dégradé marqué derrière lui ne ferait que disputer l'attention aux traits.
- * Mais un plan de travail n'est pas non plus une feuille blanche — deux
- * teintes très douces, l'une chaude en haut à gauche, l'une froide en bas à
- * droite, suffisent à donner une couleur au fond sans qu'il attire l'œil.
- */
 :root[data-theme='light'] .backdrop {
   background:
-    radial-gradient(circle at 1px 1px, rgba(34, 48, 71, 0.12) 1px, transparent 0) 0 0 / 64px 64px repeat,
-    radial-gradient(68% 55% at 14% -6%, rgba(255, 214, 170, 0.28), transparent 62%),
-    radial-gradient(68% 55% at 100% 106%, rgba(150, 188, 255, 0.24), transparent 60%),
-    linear-gradient(165deg, #f7f0e6 0%, #eef1f8 48%, #e2e8f4 100%);
+    /* courbes de niveau, trois foyers pour rester irrégulier */
+    radial-gradient(
+      circle at 14% 82%,
+      transparent 0 7.5%,
+      var(--motif-dot-dim) 7.5% 7.9%,
+      transparent 7.9% 15.5%,
+      var(--motif-dot-dim) 15.5% 15.9%,
+      transparent 15.9% 23.5%,
+      var(--motif-dot-dim) 23.5% 23.9%,
+      transparent 23.9% 32%,
+      var(--motif-dot-dim) 32% 32.4%,
+      transparent 32.4%
+    ),
+    radial-gradient(
+      circle at 90% 12%,
+      transparent 0 9%,
+      var(--motif-dot-dim) 9% 9.4%,
+      transparent 9.4% 18.5%,
+      var(--motif-dot-dim) 18.5% 18.9%,
+      transparent 18.9% 28%,
+      var(--motif-dot-dim) 28% 28.4%,
+      transparent 28.4%
+    ),
+    radial-gradient(
+      circle at 46% 46%,
+      transparent 0 12%,
+      var(--motif-dot) 12% 12.35%,
+      transparent 12.35% 24%,
+      var(--motif-dot) 24% 24.35%,
+      transparent 24.35% 36%,
+      var(--motif-dot) 36% 36.35%,
+      transparent 36.35% 48%,
+      var(--motif-dot) 48% 48.35%,
+      transparent 48.35%
+    ),
+    radial-gradient(60% 46% at 12% 6%, var(--motif-nebula-a), transparent 65%),
+    radial-gradient(55% 42% at 90% 90%, var(--motif-nebula-b), transparent 62%),
+    linear-gradient(165deg, var(--bg-deep) 0%, var(--bg-mid) 48%, var(--bg-deep) 100%);
 }
 
 /*
@@ -63,8 +103,10 @@
   background: radial-gradient(110% 84% at 50% 45%, transparent 52%, rgba(0, 0, 0, 0.34));
 }
 
+/* Vignette « papier vieilli » : plus chaude qu'un simple assombrissement,
+   comme la bordure roussie d'un vieux document. */
 :root[data-theme='light'] .backdrop::before {
-  background: radial-gradient(110% 84% at 50% 45%, transparent 58%, rgba(30, 50, 90, 0.1));
+  background: radial-gradient(112% 85% at 50% 45%, transparent 55%, rgba(94, 58, 20, 0.16));
 }
 
 /* Grain très fin : casse les dégradés et évite l'effet plastique. */

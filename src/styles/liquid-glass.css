@@ -51,7 +51,10 @@
   --lg-lens: url(#lg-lens-panel);
 
   /* Teinte --------------------------------------------------------------- */
-  --lg-tint: 255, 255, 255;
+  /* Un blanc légèrement crème plutôt que pur : sur un fond parchemin, un
+     verre parfaitement blanc se serait lu comme un morceau de papier neuf
+     collé sur un vieux document. */
+  --lg-tint: 255, 250, 240;
   --lg-tint-alpha: 0.2;
   /* Un verre n'est pas uniforme : il est plus dense là où il est plus épais. */
   --lg-tint-alpha-edge: 0.34;
@@ -108,7 +111,9 @@
   --lg-brightness: 1.16;
   --lg-contrast: 1;
 
-  --lg-tint: 16, 24, 42;
+  /* Un soupçon de bleu-violet plutôt qu'un gris-bleu neutre : le verre doit
+     se lire comme un morceau du même ciel qu'il couvre. */
+  --lg-tint: 18, 21, 46;
   --lg-tint-alpha: 0.42;
   --lg-tint-alpha-edge: 0.26;
   --lg-tint-alpha-moving: 0.86;

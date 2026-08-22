@@ -39,10 +39,6 @@
   --accent-rose: #ff9fc4;
   --accent-mint: #86e0c8;
 
-  /* Bois et feuillage de l'arbre */
-  --wood-trunk: #6b5137;
-  --wood-twig: #b09272;
-  --wood-dim: rgba(170, 150, 128, 0.16);
   /* Médaillon : halo, plaque du nom, cerne des personnes disparues */
   --node-halo-core: rgba(18, 28, 48, 0.5);
   --node-halo-mid: rgba(18, 28, 48, 0.26);
@@ -50,37 +46,25 @@
   --node-plate-strong: rgba(22, 33, 56, 0.72);
   --node-deceased-ring: rgba(255, 255, 255, 0.16);
 
-  --ground: rgba(96, 122, 104, 0.26);
-  --soil: #4a3a28;
-  --soil-deep: #241a12;
-  --soil-grain: rgba(12, 10, 8, 0.3);
-  --stone: rgba(146, 150, 152, 0.7);
-  --stone-shade: rgba(84, 88, 92, 0.75);
-  --grass: rgba(112, 158, 104, 0.75);
-  --grass-alt: rgba(78, 116, 78, 0.6);
-  --bloom: rgba(236, 198, 128, 0.85);
-  --bloom-alt: rgba(214, 156, 190, 0.8);
-  --bloom-heart: rgba(255, 232, 168, 0.9);
-  /* Vie : lumière filtrée, poussière en suspension, pétales, oiseaux */
-  --sun-dapple: rgba(150, 186, 246, 0.08);
-  --mote: rgba(255, 232, 176, 0.7);
-  --petal: rgba(232, 172, 198, 0.55);
-  --petal-alt: rgba(214, 196, 148, 0.5);
-  --bird: rgba(214, 228, 255, 0.38);
-  --cloud: rgba(168, 190, 240, 0.13);
-  --cloud-shade: rgba(58, 76, 124, 0.3);
-  --ground-shade: rgba(0, 0, 0, 0.3);
-  --wood-bark: rgba(38, 28, 18, 0.3);
-  --wood-light: rgba(255, 232, 198, 0.22);
-  --wood-sheen: rgba(255, 248, 232, 0.3);
-  --wood-shade: rgba(28, 18, 10, 0.3);
-  --leaf: rgba(138, 200, 148, 0.85);
-  --leaf-alt: rgba(74, 122, 92, 0.78);
-  --leaf-lit: rgba(176, 220, 158, 0.9);
   --link-highlight: rgba(140, 176, 232, 0.85);
   --link-cross: rgba(255, 201, 138, 0.42);
-  --link-marriage: rgba(226, 196, 154, 0.92);
   --link-node: rgba(190, 210, 245, 0.5);
+
+  /*
+   * Ciel de famille (thème sombre).
+   *
+   * Le ciel étoilé n'est pas un décor à part : c'est le thème sombre
+   * lui-même. `--motif-*` porte la trame d'étoiles du fond (voir app.css),
+   * `--star-*` la lueur portée par chaque carte et chaque lien — une seule
+   * palette, réutilisée partout plutôt que redéfinie composant par
+   * composant.
+   */
+  --motif-dot: rgba(255, 255, 255, 0.8);
+  --motif-dot-dim: rgba(200, 214, 255, 0.4);
+  --motif-nebula-a: rgba(120, 130, 220, 0.16);
+  --motif-nebula-b: rgba(200, 130, 220, 0.1);
+  --star-glow: rgba(255, 255, 255, 0.9);
+  --link-glow-alpha: 0.55;
 
   /* Ombres */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 22px rgba(0, 0, 0, 0.28);
@@ -105,81 +89,73 @@
   /* Gabarit */
   --topbar-height: 68px;
   --panel-width: 400px;
+
+  /* Typographie des titres — voir base.css : le thème sombre garde la
+     police du corps de texte, sa singularité tient à la lueur. */
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial,
+    sans-serif;
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg-deep: #e8ecf5;
-  --bg-mid: #f4f6fb;
-  --bg-base: #eef1f8;
-  --bg-veil: rgba(255, 255, 255, 0.5);
+  /*
+   * Atlas généalogique (thème clair).
+   *
+   * Un document précieux plutôt qu'une page blanche : fond parchemin, encre
+   * sépia pour l'accent, verre teinté chaud. `--motif-*` porte le filigrane
+   * de courbes de niveau du fond (voir app.css) — même principe que le ciel
+   * étoilé du thème sombre, une palette, réutilisée partout.
+   */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
 
-  --glass-fill-faint: rgba(255, 255, 255, 0.42);
-  --glass-fill: rgba(255, 255, 255, 0.6);
-  --glass-fill-strong: rgba(255, 255, 255, 0.76);
-  --glass-fill-hover: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(16, 32, 64, 0.09);
-  --glass-border-strong: rgba(16, 32, 64, 0.16);
-  --glass-sheen: rgba(255, 255, 255, 0.9);
-  --glass-panel: rgba(255, 255, 255, 0.72);
-  --glass-panel-solid: rgba(252, 253, 255, 0.92);
+  --bg-deep: #ecdfc0;
+  --bg-mid: #f8f1df;
+  --bg-base: #f4ecd8;
+  --bg-veil: rgba(250, 243, 227, 0.55);
 
-  --text-primary: rgba(12, 20, 38, 0.94);
-  --text-secondary: rgba(26, 38, 62, 0.66);
-  --text-tertiary: rgba(30, 44, 70, 0.46);
-  --text-inverse: #ffffff;
+  --glass-fill-faint: rgba(255, 251, 240, 0.42);
+  --glass-fill: rgba(255, 251, 240, 0.6);
+  --glass-fill-strong: rgba(255, 251, 240, 0.78);
+  --glass-fill-hover: rgba(255, 253, 246, 0.94);
+  --glass-border: rgba(94, 62, 24, 0.12);
+  --glass-border-strong: rgba(94, 62, 24, 0.2);
+  --glass-sheen: rgba(255, 253, 246, 0.9);
+  --glass-panel: rgba(253, 248, 236, 0.74);
+  --glass-panel-solid: rgba(251, 245, 231, 0.93);
 
-  --accent: #2f6fdb;
-  --accent-strong: #1f57bb;
-  --accent-soft: rgba(47, 111, 219, 0.11);
-  --accent-ring: rgba(47, 111, 219, 0.45);
-  --accent-warm: #c2761c;
-  --accent-rose: #c2497e;
-  --accent-mint: #1c8f74;
+  --text-primary: rgba(38, 26, 10, 0.92);
+  --text-secondary: rgba(58, 42, 20, 0.66);
+  --text-tertiary: rgba(64, 48, 26, 0.48);
+  --text-inverse: #fffaf0;
 
-  --wood-trunk: #4a3524;
-  --wood-twig: #8a6c4c;
-  --wood-dim: rgba(110, 92, 72, 0.18);
-  --node-halo-core: rgba(255, 255, 255, 0.82);
-  --node-halo-mid: rgba(255, 255, 255, 0.42);
-  --node-plate: rgba(255, 255, 255, 0.5);
-  --node-plate-strong: rgba(255, 255, 255, 0.86);
-  --node-deceased-ring: rgba(20, 34, 62, 0.12);
+  --accent: #9a5b23;
+  --accent-strong: #7a4419;
+  --accent-soft: rgba(154, 91, 35, 0.12);
+  --accent-ring: rgba(154, 91, 35, 0.42);
+  --accent-warm: #b5651d;
+  --accent-rose: #a8456e;
+  --accent-mint: #1c7a63;
 
-  --ground: rgba(122, 146, 116, 0.3);
-  --soil: #9a7248;
-  --soil-deep: #6d4c2c;
-  --soil-grain: rgba(74, 54, 34, 0.22);
-  --stone: rgba(202, 200, 194, 0.85);
-  --stone-shade: rgba(140, 138, 132, 0.75);
-  --grass: rgba(108, 154, 92, 0.85);
-  --grass-alt: rgba(80, 120, 74, 0.7);
-  --bloom: rgba(242, 196, 112, 0.95);
-  --bloom-alt: rgba(222, 148, 186, 0.9);
-  --bloom-heart: rgba(246, 190, 78, 0.95);
-  --sun-dapple: rgba(255, 246, 214, 0.5);
-  --mote: rgba(228, 196, 132, 0.62);
-  --petal: rgba(232, 158, 186, 0.6);
-  --petal-alt: rgba(224, 196, 132, 0.55);
-  --bird: rgba(46, 58, 84, 0.5);
-  --cloud: rgba(255, 255, 255, 0.92);
-  --cloud-shade: rgba(178, 196, 232, 0.5);
-  --ground-shade: rgba(58, 66, 50, 0.18);
-  --wood-bark: rgba(52, 38, 24, 0.22);
-  --wood-light: rgba(255, 240, 214, 0.34);
-  --wood-sheen: rgba(255, 252, 240, 0.46);
-  --wood-shade: rgba(52, 34, 18, 0.26);
-  --leaf: rgba(116, 168, 104, 0.88);
-  --leaf-alt: rgba(74, 116, 74, 0.8);
-  --leaf-lit: rgba(178, 214, 138, 0.92);
-  --link-highlight: rgba(86, 128, 196, 0.8);
+  --node-halo-core: rgba(255, 251, 240, 0.82);
+  --node-halo-mid: rgba(255, 251, 240, 0.42);
+  --node-plate: rgba(255, 251, 240, 0.55);
+  --node-plate-strong: rgba(255, 253, 246, 0.88);
+  --node-deceased-ring: rgba(64, 44, 20, 0.14);
+
+  --link-highlight: rgba(122, 68, 25, 0.82);
   --link-cross: rgba(184, 112, 28, 0.6);
-  --link-marriage: rgba(140, 102, 58, 0.92);
-  --link-node: rgba(110, 92, 72, 0.6);
+  --link-node: rgba(94, 68, 40, 0.6);
 
-  --shadow-card: 0 1px 2px rgba(20, 34, 62, 0.08), 0 6px 18px rgba(20, 34, 62, 0.08);
-  --shadow-card-hover: 0 2px 6px rgba(20, 34, 62, 0.1), 0 18px 40px rgba(20, 34, 62, 0.16);
-  --shadow-panel: 0 2px 8px rgba(20, 34, 62, 0.08), 0 30px 70px rgba(20, 34, 62, 0.18);
+  --motif-dot: rgba(94, 62, 24, 0.26);
+  --motif-dot-dim: rgba(94, 62, 24, 0.14);
+  --motif-nebula-a: rgba(180, 130, 60, 0.1);
+  --motif-nebula-b: rgba(120, 90, 50, 0.07);
+  --star-glow: rgba(154, 91, 35, 0.5);
+  --link-glow-alpha: 0.16;
+
+  --shadow-card: 0 1px 2px rgba(58, 38, 12, 0.1), 0 6px 18px rgba(58, 38, 12, 0.1);
+  --shadow-card-hover: 0 2px 6px rgba(58, 38, 12, 0.12), 0 18px 40px rgba(58, 38, 12, 0.18);
+  --shadow-panel: 0 2px 8px rgba(58, 38, 12, 0.08), 0 30px 70px rgba(58, 38, 12, 0.16);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }

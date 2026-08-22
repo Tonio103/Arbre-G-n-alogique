@@ -35,9 +35,10 @@
 }
 
 .detail-name {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 21px;
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.014em;
   line-height: 1.2;
 }
 
