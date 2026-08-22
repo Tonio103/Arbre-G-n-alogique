@@ -81,6 +81,25 @@ const easeOutQuint = (t: number): number => 1 - Math.pow(1 - t, 5);
 const easeInOutCubic = (t: number): number =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
+/**
+ * Point à garder fixe à l'écran pendant un zoom animé.
+ *
+ * `x`/`y` de `from` et `to` sont tous deux calculés pour ancrer ce point,
+ * mais chacun à sa propre échelle — l'un à l'échelle de départ, l'autre à
+ * celle d'arrivée. Les interpoler linéairement entre les deux ne les accorde
+ * qu'aux deux extrémités : au milieu, cette droite ne correspond à aucune
+ * échelle réelle du chemin, et le point censé rester sous le curseur en
+ * dérive avant d'y revenir d'un coup à la fin. Porter l'ancre elle-même dans
+ * l'animation permet de recalculer x/y à partir de l'échelle *courante* à
+ * chaque image, plutôt que de les interpoler indépendamment d'elle.
+ */
+interface ZoomAnchor {
+  screenX: number;
+  screenY: number;
+  worldX: number;
+  worldY: number;
+}
+
 interface Animation {
   from: Transform;
   to: Transform;
@@ -88,6 +107,7 @@ interface Animation {
   duration: number;
   ease: (t: number) => number;
   onDone?: () => void;
+  anchor?: ZoomAnchor;
 }
 
 type Listener = (transform: Transform, interacting: boolean) => void;
@@ -225,6 +245,16 @@ export class ViewportController {
     const base = this.animation ? this.animation.to : this.transform;
     const scale = clampScale(base.scale * factor);
     const applied = scale / base.scale;
+    // Le point du monde que le curseur désigne réellement, à l'échelle
+    // affichée à cet instant — pas la cible d'une animation encore en cours,
+    // qui n'est pas encore ce qu'on voit. C'est CE point que l'image de
+    // chaque frame doit garder sous le curseur (voir `ZoomAnchor`).
+    const anchor: ZoomAnchor = {
+      screenX,
+      screenY,
+      worldX: (screenX - this.transform.x) / this.transform.scale,
+      worldY: (screenY - this.transform.y) / this.transform.scale,
+    };
     this.animateTo(
       {
         scale,
@@ -233,6 +263,8 @@ export class ViewportController {
       },
       duration,
       'inout',
+      undefined,
+      anchor,
     );
   }
 
@@ -275,7 +307,13 @@ export class ViewportController {
     else this.emit();
   }
 
-  animateTo(target: Transform, duration = 720, ease: 'out' | 'inout' = 'out', onDone?: () => void): void {
+  animateTo(
+    target: Transform,
+    duration = 720,
+    ease: 'out' | 'inout' = 'out',
+    onDone?: () => void,
+    anchor?: ZoomAnchor,
+  ): void {
     const to = this.clampTransform({ ...target, scale: clampScale(target.scale) });
     this.velocityX = 0;
     this.velocityY = 0;
@@ -286,6 +324,7 @@ export class ViewportController {
       duration: Math.max(1, duration),
       ease: ease === 'out' ? easeOutQuint : easeInOutCubic,
       onDone,
+      anchor,
     };
     this.ensureLoop();
   }
@@ -302,15 +341,29 @@ export class ViewportController {
       if (this.animation) {
         const progress = Math.min(1, (now - this.animation.start) / this.animation.duration);
         const eased = this.animation.ease(progress);
-        const { from, to } = this.animation;
+        const { from, to, anchor } = this.animation;
         // Interpolation du zoom en échelle logarithmique : sans cela, un grand
         // écart de zoom donne une impression d'accélération irrégulière.
         const scale = from.scale * Math.pow(to.scale / from.scale, eased);
-        this.transform = {
-          scale,
-          x: from.x + (to.x - from.x) * eased,
-          y: from.y + (to.y - from.y) * eased,
-        };
+        if (anchor) {
+          // x/y de `from` et `to` ancrent tous deux ce même point, mais chacun
+          // à sa propre échelle : les interpoler entre eux ne les accorde
+          // qu'aux deux extrémités, et le point dérive au milieu avant d'y
+          // revenir d'un coup (voir `ZoomAnchor`). Recalculés à partir de
+          // l'échelle courante, x/y gardent le point du monde sous le
+          // curseur à chaque image, pas seulement à l'arrivée.
+          this.transform = this.clampTransform({
+            scale,
+            x: anchor.screenX - anchor.worldX * scale,
+            y: anchor.screenY - anchor.worldY * scale,
+          });
+        } else {
+          this.transform = {
+            scale,
+            x: from.x + (to.x - from.x) * eased,
+            y: from.y + (to.y - from.y) * eased,
+          };
+        }
         this.emit();
         if (progress >= 1) {
           const done = this.animation.onDone;
