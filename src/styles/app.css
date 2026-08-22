@@ -183,3 +183,18 @@
     display: none;
   }
 }
+
+/*
+ * La scène en trois dimensions.
+ *
+ * Elle occupe tout le cadre et reçoit les gestes elle-même : la caméra tourne
+ * autour de l'arbre, il n'y a plus de monde transformé sous elle.
+ */
+.orbit-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}

@@ -5,18 +5,18 @@ import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
 import { useIsCompact } from '@/hooks/useMediaQuery';
 import { computeHighlight, type HighlightMode } from '@/domain/relations';
+import { computeOrbit } from '@/domain/orbit';
 import { ViewportController, transformForBounds } from '@/view/viewport';
-import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING, ROW_HEIGHT } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
 import { GlassFilters } from '@/components/GlassFilters';
-import { BranchLabels } from '@/components/BranchLabels';
+
 import { TopBar } from '@/components/TopBar';
-import { TreeCanvas } from '@/components/TreeCanvas';
+import { OrbitScene } from '@/components/OrbitScene';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
-import { MiniMap } from '@/components/MiniMap';
-import { GenerationRail } from '@/components/GenerationRail';
+
+
 
 import '@/styles/base.css';
 import '@/styles/liquid-glass.css';
@@ -30,7 +30,7 @@ import '@/styles/detail.css';
 const PANEL_OFFSET = 400;
 
 export default function App() {
-  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(FAMILY_DATASET);
+  const { graph, layout, searchIndex, anomalies } = useFamilyTree(FAMILY_DATASET);
   const [theme, toggleTheme] = useTheme();
   // Une seule source de lumière pour tout le verre de l'interface.
   useGlassLight();
@@ -67,7 +67,8 @@ export default function App() {
     }
   }, [anchorId, graph]);
 
-  const hoverStore = useMemo(() => new HoverStore(), []);
+  // Le placement radial en trois dimensions : la scène ne dépend que de lui.
+  const orbit = useMemo(() => computeOrbit(graph), [graph]);
   const viewport = useMemo(
     () => new ViewportController({ bounds: layout.bounds }),
     [layout.bounds],
@@ -282,15 +283,12 @@ export default function App() {
       <GlassFilters />
       <Backdrop viewport={viewport} />
 
-      <TreeCanvas
+      <OrbitScene
         graph={graph}
-        layout={layout}
-        spatial={spatial}
-        viewport={viewport}
-        hoverStore={hoverStore}
-        highlight={highlight}
+        layout={orbit}
+        highlighted={highlightPeople}
+        hasSelection={highlight.people.size > 0}
         selectedId={selectedId}
-        flaggedId={flaggedId}
         onSelect={selectPerson}
         theme={theme}
       />
@@ -314,33 +312,10 @@ export default function App() {
         onToggleMiniMap={() => setShowMiniMap((value) => !value)}
       />
 
-      <BranchLabels
-        regions={layout.regions}
-        viewport={viewport}
-        onFocusRegion={(region) => {
-          // Cadrer la branche entière : on passe de la vue d'ensemble au détail
-          // d'une lignée en un geste.
-          viewport.fit(
-            {
-              minX: region.minX,
-              maxX: region.maxX,
-              minY: region.y,
-              maxY: layout.bounds.maxY,
-            },
-            80,
-            0.75,
-            760,
-          );
-        }}
-      />
 
-      <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />
 
       <DataNotice anomalies={anomalies} onSelect={selectPerson} />
 
-      {showMiniMap && !compact && (
-        <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />
-      )}
 
       <DetailPanel
         graph={graph}
