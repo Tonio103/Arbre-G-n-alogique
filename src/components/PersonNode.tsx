@@ -28,6 +28,8 @@ export interface PersonNodeProps {
    * rapprocher les dernières.
    */
   branch?: number;
+  /** Cette personne fait partie du chemin de parenté affiché. */
+  onPath?: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
@@ -61,6 +63,7 @@ export const PersonNode = memo(function PersonNode({
   selected,
   flagged,
   branch,
+  onPath,
   onSelect,
   onHover,
 }: PersonNodeProps) {
@@ -81,6 +84,7 @@ export const PersonNode = memo(function PersonNode({
         } as React.CSSProperties
       }
       data-branch={branch === undefined ? undefined : ''}
+      data-path={onPath || undefined}
       data-detail={detail}
       data-role={role ?? undefined}
       data-dimmed={dimmed || undefined}

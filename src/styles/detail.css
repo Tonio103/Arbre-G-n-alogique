@@ -70,6 +70,55 @@
   color: var(--accent);
 }
 
+/*
+ * Le chemin de parenté.
+ *
+ * L'étiquette (« Arrière-grand-oncle ») nomme le lien mais ne le prouve pas :
+ * on doit la croire sur parole. Le chemin, lui, se vérifie — chaque prénom est
+ * un pas de filiation qu'on peut suivre sur le diagramme, et cliquer dessus y
+ * amène directement.
+ */
+.detail-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-path li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.detail-path-arrow {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.detail-path-step {
+  padding: 1px 6px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--glass-fill);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.detail-path-step:hover,
+.detail-path-step:focus-visible {
+  background: var(--accent);
+  color: #fff;
+}
+
 .detail-birthname,
 .detail-summary,
 .detail-headline {

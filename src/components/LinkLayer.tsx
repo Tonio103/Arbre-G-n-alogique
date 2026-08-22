@@ -12,6 +12,8 @@ export interface LinkLayerProps {
   /** Unions accentuées par la sélection courante. */
   highlightUnions: Set<string>;
   hasSelection: boolean;
+  /** Unions du chemin de parenté affiché, tracées en accent. */
+  pathUnions?: Set<string>;
   /** Change quand le thème change : la palette est relue. */
   theme: string;
 }
@@ -43,14 +45,15 @@ export function LinkLayer({
   spatial,
   highlightUnions,
   hasSelection,
+  pathUnions,
   theme,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
   const paletteRef = useRef<LinkPalette | null>(null);
 
-  const stateRef = useRef({ highlightUnions, hasSelection });
-  stateRef.current = { highlightUnions, hasSelection };
+  const stateRef = useRef({ highlightUnions, hasSelection, pathUnions });
+  stateRef.current = { highlightUnions, hasSelection, pathUnions };
 
   useEffect(() => {
     paletteRef.current = readPalette();
@@ -82,6 +85,7 @@ export function LinkLayer({
         palette: paletteRef.current ?? readPalette(),
         highlighted: stateRef.current.highlightUnions,
         hasSelection: stateRef.current.hasSelection,
+        pathUnions: stateRef.current.pathUnions,
       });
     };
 
@@ -122,7 +126,7 @@ export function LinkLayer({
       frameRef.current = 0;
       viewport.set(viewport.transform);
     });
-  }, [highlightUnions, hasSelection, theme, viewport]);
+  }, [highlightUnions, hasSelection, pathUnions, theme, viewport]);
 
   return <canvas ref={canvasRef} className="stage-canvas" aria-hidden="true" />;
 }

@@ -56,6 +56,8 @@ export interface DrawLinksParams {
   /** Unions accentuées par la sélection courante. */
   highlighted: Set<string>;
   hasSelection: boolean;
+  /** Unions du chemin de parenté affiché, tracées en accent par-dessus tout. */
+  pathUnions?: Set<string>;
 }
 
 /**
@@ -171,6 +173,19 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     // grossit pas avec le zoom, sans quoi il finit par masquer les cartes.
     ctx.lineWidth = group.weight / Math.max(transform.scale, 0.05);
     ctx.stroke();
+  }
+
+  // Le chemin de parenté, par-dessus tout le reste : c'est la réponse à la
+  // question qu'on vient de poser, elle ne doit se perdre dans rien.
+  if (params.pathUnions && params.pathUnions.size > 0) {
+    const onPath = params.unions.filter((union) => params.pathUnions!.has(union.id));
+    if (onPath.length > 0) {
+      ctx.beginPath();
+      for (const union of onPath) traceUnion(ctx, union);
+      ctx.strokeStyle = palette.strong;
+      ctx.lineWidth = 3.2 / Math.max(transform.scale, 0.05);
+      ctx.stroke();
+    }
   }
 
   // Alliances entre branches éloignées : en pointillé, pour qu'on ne les

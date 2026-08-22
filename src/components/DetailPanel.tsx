@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { Person } from '@/data/schema';
 import { computeCurrentAge, formatDate } from '@/domain/dates';
-import { describeRelationship } from '@/domain/relations';
+import { describeRelationship, type RelationPath } from '@/domain/relations';
 import { Avatar } from './Avatar';
 import { RelationList } from './PersonRelations';
 import { CloseIcon, HomeIcon, PeopleIcon, PinIcon } from './icons';
@@ -20,6 +20,8 @@ export interface DetailPanelProps {
   /** Passe en mise en évidence de toute la lignée. */
   onShowLineage: () => void;
   lineageActive: boolean;
+  /** Chemin de parenté entre le repère et cette personne, s'il existe. */
+  relation?: RelationPath;
 }
 
 function Section({
@@ -95,6 +97,7 @@ export function DetailPanel({
   lineageActive,
   anchorId,
   onToggleAnchor,
+  relation,
 }: DetailPanelProps) {
   // Ce que cette personne est pour le point de repère, en toutes lettres.
   const kinship = useMemo(() => {
@@ -148,6 +151,26 @@ export function DetailPanel({
             <h2 className="detail-name">{person.displayName}</h2>
             {person.birthName && <p className="detail-birthname">née {person.maidenName}</p>}
             {kinship && <p className="detail-kinship">{kinship}</p>}
+            {relation && relation.steps.length > 2 && (
+              <ol className="detail-path" aria-label="Chemin de parenté">
+                {relation.steps.map((step, index) => {
+                  const stepPerson = graph.people.get(step.id);
+                  if (!stepPerson) return null;
+                  return (
+                    <li key={step.id}>
+                      {index > 0 && (
+                        <span className="detail-path-arrow" aria-hidden="true">
+                          {step.direction === 'up' ? '↑' : step.direction === 'down' ? '↓' : '–'}
+                        </span>
+                      )}
+                      <button type="button" className="detail-path-step" onClick={() => onSelect(step.id)}>
+                        {stepPerson.firstName}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
             {person.nickname && <p className="detail-birthname">dit·e « {person.nickname} »</p>}
             {summary && <p className="detail-summary">{summary}</p>}
             {person.headline && <p className="detail-headline">{person.headline}</p>}

@@ -26,6 +26,10 @@ export interface TreeCanvasProps {
   flaggedId: string | null;
   onSelect: (id: string | null) => void;
   theme: string;
+  /** Personnes du chemin de parenté courant. */
+  pathPeople?: Set<string>;
+  /** Unions traversées par ce chemin. */
+  pathUnions?: Set<string>;
 }
 
 interface VisibleState {
@@ -67,6 +71,8 @@ export function TreeCanvas({
   flaggedId,
   onSelect,
   theme,
+  pathPeople,
+  pathUnions,
 }: TreeCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
@@ -420,6 +426,7 @@ export function TreeCanvas({
         highlightUnions={highlight.unions}
         hasSelection={hasSelection}
         theme={theme}
+        pathUnions={pathUnions}
       />
 
       <div ref={worldRef} className="world" data-cheap={visible.cheap || undefined}>
@@ -440,6 +447,7 @@ export function TreeCanvas({
                 selected={selectedId === node.id}
                 flagged={flaggedId === node.id}
                 branch={layout.branchOf.get(node.id)}
+                onPath={pathPeople?.has(node.id) || undefined}
                 onSelect={handleSelect}
                 onHover={handleHover}
               />

@@ -4,7 +4,7 @@ import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
 import { useIsCompact } from '@/hooks/useMediaQuery';
-import { computeHighlight, type HighlightMode } from '@/domain/relations';
+import { computeHighlight, relationPath, type HighlightMode } from '@/domain/relations';
 import { ViewportController, transformForBounds } from '@/view/viewport';
 import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
@@ -243,6 +243,20 @@ export default function App() {
 
   const highlightPeople = useMemo(() => new Set(highlight.people.keys()), [highlight]);
 
+  /*
+   * Le chemin de parenté entre le repère et la personne ouverte.
+   *
+   * Il ne se calcule que lorsque les deux existent et diffèrent — c'est-à-dire
+   * quand la question « comment suis-je lié à cette personne ? » a un sens.
+   */
+  const relation = useMemo(
+    () =>
+      anchorId && selectedId && anchorId !== selectedId
+        ? relationPath(graph, anchorId, selectedId)
+        : undefined,
+    [graph, anchorId, selectedId],
+  );
+
   // Diagnostic : en développement, le graphe et le placement sont exposés pour
   // pouvoir vérifier depuis l'extérieur que chaque personne affichée est
   // réellement reliée à sa parenté.
@@ -290,6 +304,8 @@ export default function App() {
         flaggedId={flaggedId}
         onSelect={selectPerson}
         theme={theme}
+        pathPeople={relation?.people}
+        pathUnions={relation?.unions}
       />
 
       <TopBar
@@ -340,6 +356,7 @@ export default function App() {
       )}
 
       <DetailPanel
+        relation={relation}
         graph={graph}
         person={selectedPerson}
         onSelect={selectPerson}

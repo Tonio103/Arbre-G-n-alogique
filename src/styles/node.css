@@ -369,6 +369,23 @@
   filter: none;
 }
 
+/*
+ * Sur le chemin de parenté.
+ *
+ * Plus discret qu'une sélection — c'est une étape, pas la destination — mais
+ * assez marqué pour qu'on suive la filiation du regard d'une carte à l'autre
+ * sans jamais la perdre parmi les cinq cents voisines.
+ */
+.node[data-path] .node-avatar {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 6px 16px rgba(16, 26, 44, 0.22);
+}
+
+.node[data-path] .node-plate {
+  box-shadow: 0 0 0 1px var(--accent-ring);
+}
+
 /* Résultat de recherche mis en avant. */
 .node[data-flagged] .node-avatar {
   animation: node-pulse 1.9s var(--ease-inout) 3;
