@@ -437,7 +437,7 @@ const CROWN_SCATTER = 0.3;
  * son déport — une pente franche, plafonnée pour ne jamais empiéter sur la
  * génération suivante.
  */
-const SIBLING_SLOPE = 0.23;
+const SIBLING_SLOPE = 0.36;
 const SIBLING_CLIMB = 0.85;
 
 interface Shape {
@@ -961,7 +961,11 @@ function computeTrunk(
     if (person.children.length === 0) continue;
     roots.push({
       x: cardCenterX(position.x),
-      y: cardBottom(position.y),
+      // Le centre du portrait, et non le bas de la carte : sous la carte, le
+      // fût s'arrêtait quarante-cinq unités sous le médaillon, derrière le
+      // texte du nom — donc dans le vide, avec un trou franc entre sa coupe et
+      // les fondateurs qu'il est censé porter.
+      y: portraitCenterY(position.y),
       weight: 1 + (weights.get(id) ?? 0),
     });
     lowest = Math.max(lowest, cardBottom(position.y));

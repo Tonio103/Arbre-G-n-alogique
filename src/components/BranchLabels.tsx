@@ -27,6 +27,8 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const widthsRef = useRef<number[]>([]);
+  /** Glisser en cours sur une étiquette : voir les gestionnaires plus bas. */
+  const dragRef = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
 
   // Largeurs mesurées une seule fois : les relire à chaque image forcerait un
   // recalcul de mise en page à 60 Hz.
@@ -139,9 +141,51 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
           ref={(element) => {
             itemsRef.current[index] = element;
           }}
-          onClick={(event) => {
+          /*
+           * Une étiquette se déplace aussi.
+           *
+           * Les étiquettes flottent au-dessus de la scène mais vivent hors de
+           * la zone de navigation dans le DOM : un glisser commencé sur l'une
+           * d'elles n'atteignait jamais le gestionnaire de déplacement, et
+           * l'arbre restait cloué. Rien ne le signalait — le geste ne faisait
+           * simplement rien, sur des pastilles assez larges pour qu'on tombe
+           * dessus souvent.
+           *
+           * Elles conduisent donc le déplacement elles-mêmes, et le clic ne
+           * part que si le pointeur n'a pas bougé : sans quoi tout glisser
+           * finirait par plonger dans une branche qu'on ne visait pas.
+           */
+          onPointerDown={(event) => {
+            if (event.button !== 0 && event.pointerType === 'mouse') return;
+            dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+            viewport.beginInteraction();
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const drag = dragRef.current;
+            if (!drag || drag.id !== event.pointerId) return;
+            const dx = event.clientX - drag.x;
+            const dy = event.clientY - drag.y;
+            if (!drag.moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+            drag.moved = true;
+            drag.x = event.clientX;
+            drag.y = event.clientY;
+            viewport.panBy(dx, dy);
+          }}
+          onPointerUp={(event) => {
+            const drag = dragRef.current;
+            if (drag && drag.id === event.pointerId) {
+              viewport.endInteraction();
+              dragRef.current = null;
+              if (drag.moved) return;
+            }
             event.stopPropagation();
             onFocusRegion(region);
+          }}
+          onPointerCancel={() => {
+            if (!dragRef.current) return;
+            viewport.endInteraction();
+            dragRef.current = null;
           }}
           title={`${region.label} — ${region.count} personnes`}
         >

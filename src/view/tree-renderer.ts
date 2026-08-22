@@ -12,7 +12,6 @@ import {
   PORTRAIT_RADIUS,
   ROW_HEIGHT,
   cardCenterX,
-  portraitBottom,
   portraitCenterY,
   portraitTop,
 } from './metrics';
@@ -158,6 +157,18 @@ function sampleBranch(
   w1: number,
   segments: number,
   sway: number,
+  /**
+   * Élan vertical au départ, en fraction du déport.
+   *
+   * Une branche quitte son support dans la direction de ce support, puis
+   * s'incline. Une maîtresse branche qui part d'un fût vertical pour aller
+   * chercher un enfant à la même altitude n'a, sans cela, aucune raison de
+   * monter : elle sort du tronc à l'équerre et file à plat. C'est l'angle droit
+   * qu'on voyait à chaque fourche. En lui imposant de s'élever d'abord, d'une
+   * part de ce qu'elle doit parcourir latéralement, le coude devient un coude
+   * de bois.
+   */
+  climb = 0,
 ): number[] {
   const dy = y1 - y0;
   const dx = x1 - x0;
@@ -180,16 +191,20 @@ function sampleBranch(
   const span = Math.hypot(dx, dy) || 1;
   const upright = Math.abs(dy) / span;
 
-  // L'élan vertical s'efface avec la verticalité : le conserver sur une branche
-  // couchée la ferait monter au-dessus de son enfant avant de redescendre, et
-  // ce retour croise les branches voisines.
-  const lift = dy * (0.45 + 0.5 * upright);
+  // Les deux élans verticaux restent presque symétriques : c'est ce qui donne
+  // le S d'une vraie branche. Les dissocier — un départ à 95 % de la montée,
+  // une arrivée à 40 % — inverse l'ordre des deux points de contrôle, et la
+  // courbe part alors chercher son enfant au-dessus de lui pour redescendre
+  // ensuite : un coude, en plein milieu d'un rameau qui devrait être droit.
+  const pull = 0.5 + 0.06 * upright;
+  const lift = dy * pull;
   const lead = 0.44 * (1 - upright);
 
-  const c1x = x0 + dx * lead + sway;
-  const c1y = y0 + lift;
+  const c1x = x0 + dx * lead * (1 - climb) + sway;
+  // L'arbre pousse vers les ordonnées décroissantes : retrancher, c'est monter.
+  const c1y = y0 + lift - climb * Math.abs(dx) * 0.36;
   const c2x = x1 - dx * lead * 0.65 - sway * 0.45;
-  const c2y = y1 - dy * (0.4 + 0.2 * upright);
+  const c2y = y1 - dy * pull;
 
   const spine: number[] = [];
 
@@ -452,10 +467,16 @@ function traceUnion(
   // La fourche se déplace un peu d'une famille à l'autre : alignées à la même
   // altitude, toutes les divisions dessineraient une ligne d'horizon artificielle.
   const forkY = forkOffset(parentY) + jitter(union.id, 1, ROW_HEIGHT * 0.17);
-  const startY =
-    partners.length > 1 && union.adjacent
-      ? portraitCenterY(parentY)
-      : portraitTop(partners[0].y);
+  // Le bois part du centre du portrait, jamais de son bord.
+  //
+  // Il partait du haut du médaillon, tandis que la branche venue des parents
+  // s'arrêtait au bas du même médaillon : cinquante unités de vide entre les
+  // deux, masquées par la pastille tant qu'elle est dessinée, béantes dès
+  // qu'on s'approche. En faisant coïncider l'arrivée et le départ au centre
+  // exact du portrait, le bois traverse la personne — et il n'y a plus, nulle
+  // part et à aucune échelle, d'endroit où deux morceaux de branche ne se
+  // touchent pas.
+  const startY = portraitCenterY(partners.length > 1 && union.adjacent ? parentY : partners[0].y);
 
   let carried = 0;
   for (const child of children) carried += 1 + (weights.get(child.id) ?? 0);
@@ -483,6 +504,40 @@ function traceUnion(
     decorate(spineTrunk, `${union.id}!f`);
   } else {
     emitBranch(ctx, spineTrunk, shadeTrunk);
+
+    /*
+     * L'alliance est du bois, pas un fil.
+     *
+     * Les deux conjoints étaient reliés par un trait fin, et c'est du milieu de
+     * ce trait que partait le tronc de leur descendance — un fût de deux cents
+     * unités de large poussant sur un fil de trois. La branche venue des
+     * parents, elle, arrivait sur l'un des deux portraits seulement : entre son
+     * extrémité et le départ du fût, il n'y avait rien du tout.
+     *
+     * La barre d'alliance porte donc désormais la section du fût qu'elle
+     * nourrit. Le bois passe derrière les deux portraits, qui s'y posent comme
+     * deux fruits sur une branche, et la jonction devient pleine — c'est le
+     * seul endroit de l'arbre où trois morceaux de bois se rejoignaient sans
+     * se toucher.
+     */
+    if (partners.length > 1 && union.adjacent) {
+      const barWidth = Math.max(trunkWidth * 0.82, PORTRAIT_RADIUS * 1.1);
+      emitBranch(
+        ctx,
+        sampleBranch(
+          cardCenterX(partners[0].x),
+          startY,
+          cardCenterX(partners[partners.length - 1].x),
+          startY,
+          barWidth,
+          barWidth,
+          4,
+          0,
+        ),
+        shadeTrunk,
+      );
+    }
+
     // Le renflement de la fourche, plus large que le bois : c'est lui qui
     // rattrape les départs des branches et fait un nœud là où, sans lui, on
     // verrait trois formes se recouvrir.
@@ -508,6 +563,8 @@ function traceUnion(
     fromY: number,
     fromWidth: number,
     child: LayoutPartner,
+    /** Non nul quand le rameau sort du fût lui-même, et non d'une branche. */
+    climb = 0,
   ): void => {
     const descendants = weights.get(child.id) ?? 0;
     // Épaisseur variée d'un rameau à l'autre : une fratrie parfaitement
@@ -531,7 +588,9 @@ function traceUnion(
       fromX,
       fromY,
       cardCenterX(child.x),
-      portraitBottom(child.y),
+      // Au centre du portrait, pas à son bord : c'est là que repartira le bois
+      // de sa propre descendance, donc c'est là que celui-ci doit finir.
+      portraitCenterY(child.y),
       width,
       Math.min(width * 0.94, Math.max(tip, floor)),
       segments,
@@ -542,6 +601,7 @@ function traceUnion(
       // lui monteraient au fil à plomb.
       jitter(child.id, 5, Math.min(spacing * 0.32, reach * 0.06 + width + ROW_HEIGHT * 0.06)) +
         breathe(breeze, cardCenterX(child.x), 1 + descendants, reach, spacing),
+      climb,
     );
 
     if (decorate) decorate(spine, child.id);
@@ -573,7 +633,7 @@ function traceUnion(
   const limbFor = (group: LayoutPartner[]): void => {
     if (group.length === 0) return;
     if (group.length === 1) {
-      emitChild(union.anchorX, forkY, trunkWidth * 0.96, group[0]);
+      emitChild(union.anchorX, forkY, trunkWidth * 0.96, group[0], 0.8);
       return;
     }
 
@@ -590,12 +650,15 @@ function traceUnion(
       union.anchorX,
       forkY,
       cardCenterX(outer.x),
-      portraitBottom(outer.y),
+      portraitCenterY(outer.y),
       limbWidth,
       Math.min(limbWidth * 0.94, Math.max(boneWidth(outerDescendants, floor), floor)),
       segments,
       jitter(outer.id, 5, Math.min(spacing * 0.32, reach * 0.06 + limbWidth + ROW_HEIGHT * 0.06)) +
         breathe(breeze, cardCenterX(outer.x), 1 + outerDescendants, reach, spacing),
+      // Elle sort du fût dans l'axe du fût : c'est ce qui remplace l'équerre
+      // par un coude.
+      0.8,
     );
 
     if (decorate) decorate(limb, outer.id);
@@ -605,11 +668,21 @@ function traceUnion(
     const outerReach = cardCenterX(outer.x) - union.anchorX;
     for (let i = 0; i < group.length - 1; i += 1) {
       const child = group[i];
-      // Le point de départ se lit sur la maîtresse branche elle-même : celui
-      // où elle passe à l'aplomb de l'enfant. Les bornes gardent les rameaux
-      // hors de la fourche, où ils se perdraient dans le nœud, et hors de la
-      // pointe, où ils sortiraient du bois.
-      const along = outerReach === 0 ? 0.5 : (cardCenterX(child.x) - union.anchorX) / outerReach;
+      // Le point de départ se lit sur la maîtresse branche elle-même, mais en
+      // deçà de l'aplomb de l'enfant.
+      //
+      // Exactement à son aplomb, le rameau n'a plus que de la hauteur à
+      // parcourir : il monte au fil à plomb et rencontre la maîtresse branche
+      // à angle droit. Une poutre, des poteaux, des équerres — de la
+      // plomberie. En le décrochant plus tôt, il lui reste du chemin
+      // horizontal à faire : il quitte le bois en biais, comme un rameau qui
+      // s'écarte, et l'angle droit disparaît.
+      //
+      // Les bornes gardent les rameaux hors de la fourche, où ils se
+      // perdraient dans le nœud, et hors de la pointe, où ils sortiraient du
+      // bois.
+      const along =
+        (outerReach === 0 ? 0.5 : (cardCenterX(child.x) - union.anchorX) / outerReach) * 0.72;
       const index =
         Math.min(
           samples - 2,
