@@ -123,7 +123,7 @@ export function FamilyMap({ graph, onSelectPlace }: FamilyMapProps) {
       )}
       <button
         type="button"
-        className="family-map-stat lg lg--control lg--bar"
+        className="family-map-stat"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >

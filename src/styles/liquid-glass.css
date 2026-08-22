@@ -372,21 +372,18 @@
 }
 
 /*
- * La réfraction a le même défaut, pour la même raison géométrique.
+ * La réfraction, elle, n'a plus ce défaut.
  *
- * La carte de déplacement encode une lentille plate au centre et courbe sur
- * le pourtour — un profil pensé pour un panneau proche du carré, où le bord
- * parcouru par la courbure reste court. Étirée sur toute la hauteur d'une
- * forme haute et étroite (ou toute la largeur d'une forme large et basse),
- * cette même courbure devient une traînée continue sur le bord le plus long
- * — le fond qu'on devine au travers s'y déforme visiblement au lieu de se
- * contenter d'un liseré. Une forme allongée n'a pas la place de porter une
- * lentille ; elle garde le flou, la teinte, le reflet et l'arête corrigée
- * ci-dessus, qui suffisent à la lire comme du verre.
+ * Depuis que la lentille est portée par `feTurbulence` (voir `GlassFilters`)
+ * plutôt que par une carte de déplacement sur mesure, elle ne connaît pas la
+ * forme du panneau qui la porte : aucune raison qu'une barre très allongée
+ * s'en tire moins bien qu'un panneau proche du carré. `lg-lens-bar` n'existe
+ * que pour une amplitude un peu plus sage, l'axe court d'une barre restant
+ * étroit (une quarantaine de pixels).
  */
 .lg--bar,
 .lg--bar-v {
-  --lg-lens: none;
+  --lg-lens: url(#lg-lens-bar);
 }
 
 /* ---------------------------------------------------------------------------

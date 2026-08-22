@@ -6,9 +6,15 @@
 }
 
 /*
- * Décor : trois halos colorés très flous, déplacés en parallaxe avec la
- * navigation. C'est ce qui donne la sensation de se déplacer dans un volume
- * plutôt que sur une image plate.
+ * Décor : une trame de points très fine, deux halos colorés très flous, et un
+ * dégradé de fond, déplacés en parallaxe avec la navigation. C'est ce qui
+ * donne la sensation de se déplacer dans un volume plutôt que sur une image
+ * plate — et ce qui évite qu'un fond presque uni ne se lise comme une page
+ * blanche derrière le diagramme.
+ *
+ * La trame est peinte une fois puis simplement recomposée (voir Backdrop.tsx :
+ * cette couche ne bouge que par `transform`), donc son coût est le même,
+ * qu'il y ait cinquante ou cinq mille points à l'écran.
  */
 .backdrop {
   position: fixed;
@@ -19,6 +25,7 @@
   pointer-events: none;
   contain: layout paint style;
   background:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.1) 1px, transparent 0) 0 0 / 64px 64px repeat,
     radial-gradient(72% 55% at 12% -4%, rgba(122, 145, 210, 0.15), transparent 62%),
     radial-gradient(66% 52% at 102% 104%, rgba(196, 142, 96, 0.1), transparent 60%),
     linear-gradient(175deg, var(--bg-deep), var(--bg-mid) 55%, var(--bg-deep));
@@ -37,6 +44,7 @@
  */
 :root[data-theme='light'] .backdrop {
   background:
+    radial-gradient(circle at 1px 1px, rgba(34, 48, 71, 0.12) 1px, transparent 0) 0 0 / 64px 64px repeat,
     radial-gradient(68% 55% at 14% -6%, rgba(255, 214, 170, 0.28), transparent 62%),
     radial-gradient(68% 55% at 100% 106%, rgba(150, 188, 255, 0.24), transparent 60%),
     linear-gradient(165deg, #f7f0e6 0%, #eef1f8 48%, #e2e8f4 100%);

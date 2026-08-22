@@ -272,6 +272,15 @@ export default function App() {
   // Marque les périodes où la vue bouge. La réfraction du verre recalcule tout
   // l'arrière-plan à chaque image ; pendant un déplacement, cet effet est
   // invisible à l'œil mais bien réel pour la machine, donc on le suspend.
+  //
+  // Le délai de retour compte autant que la suspension elle-même. Une
+  // molette physique envoie ses crans avec des pauses irrégulières, souvent
+  // plus longues que les cent soixante-dix millisecondes d'un zoom glissé :
+  // un délai trop court referme le flou entre deux crans, et le cran suivant
+  // doit alors le rouvrir — recalculer le flou de sept surfaces de verre à la
+  // fois est justement ce que cette suspension est censée éviter. Mesuré, ce
+  // va-et-vient double le nombre d'images perdues par rapport à une
+  // suspension qui tient la pause.
   const appRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     let timer = 0;
@@ -282,7 +291,7 @@ export default function App() {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         if (appRef.current) appRef.current.dataset.moving = 'false';
-      }, 180);
+      }, 340);
     });
     return () => {
       unsubscribe();

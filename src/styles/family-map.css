@@ -17,6 +17,14 @@
   right: calc(var(--panel-width) + 26px);
 }
 
+/*
+ * Volontairement sans le matériau de verre : ce chiffre replié reste monté en
+ * permanence, contrairement au reste des surfaces vitrées qui n'existent que
+ * pendant un geste ou une sélection. Un flou d'arrière-plan de plus, présent
+ * en continu au-dessus d'un arbre qui défile, s'ajoute directement au coût de
+ * chaque image de zoom — une simple teinte semi-opaque en donne l'essentiel
+ * sans le payer.
+ */
 .family-map-stat {
   display: flex;
   align-items: center;
@@ -24,6 +32,9 @@
   height: 36px;
   padding: 0 14px 0 12px;
   border-radius: var(--radius-pill);
+  background: var(--glass-fill-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--lg-shadow-contact, 0 1px 2px rgba(0, 0, 0, 0.12));
   color: var(--text-secondary);
   font-size: 12.5px;
   font-weight: 550;
@@ -35,6 +46,7 @@
 
 .family-map-stat:hover {
   color: var(--text-primary);
+  background: var(--glass-fill-hover, var(--glass-fill-strong));
 }
 
 .family-map-stat svg {
