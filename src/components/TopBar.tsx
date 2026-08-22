@@ -7,6 +7,7 @@ import {
   BranchIcon,
   FitIcon,
   HomeIcon,
+  ImportIcon,
   MapIcon,
   MinusIcon,
   MoonIcon,
@@ -30,6 +31,7 @@ export interface TopBarProps {
   onToggleTheme: () => void;
   showMiniMap: boolean;
   onToggleMiniMap: () => void;
+  onOpenData: () => void;
 }
 
 interface IconButtonProps {
@@ -71,6 +73,7 @@ export function TopBar({
   onToggleTheme,
   showMiniMap,
   onToggleMiniMap,
+  onOpenData,
 }: TopBarProps) {
   return (
     <header className="topbar lg lg--thick lg--bar">
@@ -139,6 +142,9 @@ export function TopBar({
             onClick={onToggleTheme}
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </IconButton>
+          <IconButton className="hide-compact" label="Importer / exporter vos données" onClick={onOpenData}>
+            <ImportIcon />
           </IconButton>
         </div>
       </div>

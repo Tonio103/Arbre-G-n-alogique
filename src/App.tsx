@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FAMILY_DATASET } from '@/data';
 import { useFamilyTree } from '@/hooks/useFamilyTree';
+import { useDataset } from '@/hooks/useDataset';
 import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
 import { useIsCompact } from '@/hooks/useMediaQuery';
@@ -15,6 +15,7 @@ import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
+import { DataPanel } from '@/components/DataPanel';
 import { MiniMap } from '@/components/MiniMap';
 import { FamilyMap } from '@/components/FamilyMap';
 import { GenerationRail } from '@/components/GenerationRail';
@@ -27,12 +28,14 @@ import '@/styles/node.css';
 import '@/styles/chrome.css';
 import '@/styles/detail.css';
 import '@/styles/family-map.css';
+import '@/styles/data-panel.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
 const PANEL_OFFSET = 400;
 
 export default function App() {
-  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(FAMILY_DATASET);
+  const datasetCtrl = useDataset();
+  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(datasetCtrl.dataset);
   const [theme, toggleTheme] = useTheme();
   // Une seule source de lumière pour tout le verre de l'interface.
   useGlassLight();
@@ -42,6 +45,7 @@ export default function App() {
   const [highlightMode, setHighlightMode] = useState<HighlightMode>('close');
   const [flaggedId, setFlaggedId] = useState<string | null>(null);
   const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showDataPanel, setShowDataPanel] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
 
   /**
@@ -70,10 +74,15 @@ export default function App() {
   }, [anchorId, graph]);
 
   const hoverStore = useMemo(() => new HoverStore(), []);
-  const viewport = useMemo(
-    () => new ViewportController({ bounds: layout.bounds }),
-    [layout.bounds],
-  );
+  // Une seule instance pour toute la session — pas une par changement de
+  // bornes. Un import ou une retouche recalcule `layout.bounds` à chaque
+  // fois ; recréer le contrôleur à chaque fois jetterait le cadrage en
+  // cours, comme si retoucher une seule fiche remettait la vue à zéro.
+  const viewport = useMemo(() => new ViewportController({ bounds: layout.bounds }), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    viewport.setBounds(layout.bounds);
+  }, [viewport, layout.bounds]);
 
   useEffect(() => () => viewport.destroy(), [viewport]);
 
@@ -197,6 +206,24 @@ export default function App() {
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [viewport, layout]);
+
+  /*
+   * Un import ou un retour à la démonstration change l'arbre de forme au
+   * point que l'ancien cadrage n'a plus de sens — contrairement à une simple
+   * retouche de fiche, qui ne doit surtout pas faire sauter la caméra.
+   * `replaceVersion` ne bouge que pour ce cas-là ; sa première valeur
+   * correspond au chargement initial, déjà traité par l'ouverture ci-dessus.
+   */
+  const replaceVersionRef = useRef(datasetCtrl.replaceVersion);
+  useEffect(() => {
+    if (datasetCtrl.replaceVersion === replaceVersionRef.current) return;
+    replaceVersionRef.current = datasetCtrl.replaceVersion;
+    setSelectedId(null);
+    setFlaggedId(null);
+    setHighlightMode('close');
+    viewport.fit(layout.bounds, FIT_PADDING, 0.92, 720);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datasetCtrl.replaceVersion]);
 
   // Raccourcis clavier généraux, inactifs pendant la saisie d'une recherche.
   useEffect(() => {
@@ -367,6 +394,7 @@ export default function App() {
         onToggleTheme={toggleTheme}
         showMiniMap={showMiniMap}
         onToggleMiniMap={() => setShowMiniMap((value) => !value)}
+        onOpenData={() => setShowDataPanel(true)}
       />
 
       <BranchLabels
@@ -437,6 +465,17 @@ export default function App() {
           <kbd>⌥</kbd> <kbd>↑↓←→</kbd> suivre la parenté
         </span>
       </div>
+
+      {showDataPanel && (
+        <DataPanel
+          graph={graph}
+          dataset={datasetCtrl.dataset}
+          source={datasetCtrl.source}
+          onImport={(imported) => datasetCtrl.replace(imported, 'import')}
+          onReset={datasetCtrl.reset}
+          onClose={() => setShowDataPanel(false)}
+        />
+      )}
     </div>
   );
 }
