@@ -3,12 +3,39 @@ import type { FamilyDataset } from './schema';
 /**
  * VOTRE FAMILLE.
  *
- * C'est le seul fichier à modifier pour remplacer l'arbre de démonstration par
- * le vôtre. Aucun composant d'interface ne connaît vos ancêtres : ils lisent
- * tous ce qui sort d'ici.
+ * C'est le seul fichier qui décide de l'arbre affiché par défaut — celui que
+ * verra quiconque ouvre ces fichiers, sans rien importer ni retoucher dans
+ * l'application. Aucun composant d'interface ne connaît vos ancêtres : ils
+ * lisent tous ce qui sort d'ici.
  *
- * Tant que `MA_FAMILLE` vaut `null`, l'application affiche la famille fictive
- * des Beaumont. Décommentez le bloc ci-dessous et l'arbre devient le vôtre.
+ * ── Le plus simple : depuis l'application elle-même ─────────────────────────
+ *
+ * Construisez votre arbre dans l'application (import GEDCOM et/ou retouches
+ * en place), puis « Importer/exporter vos données » → Télécharger en JSON.
+ * Déposez le fichier téléchargé ici, sous le nom exact `ma-famille.json` :
+ *
+ *     src/data/ma-famille.json
+ *
+ * Rien d'autre à faire — la ligne ci-dessous le détecte tout seul et
+ * remplace la démonstration par cet arbre pour tout le monde qui reçoit ces
+ * fichiers, sans qu'ils aient à toucher au navigateur de qui que ce soit.
+ * Aucun fichier à ce nom : la famille de démonstration reste affichée.
+ */
+const jsonModules = import.meta.glob('./ma-famille.json', { eager: true }) as Record<
+  string,
+  { default: FamilyDataset }
+>;
+const importedFamily = Object.values(jsonModules)[0]?.default ?? null;
+
+/**
+ * ── Ou à la main, en TypeScript ──────────────────────────────────────────────
+ *
+ * Si vous préférez saisir directement ici plutôt que passer par l'application
+ * (utile pour un tout petit arbre, ou pour repartir de rien) : décommentez le
+ * bloc ci-dessous. S'il est actif, il prend le pas sur `ma-famille.json`.
+ *
+ * Tant que `MA_FAMILLE` vaut `null` (ni fichier JSON, ni bloc décommenté),
+ * l'application affiche la famille fictive des Beaumont.
  *
  * ── Ce qui se saisit ────────────────────────────────────────────────────────
  *
@@ -39,20 +66,8 @@ import type { FamilyDataset } from './schema';
  * enfant né après la mort de son parent, mariage avant la naissance… Rien
  * n'est corrigé ni bloqué — un arbre réel a ses zones douteuses — mais tout
  * est signalé, dans la console et sur un bandeau dans l'application.
- *
- * ── Depuis un fichier JSON ──────────────────────────────────────────────────
- *
- * Si vous préférez saisir en JSON — pour l'exporter d'ailleurs, ou le confier
- * à quelqu'un qui ne lit pas de TypeScript :
- *
- *     import personnes from './ma-famille.json';
- *     export const MA_FAMILLE: FamilyDataset | null = {
- *       title: 'Ma famille',
- *       rootId: 'marie-durand-1912',
- *       people: personnes,
- *     };
  */
-export const MA_FAMILLE: FamilyDataset | null = null;
+export const MA_FAMILLE: FamilyDataset | null = importedFamily;
 
 /*
 export const MA_FAMILLE: FamilyDataset | null = {
