@@ -266,10 +266,10 @@ export function drawPetals(ctx: CanvasRenderingContext2D, params: AmbienceParams
 }
 
 /**
- * Cinq trajectoires, dont deux ou trois seulement traversent le cadre à un
+ * Neuf trajectoires, dont trois ou quatre seulement traversent le cadre à un
  * instant donné. Au-delà, ce n'est plus un ciel, c'est une volière.
  */
-const BIRDS = 5;
+const BIRDS = 9;
 
 /**
  * Oiseaux au-dessus de la couronne.
@@ -290,14 +290,12 @@ const BIRDS = 5;
  */
 export function drawBirds(ctx: CanvasRenderingContext2D, params: AmbienceParams): void {
   const { scale, palette } = params;
-  if (scale > 0.14) return;
+  if (scale > 0.3) return;
 
   const px = 1 / Math.max(scale, 0.002);
   const width = params.right - params.left;
 
-  ctx.strokeStyle = palette.bird;
-  ctx.lineWidth = px * 2.4;
-  ctx.lineCap = 'round';
+  ctx.fillStyle = palette.bird;
 
   for (let i = 0; i < BIRDS; i += 1) {
     const roll = hashN('oiseau', i);
@@ -315,22 +313,56 @@ export function drawBirds(ctx: CanvasRenderingContext2D, params: AmbienceParams)
     // le seul endroit dont on soit sûr qu'il est à l'écran.
     const y =
       params.viewTop +
-      params.viewHeight * (0.1 + roll * 0.26) +
+      params.viewHeight * (0.08 + roll * 0.3) +
       Math.sin(params.time * 0.25 + i * 2.1) * px * 26;
 
-    const size = px * (11 + roll * 7);
-    // Le battement. Il ralentit puis s'arrête presque : un oiseau qui plane
-    // bat trois fois puis se laisse porter, et cette irrégularité est la moitié
-    // de ce qui le rend crédible.
-    const beat = Math.sin(params.time * 3.1 + i * 1.7);
-    const lift = beat * size * 0.5;
+    const size = px * (9 + roll * 6);
 
-    ctx.globalAlpha = 0.62 + roll * 0.3;
+    /*
+     * Trois coups d'aile, puis on plane.
+     *
+     * Un battement continu donne un jouet mécanique. Un oiseau bat quelques
+     * fois puis se laisse porter, ailes tendues, et c'est cette alternance —
+     * plus que la silhouette — qui le fait lire comme vivant.
+     */
+    const bout = (params.time * 0.5 + roll * 3.3) % 1;
+    const beat = bout < 0.42 ? Math.sin(params.time * 5.6 + i * 1.7) : -0.12;
+    const lift = beat * size * 0.8;
+
+    ctx.globalAlpha = 0.5 + roll * 0.34;
+
+    // Un oiseau, et non plus une accolade.
+    //
+    // Deux arcs au trait donnent la mouette de carte postale : la même forme
+    // pour tout le monde, sans corps, sans sens de déplacement. Un corps
+    // fuselé, une tête devant, une queue derrière et deux ailes pleines
+    // tiennent dans les mêmes quinze pixels et disent tout de suite ce que
+    // c'est — et de quel côté cela va.
     ctx.beginPath();
-    ctx.moveTo(x - size, y - lift * 0.4);
-    ctx.quadraticCurveTo(x - size * 0.45, y - lift, x, y);
-    ctx.quadraticCurveTo(x + size * 0.45, y - lift, x + size, y - lift * 0.4);
-    ctx.stroke();
+    ctx.ellipse(x, y, size * 0.4, size * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x + heading * size * 0.44, y - size * 0.06, size * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x - heading * size * 0.3, y - size * 0.11);
+    ctx.lineTo(x - heading * size * 0.74, y);
+    ctx.lineTo(x - heading * size * 0.3, y + size * 0.11);
+    ctx.closePath();
+    ctx.fill();
+
+    // Les ailes, pleines plutôt qu'au trait : à cette taille un trait s'efface,
+    // une surface tient.
+    for (const wing of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.04);
+      ctx.quadraticCurveTo(x + wing * size * 0.5, y - lift * 0.95, x + wing * size * 1.12, y - lift);
+      ctx.quadraticCurveTo(x + wing * size * 0.56, y + size * 0.18 - lift * 0.4, x, y + size * 0.1);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   ctx.globalAlpha = 1;
@@ -362,11 +394,33 @@ export function drawClouds(ctx: CanvasRenderingContext2D, params: AmbienceParams
   const cell = 620 * px;
   let painted = 0;
 
-  for (const grain of field(params, 'nuage', cell, cell * 1.9, 0, 96)) {
-    if (grain.roll > 0.56) continue;
-    if (grain.y > ceiling) continue;
+  /*
+   * Le ciel se peuple en montant.
+   *
+   * Une densité uniforme donne un ciel de papier peint : autant de nuages au
+   * ras de l'herbe qu'au-dessus de la cime, ce qui n'arrive jamais et surtout
+   * ne dit rien. En les raréfiant près du sol et en les accumulant en
+   * altitude, le ciel acquiert une profondeur — et monter dans l'arbre devient
+   * un déplacement, pas un changement d'échelle. C'est aussi ce qui donne sa
+   * mesure à la hauteur de l'arbre : on sait qu'on est haut parce qu'on est
+   * dans les nuages.
+   *
+   * L'altitude se mesure entre le sol et la cime, et déborde au-delà : plus
+   * haut que l'arbre, le ciel est presque plein.
+   */
+  const span = Math.max(1, params.ground - params.canopyTop);
+  const altitudeOf = (y: number): number =>
+    Math.min(1.4, Math.max(0, (params.ground - y) / span));
 
-    const size = px * (74 + hashN('nuage!t', grain.index) * 96);
+  for (const grain of field(params, 'nuage', cell, cell * 1.9, 0, 96)) {
+    if (grain.y > ceiling) continue;
+    const altitude = altitudeOf(grain.y);
+    // Une cellule sur dix au ras du sol, sept sur dix à hauteur de cime.
+    if (grain.roll > 0.1 + altitude * 0.62) continue;
+
+    // Ils grossissent aussi en montant : les plus hauts sont les plus vastes,
+    // et ce sont eux qui ferment le ciel au-dessus de la couronne.
+    const size = px * (74 + hashN('nuage!t', grain.index) * 96) * (0.72 + altitude * 0.46);
     const alpha = envelope(grain.phase) * (0.72 + grain.roll * 0.9);
     if (alpha < 0.05) continue;
 
@@ -411,7 +465,7 @@ export function drawClouds(ctx: CanvasRenderingContext2D, params: AmbienceParams
     }
 
     painted += 1;
-    if (painted > 14) break;
+    if (painted > 22) break;
   }
 
   ctx.globalAlpha = 1;

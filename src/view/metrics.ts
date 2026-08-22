@@ -24,8 +24,12 @@ export const FAMILY_GAP = 52;
  * l'arbre s'aplatit en frise ; trop haute, chaque filiation devient une longue
  * ligne qui traverse un vide, et une fratrie n'est plus qu'un faisceau de
  * traits parallèles dont on ne sait plus ce qu'il relie.
+ *
+ * Elle vaut maintenant la moitié de plus qu'avant. Depuis que les premières
+ * générations se resserrent sur le tronc — voir `crownSpread` — la largeur ne
+ * grandit plus avec la hauteur : l'arbre pouvait donc s'élever sans se coucher.
  */
-export const ROW_HEIGHT = 820;
+export const ROW_HEIGHT = 1080;
 
 /** Marge autour de l'arbre lors d'un recentrage. */
 export const FIT_PADDING = 120;

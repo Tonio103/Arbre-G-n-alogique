@@ -1,6 +1,7 @@
 import type {
   Bounds,
   CrossLink,
+  LayoutPartner,
   LayoutUnion,
   NodePosition,
   TrunkLayout,
@@ -161,25 +162,34 @@ function sampleBranch(
   const dy = y1 - y0;
   const dx = x1 - x0;
 
-  // Contrôles verticaux : la branche quitte le tronc à la verticale et rejoint
-  // l'enfant à la verticale, ce qui donne la courbe en S d'une vraie ramure.
+  // L'inclinaison du départ suit celle de la branche.
   //
-  // L'élan de départ ne peut pas dépendre du seul écart vertical. Quand un
-  // enfant est à des milliers d'unités sur le côté pour une génération de haut,
-  // une courbe proportionnée à cet écart part presque à plat et la branche
-  // devient un câble tendu. On lui donne donc de quoi s'élever d'abord, en
-  // proportion de la distance à parcourir : elle monte, puis s'incline vers son
-  // enfant — ce que fait une branche qui s'étale.
-  // L'élan de départ reste sous la hauteur d'une génération : au-delà, la
-  // branche dépasse la rangée de son enfant puis redescend, et ce retour
-  // croise les branches voisines.
-  const rise = Math.max(Math.abs(dy) * 0.55, Math.min(Math.abs(dx) * 0.22, Math.abs(dy) * 0.95));
-  const lift = dy < 0 ? -rise : rise;
+  // Les deux points de contrôle étaient posés à l'aplomb exact des extrémités :
+  // la branche quittait son parent à la verticale et rejoignait son enfant à la
+  // verticale, quoi qu'il arrive. Pour une filiation qui monte tout droit,
+  // c'est juste. Pour un enfant placé loin sur le côté — et depuis que les
+  // fourches du haut se resserrent, le déport peut valoir quatre fois la
+  // montée — la courbe n'avait plus d'autre issue que de s'élancer à la
+  // verticale, virer à l'horizontale, puis se redresser : une équerre, visible
+  // à l'œil nu dans toute la cime.
+  //
+  // `upright` mesure à quel point la branche monte plutôt qu'elle ne s'étale.
+  // Une branche verticale garde son ancien départ vertical ; une branche
+  // couchée emporte dès son origine une part de son déport, et la double
+  // équerre redevient un arc.
+  const span = Math.hypot(dx, dy) || 1;
+  const upright = Math.abs(dy) / span;
 
-  const c1x = x0 + sway;
+  // L'élan vertical s'efface avec la verticalité : le conserver sur une branche
+  // couchée la ferait monter au-dessus de son enfant avant de redescendre, et
+  // ce retour croise les branches voisines.
+  const lift = dy * (0.45 + 0.5 * upright);
+  const lead = 0.44 * (1 - upright);
+
+  const c1x = x0 + dx * lead + sway;
   const c1y = y0 + lift;
-  const c2x = x1 - sway * 0.45;
-  const c2y = y1 - dy * 0.55;
+  const c2x = x1 - dx * lead * 0.65 - sway * 0.45;
+  const c2y = y1 - dy * (0.4 + 0.2 * upright);
 
   const spine: number[] = [];
 
@@ -487,18 +497,25 @@ function traceUnion(
   }
   if (!Number.isFinite(spacing)) spacing = CARD_WIDTH * 2;
 
-  for (const child of children) {
+  /**
+   * Trace le rameau qui mène de la maîtresse branche jusqu'à une personne.
+   *
+   * `fromWidth` plafonne sa section : un rameau plus épais que le bois dont il
+   * sort donnerait un enfant qui porte son parent.
+   */
+  const emitChild = (
+    fromX: number,
+    fromY: number,
+    fromWidth: number,
+    child: LayoutPartner,
+  ): void => {
     const descendants = weights.get(child.id) ?? 0;
-    const carriedByChild = 1 + descendants;
     // Épaisseur variée d'un rameau à l'autre : une fratrie parfaitement
     // régulière trahit le dessin automatique. La variation ne porte que sur le
     // départ — l'arrivée doit rester exacte, voir ci-dessous.
-    //
-    // Jamais plus large que la fourche d'où elle sort : au-delà, l'enfant
-    // semblerait porter son parent.
     const width = Math.min(
-      trunkWidth * 0.96,
-      boneWidth(carriedByChild, floor) * (0.9 + hashN(child.id, 4) * 0.22),
+      fromWidth,
+      boneWidth(1 + descendants, floor) * (0.9 + hashN(child.id, 4) * 0.22),
     );
     // L'arrivée vaut exactement ce que la branche suivante emportera.
     //
@@ -509,35 +526,112 @@ function traceUnion(
     // lisent plus comme la même branche. En terminant à l'épaisseur qu'attend
     // la suite, le bois traverse la personne au lieu de s'y interrompre.
     const tip = boneWidth(descendants, floor);
-    const reach = Math.abs(cardCenterX(child.x) - union.anchorX);
+    const reach = Math.abs(cardCenterX(child.x) - fromX);
     const spine = sampleBranch(
-      union.anchorX,
-      forkY,
+      fromX,
+      fromY,
       cardCenterX(child.x),
       portraitBottom(child.y),
       width,
       Math.min(width * 0.94, Math.max(tip, floor)),
       segments,
-      // La déviation reste sous la moitié de l'écart entre deux enfants.
-      //
-      // Une branche qui s'écarte davantage passe devant celle de sa voisine :
-      // les deux se croisent, et l'œil ne peut plus dire lequel des deux
-      // rameaux mène à quel enfant. L'irrégularité doit rester une inflexion,
-      // jamais un détour — une famille se lit d'abord, elle ne se devine pas.
-      // Le terme constant est ce qui sauve les branches verticales.
-      //
-      // Quand l'enfant est à l'aplomb de ses parents, la déviation autorisée
-      // valait la largeur du bois — quelques unités — et la branche montait au
-      // fil à plomb. Dix rangées de ces traits parfaitement verticaux et
-      // parallèles, et la cime redevient un graphique. Un arc de quelques
-      // dizaines d'unités suffit à leur rendre leur bois.
+      // La déviation reste sous la moitié de l'écart entre deux enfants : une
+      // branche qui s'écarte davantage passe devant celle de sa voisine, et
+      // l'œil ne peut plus dire lequel des deux rameaux mène à quel enfant.
+      // Le terme constant est ce qui sauve les branches verticales, qui sans
+      // lui monteraient au fil à plomb.
       jitter(child.id, 5, Math.min(spacing * 0.32, reach * 0.06 + width + ROW_HEIGHT * 0.06)) +
-        breathe(breeze, cardCenterX(child.x), carriedByChild, reach, spacing),
+        breathe(breeze, cardCenterX(child.x), 1 + descendants, reach, spacing),
     );
 
     if (decorate) decorate(spine, child.id);
     else emitBranch(ctx, spine, shading && width >= minShaded ? shading : undefined);
-  }
+  };
+
+  /*
+   * Une fratrie ne rayonne pas depuis un point.
+   *
+   * Chaque enfant recevait sa propre branche, partant toutes de la même
+   * fourche à la même altitude. Pour deux ou trois enfants, cela passe. Pour
+   * seize — et cette famille en a — les seize courbes quittent le même point
+   * avec un déport de plusieurs milliers d'unités pour quelques centaines de
+   * montée : elles se couchent, se superposent, et fusionnent à l'écran en une
+   * poutre horizontale sur laquelle les médaillons sont enfilés comme des
+   * perles, avec un poteau vertical dessous. De l'échafaudage.
+   *
+   * Un arbre ne se divise jamais ainsi. Une maîtresse branche part vers
+   * l'extérieur et se déleste de ses rameaux un par un, à mesure qu'elle monte
+   * et s'affine — c'est ce qu'on appelle une ramification sympodiale, et c'est
+   * ce qui donne à une ramure sa profondeur.
+   *
+   * Deux maîtresses branches par union, donc, une de chaque côté de la
+   * fourche. Chacune vise l'enfant le plus éloigné de son côté ; les autres
+   * s'en détachent au point où elle passe à leur aplomb, donc chacun à une
+   * hauteur différente. La poutre disparaît, et avec elle le seul défaut qui
+   * empêchait vraiment de lire un arbre.
+   */
+  const limbFor = (group: LayoutPartner[]): void => {
+    if (group.length === 0) return;
+    if (group.length === 1) {
+      emitChild(union.anchorX, forkY, trunkWidth * 0.96, group[0]);
+      return;
+    }
+
+    const outer = group[group.length - 1];
+    let sideCarried = 0;
+    for (const child of group) sideCarried += 1 + (weights.get(child.id) ?? 0);
+
+    // La maîtresse branche porte tout ce qui pousse de son côté, et s'affine
+    // jusqu'à ne plus valoir que ce que l'enfant du bout emporte.
+    const limbWidth = Math.min(trunkWidth * 0.96, boneWidth(sideCarried, floor));
+    const outerDescendants = weights.get(outer.id) ?? 0;
+    const reach = Math.abs(cardCenterX(outer.x) - union.anchorX);
+    const limb = sampleBranch(
+      union.anchorX,
+      forkY,
+      cardCenterX(outer.x),
+      portraitBottom(outer.y),
+      limbWidth,
+      Math.min(limbWidth * 0.94, Math.max(boneWidth(outerDescendants, floor), floor)),
+      segments,
+      jitter(outer.id, 5, Math.min(spacing * 0.32, reach * 0.06 + limbWidth + ROW_HEIGHT * 0.06)) +
+        breathe(breeze, cardCenterX(outer.x), 1 + outerDescendants, reach, spacing),
+    );
+
+    if (decorate) decorate(limb, outer.id);
+    else emitBranch(ctx, limb, shading && limbWidth >= minShaded ? shading : undefined);
+
+    const samples = limb.length / SPINE_STRIDE;
+    const outerReach = cardCenterX(outer.x) - union.anchorX;
+    for (let i = 0; i < group.length - 1; i += 1) {
+      const child = group[i];
+      // Le point de départ se lit sur la maîtresse branche elle-même : celui
+      // où elle passe à l'aplomb de l'enfant. Les bornes gardent les rameaux
+      // hors de la fourche, où ils se perdraient dans le nœud, et hors de la
+      // pointe, où ils sortiraient du bois.
+      const along = outerReach === 0 ? 0.5 : (cardCenterX(child.x) - union.anchorX) / outerReach;
+      const index =
+        Math.min(
+          samples - 2,
+          Math.max(1, Math.round(Math.min(0.84, Math.max(0.12, along)) * (samples - 1))),
+        ) * SPINE_STRIDE;
+      emitChild(limb[index], limb[index + 1], limb[index + 4] * 1.6, child);
+    }
+  };
+
+  // Du plus proche de la fourche au plus lointain, de chaque côté : c'est
+  // l'ordre dans lequel une branche se déleste.
+  const axis = union.anchorX;
+  limbFor(
+    children
+      .filter((child) => cardCenterX(child.x) < axis)
+      .sort((a, b) => cardCenterX(b.x) - cardCenterX(a.x)),
+  );
+  limbFor(
+    children
+      .filter((child) => cardCenterX(child.x) >= axis)
+      .sort((a, b) => cardCenterX(a.x) - cardCenterX(b.x)),
+  );
 }
 
 /**
@@ -884,6 +978,15 @@ function drawFoliage(
       // génération : cette dernière vaut plusieurs centaines d'unités, et les
       // feuilles s'en allaient flotter loin de tout rameau.
       const y = portraitCenterY(node.y) + offset + jitter(node.id, 41, size * 0.28);
+      // Chaque touffe a sa taille propre.
+      //
+      // Toutes calibrées sur la même valeur, les trois cents couronnes de la
+      // cime se lisaient une à une : un même tampon répété, ce qu'aucun
+      // feuillage n'est. Du simple au triple, les voisines cessent de
+      // coïncider, se recouvrent irrégulièrement, et la masse remplace le
+      // comptage — c'est le recouvrement, et lui seul, qui fait une cime.
+      const grow = 0.58 + hashN(node.id, 77) * 1.34;
+      const spread = size * scaling * grow;
       // La couronne enveloppe le portrait : elle part du bord du médaillon et
       // s'ouvre vers l'extérieur, si bien que la personne apparaît posée dans
       // son feuillage plutôt que coiffée par lui.
@@ -892,8 +995,8 @@ function drawFoliage(
         node.id,
         x,
         y,
-        Math.max(PORTRAIT_RADIUS * 1.05, size * 0.26) * scaling,
-        size * scaling,
+        Math.max(PORTRAIT_RADIUS * 1.05, spread * 0.26),
+        spread,
         Math.max(4, Math.round(perCluster * scaling)),
       );
     }
@@ -941,20 +1044,23 @@ export function drawTree(ctx: CanvasRenderingContext2D, params: DrawParams): voi
   );
 
   const scale = transform.scale;
-  // Loin, une branche n'occupe qu'une fraction de pixel : inutile de la
-  // détailler, deux segments suffisent et divisent le coût par cinq.
-  // Vingt-quatre segments par branche donnent des courbes parfaitement lisses
-  // à l'arrêt, mais doublent le nombre de points à tracer : en mouvement, la
-  // moitié suffit, l'œil ne suivant pas les facettes d'une branche qui défile.
+  // La finesse d'échantillonnage suit la taille de la branche à l'écran.
+  //
+  // Elle suivait le zoom par paliers, et le plus grossier — quatre segments —
+  // commençait sous 0,2. C'est exactement la plage où l'arbre entier tient
+  // dans le cadre : une branche y mesure deux cents pixels, et quatre segments
+  // en font une ligne brisée. Toute la ramure se couvrait alors d'équerres
+  // parfaitement visibles, que l'on prenait pour un défaut de tracé alors que
+  // c'était un défaut de résolution.
+  //
+  // L'unique chose qui compte est la longueur à l'écran : une branche de six
+  // pixels n'a besoin de rien, une branche de deux cents a besoin d'une
+  // vingtaine de points. En mouvement, la moitié suffit — l'œil ne suit pas
+  // les facettes d'une courbe qui défile.
+  const branchOnScreen = ROW_HEIGHT * scale;
   const segments = params.detailed
-    ? scale > 0.4
-      ? 24
-      : scale > 0.2
-        ? 12
-        : 4
-    : scale > 0.4
-      ? 10
-      : 5;
+    ? Math.round(Math.min(26, Math.max(6, branchOnScreen * 0.14)))
+    : Math.round(Math.min(13, Math.max(4, branchOnScreen * 0.08)));
   const showCouples = scale > 0.1;
   // Le plancher d'épaisseur, exprimé en pixels d'écran puis converti en unités
   // de monde : un rameau terminal ne descend jamais sous un pixel et demi, quel
