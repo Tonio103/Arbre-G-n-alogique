@@ -5,18 +5,18 @@ import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
 import { useIsCompact } from '@/hooks/useMediaQuery';
 import { computeHighlight, type HighlightMode } from '@/domain/relations';
-import { computeOrbit } from '@/domain/orbit';
 import { ViewportController, transformForBounds } from '@/view/viewport';
-import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING, ROW_HEIGHT } from '@/view/metrics';
+import { HoverStore } from '@/view/hover-store';
+import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
 import { GlassFilters } from '@/components/GlassFilters';
-
+import { BranchLabels } from '@/components/BranchLabels';
 import { TopBar } from '@/components/TopBar';
-import { OrbitScene } from '@/components/OrbitScene';
+import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
-
-
+import { MiniMap } from '@/components/MiniMap';
+import { GenerationRail } from '@/components/GenerationRail';
 
 import '@/styles/base.css';
 import '@/styles/liquid-glass.css';
@@ -30,7 +30,7 @@ import '@/styles/detail.css';
 const PANEL_OFFSET = 400;
 
 export default function App() {
-  const { graph, layout, searchIndex, anomalies } = useFamilyTree(FAMILY_DATASET);
+  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(FAMILY_DATASET);
   const [theme, toggleTheme] = useTheme();
   // Une seule source de lumière pour tout le verre de l'interface.
   useGlassLight();
@@ -67,8 +67,7 @@ export default function App() {
     }
   }, [anchorId, graph]);
 
-  // Le placement radial en trois dimensions : la scène ne dépend que de lui.
-  const orbit = useMemo(() => computeOrbit(graph), [graph]);
+  const hoverStore = useMemo(() => new HoverStore(), []);
   const viewport = useMemo(
     () => new ViewportController({ bounds: layout.bounds }),
     [layout.bounds],
@@ -188,14 +187,11 @@ export default function App() {
     // Puis la vue s'approche doucement du pied, d'où l'on plonge à la molette
     // ou en glissant. Ce mouvement d'ouverture dit en une seconde ce que
     // l'espace contient et comment il se parcourt.
-    const { trunk } = layout;
-    const main = trunk.roots.reduce(
-      (best, root) => (root.weight > best.weight ? root : best),
-      trunk.roots[0] ?? { x: trunk.x, y: trunk.baseY, weight: 0 },
-    );
+    // Puis la vue s'approche doucement de la personne principale.
+    const root = layout.positions.get(graph.rootId);
 
     const timer = window.setTimeout(() => {
-      viewport.focusPoint(main.x, main.y - ROW_HEIGHT * 0.55, 0.55, 0, 1800);
+      if (root) viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1800);
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [viewport, layout]);
@@ -283,12 +279,15 @@ export default function App() {
       <GlassFilters />
       <Backdrop viewport={viewport} />
 
-      <OrbitScene
+      <TreeCanvas
         graph={graph}
-        layout={orbit}
-        highlighted={highlightPeople}
-        hasSelection={highlight.people.size > 0}
+        layout={layout}
+        spatial={spatial}
+        viewport={viewport}
+        hoverStore={hoverStore}
+        highlight={highlight}
         selectedId={selectedId}
+        flaggedId={flaggedId}
         onSelect={selectPerson}
         theme={theme}
       />
@@ -312,10 +311,33 @@ export default function App() {
         onToggleMiniMap={() => setShowMiniMap((value) => !value)}
       />
 
+      <BranchLabels
+        regions={layout.regions}
+        viewport={viewport}
+        onFocusRegion={(region) => {
+          // Cadrer la branche entière : on passe de la vue d'ensemble au détail
+          // d'une lignée en un geste.
+          viewport.fit(
+            {
+              minX: region.minX,
+              maxX: region.maxX,
+              minY: region.y,
+              maxY: layout.bounds.maxY,
+            },
+            80,
+            0.75,
+            760,
+          );
+        }}
+      />
 
+      <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />
 
       <DataNotice anomalies={anomalies} onSelect={selectPerson} />
 
+      {showMiniMap && !compact && (
+        <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />
+      )}
 
       <DetailPanel
         graph={graph}

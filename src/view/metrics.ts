@@ -20,16 +20,11 @@ export const FAMILY_GAP = 52;
 /*
  * Hauteur d'une génération.
  *
- * C'est le réglage qui arbitre entre la silhouette et la lecture. Trop courte,
- * l'arbre s'aplatit en frise ; trop haute, chaque filiation devient une longue
- * ligne qui traverse un vide, et une fratrie n'est plus qu'un faisceau de
- * traits parallèles dont on ne sait plus ce qu'il relie.
- *
- * Elle vaut maintenant la moitié de plus qu'avant. Depuis que les premières
- * générations se resserrent sur le tronc — voir `crownSpread` — la largeur ne
- * grandit plus avec la hauteur : l'arbre pouvait donc s'élever sans se coucher.
+ * Juste de quoi loger une carte et le trait qui descend vers la suivante. Un
+ * diagramme se lit d'autant mieux qu'il est compact : l'espace vide entre deux
+ * rangées n'apporte rien, il éloigne seulement un enfant de ses parents.
  */
-export const ROW_HEIGHT = 1080;
+export const ROW_HEIGHT = 230;
 
 /** Marge autour de l'arbre lors d'un recentrage. */
 export const FIT_PADDING = 120;

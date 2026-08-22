@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { NodePosition, TreeLayout } from '@/domain/layout';
 import type { HighlightSet } from '@/domain/relations';
@@ -10,11 +10,9 @@ import {
   BLUR_BUDGET,
   LOD_COMPACT,
   LOD_FULL,
-  cardCenterX,
-  portraitCenterY,
 } from '@/view/metrics';
 import { PersonNode, type NodeDetail } from './PersonNode';
-import { BranchLayer } from './BranchLayer';
+import { LinkLayer } from './LinkLayer';
 
 export interface TreeCanvasProps {
   graph: FamilyGraph;
@@ -399,20 +397,9 @@ export function TreeCanvas({
     onSelect(null);
   }, [onSelect]);
 
-  const highlightPeople = useMemo(
-    () => new Set(highlight.people.keys()),
-    [highlight],
-  );
 
   const hasSelection = highlight.people.size > 0;
 
-  // Point d'où rayonne le surlignage : le portrait de la personne choisie.
-  const focusPoint = useMemo(() => {
-    if (!selectedId) return null;
-    const position = layout.positions.get(selectedId);
-    if (!position) return null;
-    return { x: cardCenterX(position.x), y: portraitCenterY(position.y) };
-  }, [selectedId, layout]);
   const detail = visible.detail;
 
   return (
@@ -426,15 +413,12 @@ export function TreeCanvas({
       onKeyDown={onKeyDown}
       onClick={handleBackgroundClick}
     >
-      <BranchLayer
+      <LinkLayer
         viewport={viewport}
         layout={layout}
         spatial={spatial}
-        hoverStore={hoverStore}
         highlightUnions={highlight.unions}
-        highlightPeople={highlightPeople}
         hasSelection={hasSelection}
-        focus={focusPoint}
         theme={theme}
       />
 
