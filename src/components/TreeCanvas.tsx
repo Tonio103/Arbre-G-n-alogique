@@ -439,6 +439,7 @@ export function TreeCanvas({
                 dimmed={hasSelection && !role}
                 selected={selectedId === node.id}
                 flagged={flaggedId === node.id}
+                branch={layout.branchOf.get(node.id)}
                 onSelect={handleSelect}
                 onHover={handleHover}
               />

@@ -85,6 +85,16 @@ export interface TreeLayout {
   /** Ordre de dessin des liens : les unions d'abord, indexées par personne. */
   unionsByPerson: Map<string, string[]>;
   unionById: Map<string, LayoutUnion>;
+  /**
+   * Lignée fondatrice de chaque personne, par son rang dans `graph.branches`.
+   *
+   * C'est ce qui donne sa couleur à une carte. Un diagramme monochrome de cinq
+   * cents personnes ne laisse voir aucune structure : on ne distingue une
+   * famille d'une autre qu'en suivant les traits un par un. Une teinte par
+   * lignée rend cette structure lisible d'un seul regard, sans rien ajouter au
+   * dessin.
+   */
+  branchOf: Map<string, number>;
 }
 
 interface PlacementNode {
@@ -457,6 +467,8 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
     }
   }
 
+  const branchOf = new Map<string, number>();
+
   // --- Cadre et frise des générations ---
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -498,7 +510,8 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
 
   return {
     positions,
-    regions: computeRegions(graph, positions),
+    regions: computeRegions(graph, positions, branchOf),
+    branchOf,
     weights,
     unions: layoutUnions,
     crossLinks,
@@ -518,13 +531,26 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
 function computeRegions(
   graph: FamilyGraph,
   positions: Map<string, NodePosition>,
+  branchOf: Map<string, number>,
 ): LayoutRegion[] {
   const regions: LayoutRegion[] = [];
 
-  for (const branch of graph.branches) {
+  /*
+   * La lignée la plus étroite l'emporte.
+   *
+   * Les branches s'emboîtent : la souche d'origine contient tout le monde, une
+   * sous-branche n'en contient qu'une part. À attribuer la couleur au premier
+   * venu, la souche prend cinq cents personnes sur cinq cent vingt-huit et le
+   * diagramme redevient monochrome. On attribue donc de la plus large à la
+   * plus étroite, si bien que c'est la dernière — la plus précise, celle qui
+   * distingue vraiment une famille de sa voisine — qui reste.
+   */
+  const claimed: Array<{ index: number; members: Set<string> }> = [];
+
+  graph.branches.forEach((branch, index) => {
     const anchor = graph.people.get(branch.anchorId);
     const anchorPosition = positions.get(branch.anchorId);
-    if (!anchor || !anchorPosition) continue;
+    if (!anchor || !anchorPosition) return;
 
     const seen = new Set<string>([branch.anchorId]);
     const queue = [branch.anchorId];
@@ -551,6 +577,8 @@ function computeRegions(
       }
     }
 
+    claimed.push({ index, members: seen });
+
     regions.push({
       label: branch.label,
       anchorId: branch.anchorId,
@@ -560,6 +588,11 @@ function computeRegions(
       y: anchorPosition.y,
       count: seen.size,
     });
+  });
+
+  claimed.sort((a, b) => b.members.size - a.members.size);
+  for (const entry of claimed) {
+    for (const id of entry.members) branchOf.set(id, entry.index);
   }
 
   return regions.sort((a, b) => a.minX - b.minX);

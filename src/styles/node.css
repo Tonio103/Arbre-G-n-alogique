@@ -166,12 +166,44 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   color: var(--text-tertiary);
-  opacity: 0;
-  height: 0;
-  transform: translateY(-3px);
   transition:
     opacity var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-out);
+    color var(--dur-base) var(--ease-out);
+}
+
+/*
+ * La teinte de lignée.
+ *
+ * `--branch-hue` est posé sur la carte par le composant ; tout ce qui suit
+ * n'en est qu'une déclinaison. Une seule variable à changer pour recolorer une
+ * famille entière, et rien à recalculer en JavaScript.
+ */
+.node[data-branch] .node-ring {
+  border-color: hsl(var(--branch-hue) 62% 58% / 0.85);
+  box-shadow: 0 0 0 1px hsl(var(--branch-hue) 62% 58% / 0.28);
+}
+
+/* La plaque prend la teinte de sa lignée : c'est la surface la plus large de
+   la carte, donc celle qui porte le mieux une couleur faible. */
+.node[data-branch] .node-plate {
+  background:
+    linear-gradient(
+      hsl(var(--branch-hue) 62% 56% / 0.16),
+      hsl(var(--branch-hue) 62% 56% / 0.16)
+    ),
+    var(--node-plate);
+  box-shadow: inset 2.5px 0 0 0 hsl(var(--branch-hue) 58% 52% / 0.9);
+}
+
+/*
+ * Les personnes disparues.
+ *
+ * Un point suffit, et il doit rester discret : c'est une information d'état
+ * civil, pas un jugement. Le contraste plus faible du nom fait le reste.
+ */
+.node[data-deceased] .node-years::before {
+  content: '†\00a0';
+  opacity: 0.55;
 }
 
 /* --------------------------------- Survol --------------------------------- */

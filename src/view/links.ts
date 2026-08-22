@@ -1,4 +1,4 @@
-import type { CrossLink, LayoutUnion } from '@/domain/layout';
+import type { CrossLink, GenerationRow, LayoutUnion } from '@/domain/layout';
 import type { Transform } from './viewport';
 import {
   CARD_WIDTH,
@@ -37,10 +37,16 @@ export interface LinkPalette {
   dim: string;
   /** Alliance entre deux branches éloignées. */
   cross: string;
+  /** Bande de fond, une rangée sur deux. */
+  band: string;
+  /** Étiquette de décennie, dans la marge de chaque bande. */
+  bandLabel: string;
 }
 
 export interface DrawLinksParams {
   unions: LayoutUnion[];
+  /** Rangées de générations, pour les bandes de fond. */
+  rows: GenerationRow[];
   crossLinks: CrossLink[];
   transform: Transform;
   width: number;
@@ -96,6 +102,44 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     transform.x * dpr,
     transform.y * dpr,
   );
+
+  /*
+   * Les bandes de génération.
+   *
+   * Une rangée sur deux, à peine teintée. Sur cinq cents personnes réparties
+   * sur treize mille unités de large, rien ne dit à quelle génération on est
+   * en train de regarder : l'œil perd sa ligne dès qu'il se déplace
+   * latéralement. La bande la lui rend, et la décennie posée dans sa marge
+   * donne l'époque sans qu'on ait à consulter quoi que ce soit.
+   */
+  const left = -transform.x / transform.scale;
+  const right = left + width / transform.scale;
+  const bandTop = -transform.y / transform.scale;
+  const bandBottom = bandTop + height / transform.scale;
+
+  for (const row of params.rows) {
+    if (row.generation % 2 !== 0) continue;
+    const top = row.y - (ROW_HEIGHT - CARD_HEIGHT) / 2;
+    if (top > bandBottom || top + ROW_HEIGHT < bandTop) continue;
+    ctx.fillStyle = palette.band;
+    ctx.fillRect(left, top, right - left, ROW_HEIGHT);
+  }
+
+  // La décennie, calée sur le bord gauche du cadre : elle reste lisible où
+  // qu'on se trouve dans la largeur, sans jamais recouvrir une carte.
+  const labelSize = 13 / Math.max(transform.scale, 0.05);
+  if (labelSize < ROW_HEIGHT * 0.5) {
+    ctx.fillStyle = palette.bandLabel;
+    ctx.font = `600 ${labelSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const row of params.rows) {
+      if (!row.label) continue;
+      const middle = row.y + CARD_HEIGHT / 2;
+      if (middle < bandTop || middle > bandBottom) continue;
+      ctx.fillText(row.label, left + 16 / Math.max(transform.scale, 0.05), middle);
+    }
+  }
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';

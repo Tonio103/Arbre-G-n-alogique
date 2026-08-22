@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type React from 'react';
 import type { Person } from '@/data/schema';
 import type { RelationRole } from '@/domain/relations';
 import { formatLifespan } from '@/domain/dates';
@@ -18,6 +19,15 @@ export interface PersonNodeProps {
   selected: boolean;
   /** Résultat de recherche courant : pastille d'attention. */
   flagged: boolean;
+  /**
+   * Rang de la lignée fondatrice, qui donne sa teinte à la carte.
+   *
+   * Réparti par l'angle d'or : deux rangs consécutifs tombent à 137,5° l'un de
+   * l'autre sur le cercle des teintes, ce qui donne des couleurs franchement
+   * distinctes quel que soit leur nombre — là où un pas régulier finit par
+   * rapprocher les dernières.
+   */
+  branch?: number;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
@@ -50,6 +60,7 @@ export const PersonNode = memo(function PersonNode({
   dimmed,
   selected,
   flagged,
+  branch,
   onSelect,
   onHover,
 }: PersonNodeProps) {
@@ -60,7 +71,16 @@ export const PersonNode = memo(function PersonNode({
     <button
       type="button"
       className="node"
-      style={{ left: x, top: y, width: CARD_WIDTH, height: CARD_HEIGHT }}
+      style={
+        {
+          left: x,
+          top: y,
+          width: CARD_WIDTH,
+          height: CARD_HEIGHT,
+          '--branch-hue': branch === undefined ? undefined : `${(branch * 137.508) % 360}`,
+        } as React.CSSProperties
+      }
+      data-branch={branch === undefined ? undefined : ''}
       data-detail={detail}
       data-role={role ?? undefined}
       data-dimmed={dimmed || undefined}

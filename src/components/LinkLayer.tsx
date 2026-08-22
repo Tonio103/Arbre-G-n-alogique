@@ -25,6 +25,8 @@ function readPalette(): LinkPalette {
     strong: read('--link-highlight', '#2f6fdb'),
     dim: read('--link-dim', 'rgba(122, 138, 168, 0.16)'),
     cross: read('--link-cross', 'rgba(194, 118, 28, 0.5)'),
+    band: read('--row-band', 'rgba(118, 136, 170, 0.05)'),
+    bandLabel: read('--row-label', 'rgba(118, 136, 170, 0.4)'),
   };
 }
 
@@ -71,6 +73,7 @@ export function LinkLayer({
       const rect = visibleRect(transform, { width, height }, 260);
       drawLinks(context, {
         unions: spatial.visibleUnions(rect),
+        rows: layout.rows,
         crossLinks: layout.crossLinks,
         transform,
         width,
