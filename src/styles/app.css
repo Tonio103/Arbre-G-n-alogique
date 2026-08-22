@@ -19,8 +19,9 @@
   pointer-events: none;
   contain: layout paint style;
   background:
-    radial-gradient(80% 60% at 50% 6%, rgba(96, 124, 178, 0.16), transparent 72%),
-    linear-gradient(180deg, var(--bg-deep), var(--bg-mid) 60%, var(--bg-deep));
+    radial-gradient(72% 55% at 12% -4%, rgba(122, 145, 210, 0.15), transparent 62%),
+    radial-gradient(66% 52% at 102% 104%, rgba(196, 142, 96, 0.1), transparent 60%),
+    linear-gradient(175deg, var(--bg-deep), var(--bg-mid) 55%, var(--bg-deep));
   will-change: transform;
   transition: opacity var(--dur-slow) var(--ease-out);
 }
@@ -30,12 +31,15 @@
  *
  * Un plan de travail, pas un ciel : le diagramme est ce qu'on regarde, et un
  * dégradé marqué derrière lui ne ferait que disputer l'attention aux traits.
- * Presque uniforme, à peine plus sourd sur les bords.
+ * Mais un plan de travail n'est pas non plus une feuille blanche — deux
+ * teintes très douces, l'une chaude en haut à gauche, l'une froide en bas à
+ * droite, suffisent à donner une couleur au fond sans qu'il attire l'œil.
  */
 :root[data-theme='light'] .backdrop {
   background:
-    radial-gradient(90% 70% at 50% 8%, rgba(255, 255, 255, 0.9), transparent 70%),
-    linear-gradient(180deg, #eef1f6 0%, #e7ebf2 100%);
+    radial-gradient(68% 55% at 14% -6%, rgba(255, 214, 170, 0.28), transparent 62%),
+    radial-gradient(68% 55% at 100% 106%, rgba(150, 188, 255, 0.24), transparent 60%),
+    linear-gradient(165deg, #f7f0e6 0%, #eef1f8 48%, #e2e8f4 100%);
 }
 
 /*

@@ -1,0 +1,171 @@
+/* ----------------------------- Carte des lieux ----------------------------- */
+
+.family-map-widget {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  animation: chrome-in 620ms var(--ease-out) 200ms both;
+  transition: right var(--dur-slow) var(--ease-out);
+}
+
+.app[data-panel-open] .family-map-widget {
+  right: calc(var(--panel-width) + 26px);
+}
+
+.family-map-stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.family-map-stat:hover {
+  color: var(--text-primary);
+}
+
+.family-map-stat svg {
+  width: 16px;
+  height: 16px;
+}
+
+.family-map-stat[aria-expanded='true'] {
+  color: var(--accent);
+}
+
+.family-map-panel {
+  width: 270px;
+  padding: 12px 12px 10px;
+  border-radius: 20px;
+  animation: family-map-in 260ms var(--ease-out) both;
+}
+
+@keyframes family-map-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.family-map-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 560;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.family-map-panel-head .icon-button {
+  width: 26px;
+  height: 26px;
+  margin-top: -3px;
+}
+
+.family-map-panel-head .icon-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.family-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.family-map-outline {
+  fill: var(--accent-soft);
+  stroke: var(--glass-border-strong);
+  stroke-width: 1;
+}
+
+.family-map-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  stroke-linecap: round;
+  opacity: 0.4;
+}
+
+.family-map-dot {
+  cursor: pointer;
+  outline: none;
+}
+
+.family-map-glow {
+  fill: var(--accent);
+  opacity: 0.22;
+  animation: family-map-pulse 2.6s var(--ease-inout) infinite;
+}
+
+.family-map-dot:nth-child(3n) .family-map-glow {
+  animation-delay: -0.8s;
+}
+
+.family-map-dot:nth-child(3n + 1) .family-map-glow {
+  animation-delay: -1.7s;
+}
+
+.family-map-core {
+  fill: var(--accent);
+}
+
+.family-map-dot:hover .family-map-core,
+.family-map-dot:focus-visible .family-map-core {
+  fill: var(--text-primary);
+}
+
+.family-map-dot[data-active] .family-map-core {
+  fill: #fff;
+}
+
+.family-map-dot[data-active] .family-map-glow {
+  opacity: 0.4;
+}
+
+@keyframes family-map-pulse {
+  0%,
+  100% {
+    r: 6.5;
+    opacity: 0.2;
+  }
+  50% {
+    r: 9;
+    opacity: 0.34;
+  }
+}
+
+.family-map-caption {
+  margin: 8px 2px 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 720px) {
+  .family-map-widget {
+    display: none;
+  }
+}

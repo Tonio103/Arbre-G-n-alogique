@@ -494,6 +494,99 @@
   color: var(--text-tertiary);
 }
 
+/*
+ * Le parcours de vie, reconstruit — pas ressaisi.
+ *
+ * Un fil translucide, plus discret que la frise des événements marquants
+ * (celle-ci reste réservée à ce qui a été écrit à la main) : chaque point
+ * qui mène vers quelqu'un d'autre — un mariage, la naissance d'un enfant —
+ * s'éclaire au survol et se clique ; naissance et décès n'ont personne vers
+ * qui aller et restent de simples repères.
+ */
+.life-trace {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
+}
+
+.life-trace::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--glass-border-strong) 12%, var(--glass-border-strong) 88%, transparent);
+}
+
+.life-trace-item {
+  position: relative;
+}
+
+.life-trace-dot {
+  position: absolute;
+  left: -16px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  opacity: 0.55;
+}
+
+.life-trace-item[data-kind='union'] .life-trace-dot,
+.life-trace-item[data-kind='child'] .life-trace-dot {
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.life-trace-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 6px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.life-trace-link {
+  cursor: pointer;
+}
+
+.life-trace-link:hover,
+.life-trace-link:focus-visible {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.life-trace-year {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  width: 34px;
+}
+
+.life-trace-label {
+  flex: 1 1 auto;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.life-trace-place {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
 /* --------------------------- Anecdotes et souvenirs --------------------------- */
 
 .note-list {

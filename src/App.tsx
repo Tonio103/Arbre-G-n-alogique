@@ -16,6 +16,7 @@ import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
 import { MiniMap } from '@/components/MiniMap';
+import { FamilyMap } from '@/components/FamilyMap';
 import { GenerationRail } from '@/components/GenerationRail';
 
 import '@/styles/base.css';
@@ -25,6 +26,7 @@ import '@/styles/avatar.css';
 import '@/styles/node.css';
 import '@/styles/chrome.css';
 import '@/styles/detail.css';
+import '@/styles/family-map.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
 const PANEL_OFFSET = 400;
@@ -354,6 +356,8 @@ export default function App() {
       {showMiniMap && !compact && (
         <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />
       )}
+
+      {!compact && <FamilyMap graph={graph} onSelectPlace={pickFromSearch} />}
 
       <DetailPanel
         relation={relation}

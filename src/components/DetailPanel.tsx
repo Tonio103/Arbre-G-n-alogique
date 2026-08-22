@@ -3,6 +3,7 @@ import type { FamilyGraph } from '@/domain/graph';
 import type { Person } from '@/data/schema';
 import { computeCurrentAge, formatDate } from '@/domain/dates';
 import { describeRelationship, type RelationPath } from '@/domain/relations';
+import { lifeTrace } from '@/domain/timeline';
 import { Avatar } from './Avatar';
 import { RelationList } from './PersonRelations';
 import { CloseIcon, HomeIcon, PeopleIcon, PinIcon } from './icons';
@@ -107,6 +108,10 @@ export function DetailPanel({
     if (!anchor || !label) return undefined;
     return `${label} de ${anchor.firstName} ${anchor.lastName}`;
   }, [graph, anchorId, person]);
+
+  // Le parcours de vie, reconstruit à partir de ce que l'on sait déjà de la
+  // personne — pas ressaisi à part.
+  const trace = useMemo(() => (person ? lifeTrace(graph, person) : []), [graph, person]);
 
   const panelRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -240,6 +245,38 @@ export function DetailPanel({
             />
           </dl>
         </Section>
+
+        {trace.length > 0 && (
+          <Section title="Parcours de vie">
+            <ol className="life-trace">
+              {trace.map((event) => {
+                const content = (
+                  <>
+                    <span className="life-trace-year">{event.year ?? '—'}</span>
+                    <span className="life-trace-label">{event.label}</span>
+                    {event.place && <span className="life-trace-place">{event.place}</span>}
+                  </>
+                );
+                return (
+                  <li key={event.id} className="life-trace-item" data-kind={event.kind}>
+                    <span className="life-trace-dot" aria-hidden="true" />
+                    {event.personId ? (
+                      <button
+                        type="button"
+                        className="life-trace-row life-trace-link"
+                        onClick={() => onSelect(event.personId!)}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <span className="life-trace-row">{content}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </Section>
+        )}
 
         {person.biography && (
           <Section title="Biographie">

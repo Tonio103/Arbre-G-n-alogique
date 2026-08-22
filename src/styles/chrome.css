@@ -344,12 +344,21 @@
   padding: 10px 8px;
   border-radius: var(--radius-pill);
   animation: chrome-in 620ms var(--ease-out) 180ms both;
-  transition: right var(--dur-slow) var(--ease-out);
+  transition:
+    right var(--dur-slow) var(--ease-out),
+    opacity var(--dur-base) var(--ease-out);
 }
 
 /* Le rail s'écarte pour laisser la place à la fiche plutôt que de passer dessous. */
 .app[data-panel-open] .rail {
   right: calc(var(--panel-width) + 26px);
+}
+
+/* Et s'efface le temps que la carte des lieux, dépliée dans le même coin,
+   reste ouverte — pas de quoi lui garder deux couches superposées. */
+.app:has(.family-map-panel) .rail {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .rail-list {
