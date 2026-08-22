@@ -1,5 +1,4 @@
 import type { CrossLink, GenerationRow, LayoutUnion } from '@/domain/layout';
-import type { Transform } from './viewport';
 import {
   CARD_WIDTH,
   CARD_HEIGHT,
@@ -57,9 +56,19 @@ export interface DrawLinksParams {
   /** Rangées de générations, pour les bandes de fond. */
   rows: GenerationRow[];
   crossLinks: CrossLink[];
-  transform: Transform;
-  width: number;
-  height: number;
+  /**
+   * La zone du monde couverte par ce canevas — pas le cadre visible à
+   * l'instant du dessin, mais l'étendue, plus large, pré-rendue une fois pour
+   * plusieurs images (voir `LinkLayer`).
+   */
+  worldRect: { left: number; top: number; right: number; bottom: number };
+  /**
+   * Pixels de canevas par unité du monde, à l'instant du dessin — pas
+   * l'échelle courante de la vue. Le canevas vit dans `.world` et hérite de
+   * son `transform: scale()` : il n'a donc besoin d'être redessiné à cette
+   * densité que de loin en loin, pas à chaque image de zoom.
+   */
+  density: number;
   dpr: number;
   palette: LinkPalette;
   /** Unions accentuées par la sélection courante. */
@@ -101,17 +110,23 @@ function elbow(
 }
 
 export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams): void {
-  const { transform, width, height, dpr, palette, highlighted, hasSelection } = params;
+  const { worldRect, dpr, palette, highlighted, hasSelection } = params;
+  const density = Math.max(params.density, 0.02);
 
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, width, height);
+  const bufferWidth = (worldRect.right - worldRect.left) * density * dpr;
+  const bufferHeight = (worldRect.bottom - worldRect.top) * density * dpr;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, bufferWidth, bufferHeight);
+  // Le canevas ne couvre pas l'origine du monde : son coin (worldRect.left,
+  // worldRect.top) doit tomber sur le pixel (0, 0) de son propre tampon.
   ctx.setTransform(
-    transform.scale * dpr,
+    density * dpr,
     0,
     0,
-    transform.scale * dpr,
-    transform.x * dpr,
-    transform.y * dpr,
+    density * dpr,
+    -worldRect.left * density * dpr,
+    -worldRect.top * density * dpr,
   );
 
   /*
@@ -122,11 +137,17 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
    * en train de regarder : l'œil perd sa ligne dès qu'il se déplace
    * latéralement. La bande la lui rend, et la décennie posée dans sa marge
    * donne l'époque sans qu'on ait à consulter quoi que ce soit.
+   *
+   * L'étiquette est calée sur le bord de la zone couverte par ce canevas, pas
+   * sur le cadre visible à l'instant précis : ce dernier change à chaque
+   * image, la zone couverte seulement de loin en loin (voir `LinkLayer`).
+   * En pratique elle suit un déplacement continu par à-coups plutôt qu'en
+   * temps réel — un compromis largement rentable au vu de ce qu'il économise.
    */
-  const left = -transform.x / transform.scale;
-  const right = left + width / transform.scale;
-  const bandTop = -transform.y / transform.scale;
-  const bandBottom = bandTop + height / transform.scale;
+  const left = worldRect.left;
+  const right = worldRect.right;
+  const bandTop = worldRect.top;
+  const bandBottom = worldRect.bottom;
 
   for (const row of params.rows) {
     if (row.generation % 2 !== 0) continue;
@@ -138,7 +159,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
 
   // La décennie, calée sur le bord gauche du cadre : elle reste lisible où
   // qu'on se trouve dans la largeur, sans jamais recouvrir une carte.
-  const labelSize = 13 / Math.max(transform.scale, 0.05);
+  const labelSize = 13 / density;
   if (labelSize < ROW_HEIGHT * 0.5) {
     ctx.fillStyle = palette.bandLabel;
     ctx.font = `600 ${labelSize}px system-ui, -apple-system, sans-serif`;
@@ -148,7 +169,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       if (!row.label) continue;
       const middle = row.y + CARD_HEIGHT / 2;
       if (middle < bandTop || middle > bandBottom) continue;
-      ctx.fillText(row.label, left + 16 / Math.max(transform.scale, 0.05), middle);
+      ctx.fillText(row.label, left + 16 / density, middle);
     }
   }
 
@@ -177,7 +198,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   // ciel ou le bavure de l'encre grossirait avec le zoom au lieu de rester
   // une propriété du trait lui-même.
   ctx.shadowColor = palette.glow.color;
-  ctx.shadowBlur = palette.glow.blur / Math.max(transform.scale, 0.05);
+  ctx.shadowBlur = palette.glow.blur / density;
 
   for (const group of groups) {
     if (group.list.length === 0) continue;
@@ -186,7 +207,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     ctx.strokeStyle = group.color;
     // L'épaisseur est donnée en pixels d'écran : un trait de liaison ne
     // grossit pas avec le zoom, sans quoi il finit par masquer les cartes.
-    ctx.lineWidth = group.weight / Math.max(transform.scale, 0.05);
+    ctx.lineWidth = group.weight / density;
     ctx.stroke();
   }
 
@@ -198,7 +219,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ctx.beginPath();
       for (const union of onPath) traceUnion(ctx, union);
       ctx.strokeStyle = palette.strong;
-      ctx.lineWidth = 3.2 / Math.max(transform.scale, 0.05);
+      ctx.lineWidth = 3.2 / density;
       ctx.stroke();
     }
   }
@@ -214,7 +235,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
    * couleur que le fil de lumière des traits. Atlas : un point d'encre, là
    * où la plume a posé le paraphe du mariage.
    */
-  const hubRadius = 2 / Math.max(transform.scale, 0.05);
+  const hubRadius = 2 / density;
   ctx.beginPath();
   for (const union of params.unions) {
     const hub = unionHub(union);
@@ -227,7 +248,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   ctx.fill();
 
   if (hasSelection && highlighted.size > 0) {
-    const hubRadiusStrong = 2.6 / Math.max(transform.scale, 0.05);
+    const hubRadiusStrong = 2.6 / density;
     ctx.beginPath();
     for (const union of params.unions) {
       if (!highlighted.has(union.id)) continue;
@@ -252,9 +273,9 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ctx.moveTo(cardCenterX(link.a.x), ay);
       ctx.lineTo(cardCenterX(link.b.x), by);
     }
-    ctx.setLineDash([6 / Math.max(transform.scale, 0.05), 6 / Math.max(transform.scale, 0.05)]);
+    ctx.setLineDash([6 / density, 6 / density]);
     ctx.strokeStyle = hasSelection ? palette.dim : palette.cross;
-    ctx.lineWidth = 1.3 / Math.max(transform.scale, 0.05);
+    ctx.lineWidth = 1.3 / density;
     ctx.stroke();
     ctx.setLineDash([]);
   }

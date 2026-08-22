@@ -419,17 +419,18 @@ export function TreeCanvas({
       onKeyDown={onKeyDown}
       onClick={handleBackgroundClick}
     >
-      <LinkLayer
-        viewport={viewport}
-        layout={layout}
-        spatial={spatial}
-        highlightUnions={highlight.unions}
-        hasSelection={hasSelection}
-        theme={theme}
-        pathUnions={pathUnions}
-      />
-
       <div ref={worldRef} className="world" data-cheap={visible.cheap || undefined}>
+        <LinkLayer
+          stageRef={stageRef}
+          viewport={viewport}
+          layout={layout}
+          spatial={spatial}
+          highlightUnions={highlight.unions}
+          hasSelection={hasSelection}
+          theme={theme}
+          pathUnions={pathUnions}
+        />
+
         {detail !== 'none' &&
           visible.nodes.map((node) => {
             const person = graph.people.get(node.id);

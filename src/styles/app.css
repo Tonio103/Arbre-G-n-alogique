@@ -108,11 +108,15 @@
   cursor: grabbing;
 }
 
+/*
+ * Positionné et dimensionné par LinkLayer, en coordonnées du monde — il vit
+ * dans `.world` et hérite de son `transform`, exactement comme un médaillon
+ * (voir `.node`, `left`/`top` posés en pixels du monde, pas de l'écran).
+ */
 .stage-canvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  left: 0;
   pointer-events: none;
 }
 
