@@ -22,8 +22,18 @@
   text-align: center;
   color: var(--text-primary);
   contain: layout style;
+  /*
+   * Le survol suit une simple courbe de sortie, pas le ressort.
+   *
+   * Le ressort dépasse sa cible avant d'y revenir — parfait pour un geste
+   * isolé et voulu, comme l'ouverture d'une fiche. Mais en parcourant l'arbre
+   * du regard, le pointeur traverse des dizaines de cartes à la suite, et
+   * chaque survol relançait ce petit rebond : la ramure entière semblait
+   * palpiter plutôt que répondre. Une sortie sans dépassement reste souple
+   * sans jamais donner cette impression de saccade.
+   */
   transition:
-    transform var(--dur-base) var(--ease-spring),
+    transform var(--dur-base) var(--ease-out),
     opacity var(--dur-base) var(--ease-out),
     filter var(--dur-base) var(--ease-out);
   will-change: transform;

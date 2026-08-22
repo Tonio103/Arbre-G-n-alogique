@@ -206,6 +206,17 @@ export class ViewportController {
    * et comme chaque nouveau cran repart de la cible en cours et non de l'image
    * affichée, une roulée continue accélère au lieu de se contredire.
    *
+   * L'allure est symétrique, pas une sortie franche.
+   *
+   * Une sortie franche démarre à sa vitesse maximale — c'est ce qui la rend
+   * nerveuse pour un geste isolé. Mais ici l'animation redémarre à chaque
+   * cran, et une molette qu'on tourne en envoie plusieurs par seconde : chaque
+   * redémarrage relance un pic de vitesse, et la succession se lit comme une
+   * suite de coups de frein plutôt que comme un glissement continu. Une allure
+   * symétrique — qui part doucement, accélère, puis ralentit — n'a pas ce pic
+   * au redémarrage ; enchaînée cran après cran, elle donne enfin la roulée
+   * continue que la cible glissée était censée produire.
+   *
    * Un pavé tactile, lui, envoie des dizaines de très petits crans par seconde :
    * les animer ajouterait un retard à un geste déjà continu. C'est à l'appelant
    * de distinguer les deux.
@@ -221,20 +232,23 @@ export class ViewportController {
         y: screenY - (screenY - base.y) * applied,
       },
       duration,
-      'out',
+      'inout',
     );
   }
 
   /**
    * Défilement glissé, pour la molette crantée.
    *
-   * Même raison : une souris envoie des sauts de cent pixels. Les enchaîner
-   * sans les lisser donne une lecture par à-coups, alors que l'arbre se
-   * parcourt du regard.
+   * Même raison, et la même allure symétrique : une souris envoie des sauts de
+   * cent pixels, plusieurs par seconde en continu. Les enchaîner sans les
+   * lisser donne une lecture par à-coups ; les lisser avec une sortie franche,
+   * qui redémarre à vitesse maximale à chaque saut, en donne une autre. Seule
+   * une allure sans pic au départ fait un déplacement continu d'une suite de
+   * sauts individuels.
    */
   panBySmooth(dx: number, dy: number, duration = 200): void {
     const base = this.animation ? this.animation.to : this.transform;
-    this.animateTo({ scale: base.scale, x: base.x + dx, y: base.y + dy }, duration, 'out');
+    this.animateTo({ scale: base.scale, x: base.x + dx, y: base.y + dy }, duration, 'inout');
   }
 
   /** Boutons + et − : le zoom est glissé, comme au clavier. */

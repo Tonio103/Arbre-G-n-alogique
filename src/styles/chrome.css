@@ -14,24 +14,25 @@
   padding: 0 14px 0 18px;
   border-radius: var(--radius-panel);
   animation: chrome-in 560ms var(--ease-out) both;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
 }
 
-/* L'arête spéculaire de `.lg` place ses points chauds par angle depuis le
-   centre de la boîte — pertinent pour un contrôle proche du carré ou une
-   pilule, mais la barre du haut fait vingt-huit fois plus large que haute :
-   le dégradé conique y concentre tout son éclat sur un court segment du bord
-   plutôt que de courir sur toute sa longueur, ce qui se lit comme une barre
-   parasite posée au milieu de l'écran plutôt que comme un liseré de verre. Un
-   dégradé linéaire, lui, ne dépend pas de l'aspect de la boîte : un filet
-   discret en haut, un autre en bas, uniformes sur toute la largeur. */
-.topbar.lg::after {
-  background: linear-gradient(
-    180deg,
-    var(--lg-specular-soft) 0%,
-    transparent 8%,
-    transparent 92%,
-    var(--lg-specular-soft) 100%
-  );
+/*
+ * Effacée pendant qu'une fiche est ouverte.
+ *
+ * Chercher quelqu'un d'autre ou changer de vue n'a pas de sens tant qu'on lit
+ * une personne : la fiche couvre déjà ce périmètre, et la barre du haut ne
+ * fait plus que disputer l'attention à ce qu'on est venu lire. Elle se
+ * referme donc avec la fiche, comme un rideau, et revient dès qu'on la
+ * ferme — `pointer-events: none` l'écarte aussi de la tabulation pendant
+ * qu'elle est invisible.
+ */
+.app[data-panel-open] .topbar {
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
 }
 
 @keyframes chrome-in {

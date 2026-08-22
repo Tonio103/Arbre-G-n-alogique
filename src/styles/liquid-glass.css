@@ -334,6 +334,61 @@
   z-index: 2;
 }
 
+/*
+ * L'arête sur une forme allongée.
+ *
+ * Le dégradé conique place ses points chauds par angle depuis le centre de la
+ * boîte — juste pour un contrôle proche du carré ou une pilule courte, où
+ * l'angle parcourt tout le pourtour à peu près à la même vitesse. Sur une
+ * forme bien plus large que haute (un groupe de boutons, une étiquette de
+ * branche) ou bien plus haute que large (la frise des générations), le même
+ * balayage angulaire couvre une très longue distance sur le bord le plus
+ * étiré : tout l'éclat s'y concentre, et une arête censée être discrète se lit
+ * comme une barre plantée au milieu de la surface.
+ *
+ * Un dégradé linéaire ne dépend pas de l'aspect de la boîte : un filet
+ * discret sur chaque bord court, uniforme sur toute la longueur du bord
+ * étiré. `--bar` pour une forme large (haut et bas), `--bar-v` pour une forme
+ * haute (gauche et droite).
+ */
+.lg--bar::after {
+  background: linear-gradient(
+    180deg,
+    var(--lg-specular-soft) 0%,
+    transparent 8%,
+    transparent 92%,
+    var(--lg-specular-soft) 100%
+  );
+}
+
+.lg--bar-v::after {
+  background: linear-gradient(
+    90deg,
+    var(--lg-specular-soft) 0%,
+    transparent 8%,
+    transparent 92%,
+    var(--lg-specular-soft) 100%
+  );
+}
+
+/*
+ * La réfraction a le même défaut, pour la même raison géométrique.
+ *
+ * La carte de déplacement encode une lentille plate au centre et courbe sur
+ * le pourtour — un profil pensé pour un panneau proche du carré, où le bord
+ * parcouru par la courbure reste court. Étirée sur toute la hauteur d'une
+ * forme haute et étroite (ou toute la largeur d'une forme large et basse),
+ * cette même courbure devient une traînée continue sur le bord le plus long
+ * — le fond qu'on devine au travers s'y déforme visiblement au lieu de se
+ * contenter d'un liseré. Une forme allongée n'a pas la place de porter une
+ * lentille ; elle garde le flou, la teinte, le reflet et l'arête corrigée
+ * ci-dessus, qui suffisent à la lire comme du verre.
+ */
+.lg--bar,
+.lg--bar-v {
+  --lg-lens: none;
+}
+
 /* ---------------------------------------------------------------------------
  * 5. VARIANTES D'ÉPAISSEUR
  * ------------------------------------------------------------------------- */

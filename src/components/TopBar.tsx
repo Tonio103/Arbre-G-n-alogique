@@ -73,7 +73,7 @@ export function TopBar({
   onToggleMiniMap,
 }: TopBarProps) {
   return (
-    <header className="topbar lg lg--thick">
+    <header className="topbar lg lg--thick lg--bar">
       <div className="topbar-identity">
         <span className="topbar-mark" aria-hidden="true" />
         <span className="topbar-titles">
@@ -95,7 +95,7 @@ export function TopBar({
       </div>
 
       <div className="topbar-controls">
-        <div className="control-group lg lg--control">
+        <div className="control-group lg lg--control lg--bar">
           <IconButton label="Revenir à la personne principale" onClick={onHome}>
             <HomeIcon />
           </IconButton>
@@ -104,7 +104,7 @@ export function TopBar({
           </IconButton>
         </div>
 
-        <div className="control-group lg lg--control">
+        <div className="control-group lg lg--control lg--bar">
           <IconButton label="Dézoomer" onClick={onZoomOut}>
             <MinusIcon />
           </IconButton>
@@ -113,7 +113,7 @@ export function TopBar({
           </IconButton>
         </div>
 
-        <div className="control-group lg lg--control">
+        <div className="control-group lg lg--control lg--bar">
           <IconButton
             className="hide-compact"
             label={

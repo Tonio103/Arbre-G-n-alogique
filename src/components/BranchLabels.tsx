@@ -137,7 +137,7 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         <button
           type="button"
           key={region.anchorId}
-          className="branch-label lg lg--chip lg--interactive"
+          className="branch-label lg lg--chip lg--interactive lg--bar"
           ref={(element) => {
             itemsRef.current[index] = element;
           }}
