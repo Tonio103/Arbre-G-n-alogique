@@ -49,14 +49,14 @@ interface LensSpec {
 const LENSES: LensSpec[] = [
   // Grands panneaux (fiche, vue d'ensemble) : des vagues amples, qui se
   // lisent comme une surface plutôt qu'une texture.
-  { id: 'lg-lens-panel', scale: 6, frequency: 0.012 },
+  { id: 'lg-lens-panel', scale: 15, frequency: 0.009 },
   // Contrôles et pilules de taille moyenne.
-  { id: 'lg-lens-control', scale: 4, frequency: 0.017 },
-  // Petits éléments : un clapotis discret, sinon le contenu tremble.
-  { id: 'lg-lens-chip', scale: 2.6, frequency: 0.022 },
+  { id: 'lg-lens-control', scale: 11, frequency: 0.013 },
+  // Petits éléments : le clapotis reste net, la surface étant petite.
+  { id: 'lg-lens-chip', scale: 7, frequency: 0.017 },
   // Barres très allongées (barre supérieure, rail, pilules larges) : l'axe
-  // court y est étroit, l'amplitude reste donc modeste.
-  { id: 'lg-lens-bar', scale: 3, frequency: 0.016 },
+  // court y est étroit, l'amplitude reste donc un peu plus mesurée.
+  { id: 'lg-lens-bar', scale: 8, frequency: 0.012 },
 ];
 
 export function GlassFilters() {
