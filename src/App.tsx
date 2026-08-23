@@ -19,6 +19,7 @@ import { ViewportController, transformForBounds } from '@/view/viewport';
 import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { GlassFilters } from '@/components/GlassFilters';
 import { BranchLabels } from '@/components/BranchLabels';
 import { TopBar } from '@/components/TopBar';
@@ -39,6 +40,17 @@ import '@/styles/chrome.css';
 import '@/styles/detail.css';
 import '@/styles/family-map.css';
 import '@/styles/data-panel.css';
+import '@/styles/loading.css';
+
+/**
+ * Durée minimale de l'écran de chargement.
+ *
+ * Le graphe se calcule en quelques millisecondes — rien à attendre côté
+ * machine. Mais un écran qui clignote avant de disparaître donne l'impression
+ * d'un bug plutôt que d'un chargement ; on préfère un sas volontaire, tenu le
+ * temps qu'il faut pour se voir, même quand tout était déjà prêt.
+ */
+const MIN_LOADING_MS = 5000;
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
 const PANEL_OFFSET = 400;
@@ -57,6 +69,19 @@ export default function App() {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showDataPanel, setShowDataPanel] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
+
+  // Voir MIN_LOADING_MS : le sas reste affiché ce temps-là avant de s'effacer,
+  // qu'il y ait eu quelque chose à attendre ou non.
+  const [loadingPhase, setLoadingPhase] = useState<'visible' | 'leaving' | 'done'>('visible');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLoadingPhase('leaving'), MIN_LOADING_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (loadingPhase !== 'leaving') return;
+    const timer = window.setTimeout(() => setLoadingPhase('done'), 420);
+    return () => window.clearTimeout(timer);
+  }, [loadingPhase]);
 
   /**
    * Le point de repère.
@@ -421,6 +446,7 @@ export default function App() {
 
   return (
     <div className="app" ref={appRef} data-panel-open={selectedPerson ? true : undefined}>
+      {loadingPhase !== 'done' && <LoadingScreen leaving={loadingPhase === 'leaving'} />}
       <GlassFilters />
       <Backdrop viewport={viewport} />
 
