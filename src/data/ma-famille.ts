@@ -73,11 +73,18 @@ const importedFamily = Object.values(jsonModules)[0]?.default ?? null;
  * La famille de démonstration est désormais désactivée : `MA_FAMILLE` n'est
  * plus `importedFamily` (qui retomberait sur les Beaumont fictifs tant
  * qu'aucun GEDCOM ou JSON n'est importé), mais le noyau ci-dessous — Antoine
- * et Stella Albertini, sans aucun ancêtre inventé. Le reste de la famille
- * (parents, grands-parents de chaque côté, fratries…) se construit depuis
+ * et Stella Albertini, frère et sœur. Le reste de la famille (parents,
+ * grands-parents de chaque côté, autres fratries…) se construit depuis
  * l'application elle-même, fiche après fiche, avec « Ajouter un proche » :
- * inventer ici des noms de grands-parents qu'on ne connaît pas produirait un
- * arbre faux plutôt qu'un arbre incomplet.
+ * inventer ici des noms qu'on ne connaît pas produirait un arbre faux plutôt
+ * qu'un arbre incomplet.
+ *
+ * Un frère et une sœur ne se déclarent pas directement — voir `schema.ts` :
+ * la fratrie est *déduite* d'un parent partagé, pas saisie comme un lien à
+ * part, pour qu'il soit impossible de la renseigner d'un côté sans l'autre.
+ * `parent-albertini` ci-dessous n'est donc pas une personne inventée : c'est
+ * un support délibérément vide, à renommer avec le vrai nom du parent depuis
+ * sa fiche (« Modifier ») dès qu'il est connu.
  */
 export const MA_FAMILLE: FamilyDataset | null = {
   title: 'Famille Albertini',
@@ -85,17 +92,24 @@ export const MA_FAMILLE: FamilyDataset | null = {
 
   people: [
     {
+      id: 'parent-albertini',
+      firstName: 'Parent',
+      lastName: 'Albertini',
+      notes: 'Fiche à compléter avec le vrai nom de ce parent — voir « Modifier ».',
+    },
+    {
       id: 'antoine-albertini',
       firstName: 'Antoine',
       lastName: 'Albertini',
       gender: 'm',
-      spouses: ['stella-albertini'],
+      parents: ['parent-albertini'],
     },
     {
       id: 'stella-albertini',
       firstName: 'Stella',
       lastName: 'Albertini',
       gender: 'f',
+      parents: ['parent-albertini'],
     },
   ],
 };
