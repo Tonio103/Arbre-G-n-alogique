@@ -305,7 +305,7 @@ function unionHub(union: LayoutUnion): { x: number; y: number } | undefined {
   const sorted = [...partners].sort((a, b) => a.x - b.x);
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
-  if (sorted.length > 1) {
+  if (sorted.length > 1 && union.adjacent) {
     const y = portraitCenterY(Math.min(first.y, last.y));
     return { x: (cardCenterX(first.x) + cardCenterX(last.x)) / 2, y };
   }
@@ -339,13 +339,15 @@ function unionSegments(union: LayoutUnion): Segment[] {
 
   if (children.length === 0) return segments;
 
-  // Le départ : du milieu du couple — au même point que le trait d'alliance
-  // quand les deux cartes sont voisines, à la même hauteur même quand elles
-  // ne le sont pas (mariage entre deux branches, en pointillé). Le bas de la
-  // carte ne sert qu'à un parent seul, qui n'a pas d'autre point de repère.
+  // Le départ : du milieu du trait d'alliance pour un couple voisin, du bas
+  // de la carte sinon — un parent seul, ou un mariage entre deux branches
+  // dont les enfants sont rattachés au sous-arbre d'un seul des deux (voir
+  // `anchorX` dans `domain/layout.ts` pour le pourquoi).
   const startX = union.anchorX;
   const startY =
-    sorted.length > 1 ? portraitCenterY(Math.min(first.y, last.y)) : cardBottom(first.y);
+    sorted.length > 1 && union.adjacent
+      ? portraitCenterY(Math.min(first.y, last.y))
+      : cardBottom(first.y);
 
   let childTop = Number.POSITIVE_INFINITY;
   let leftMost = Number.POSITIVE_INFINITY;

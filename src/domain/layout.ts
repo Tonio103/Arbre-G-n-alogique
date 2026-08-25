@@ -424,16 +424,17 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
     const adjacent = sameRow && span <= CARD_WIDTH + COUPLE_GAP + 1;
 
     /*
-     * Le point d'où part la descendance est toujours le milieu du couple —
-     * `adjacent` ne conditionne que le trait d'alliance visible (voir
-     * `unionSegments` dans `view/links.ts`), pas ce point-ci. Un mariage
-     * entre deux branches, dont les cartes sont trop loin l'une de l'autre
-     * pour un trait direct, a quand même un milieu : sans lui, la descente
-     * partait uniquement de sous le premier partenaire, comme si l'enfant
-     * n'avait qu'un parent.
+     * Le point d'où part la descendance : le milieu du couple quand les deux
+     * cartes sont voisines — mais seulement alors. Un mariage entre deux
+     * branches (`adjacent` faux) n'a pas de bloc commun : `buildPlacementForest`
+     * rattache les enfants au sous-arbre d'un seul des deux parents, celui qui
+     * les a rencontrés en premier (voir plus haut, « la première visite emporte
+     * les enfants »). Centrer entre les deux cartes déplacerait le départ de la
+     * descente loin de l'endroit où les enfants sont réellement placés — un
+     * détour qui n'existe que sur le papier, pas dans la disposition.
      */
     const anchorX =
-      partners.length > 1
+      partners.length > 1 && adjacent
         ? (cardCenterX(partners[0].x) + cardCenterX(partners[partners.length - 1].x)) / 2
         : cardCenterX(partners[0].x);
     // L'arbre pousse vers le haut : la descendance part du trait qui relie les
