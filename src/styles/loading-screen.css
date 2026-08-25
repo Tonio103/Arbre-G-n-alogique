@@ -11,7 +11,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 22px;
+  gap: 26px;
+  overflow: hidden;
   background: radial-gradient(120% 120% at 50% 38%, var(--bg-mid) 0%, var(--bg-base) 55%, var(--bg-deep) 100%);
   clip-path: circle(150% at 50% 42%);
   transition:
@@ -40,6 +41,31 @@
   }
 }
 
+/* --------------------------------- Décor --------------------------------- */
+
+/*
+ * Halo tournant : un dégradé conique très diffus, plus lent que tout le
+ * reste de l'interface (18 s le tour) — la lenteur elle-même dit « prends
+ * ton temps », plutôt que de simuler une progression qui n'existe pas.
+ */
+.loading-screen__halo {
+  position: absolute;
+  width: min(120vw, 900px);
+  height: min(120vw, 900px);
+  background: conic-gradient(
+    from 0deg,
+    var(--accent-soft) 0deg,
+    transparent 70deg,
+    transparent 180deg,
+    var(--accent-soft) 250deg,
+    transparent 320deg,
+    var(--accent-soft) 360deg
+  );
+  filter: blur(40px);
+  opacity: 0.55;
+  animation: loading-screen-rotate 18s linear infinite;
+}
+
 .loading-screen__glow {
   position: absolute;
   width: min(70vw, 520px);
@@ -50,10 +76,31 @@
   animation: loading-screen-breathe 3200ms ease-in-out infinite;
 }
 
+.loading-screen__dust {
+  position: absolute;
+  width: var(--size, 3px);
+  height: var(--size, 3px);
+  border-radius: 50%;
+  background: var(--motif-dot, rgba(255, 255, 255, 0.6));
+  opacity: 0;
+  animation-name: loading-screen-dust;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen__halo,
+  .loading-screen__dust {
+    display: none;
+  }
+}
+
+/* --------------------------------- Glyphe --------------------------------- */
+
 .loading-screen__glyph {
   position: relative;
-  width: 108px;
-  height: 108px;
+  width: 190px;
+  height: 182px;
   overflow: visible;
 }
 
@@ -62,11 +109,50 @@
   stroke: url(#loading-screen-gradient);
   stroke-width: 2.5;
   stroke-linecap: round;
-  opacity: 0.55;
+  opacity: 0.5;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: loading-screen-draw 620ms var(--ease-out) forwards;
-  animation-delay: var(--delay);
+  animation-name: loading-screen-draw;
+  animation-timing-function: var(--ease-out);
+  animation-fill-mode: forwards;
+}
+
+@keyframes loading-screen-draw {
+  to {
+    stroke-dashoffset: 0;
+    opacity: 0.85;
+  }
+}
+
+/* Étincelle qui parcourt un lien déjà tracé, en boucle, jusqu'au départ. */
+.loading-screen__spark {
+  fill: url(#loading-screen-spark-gradient);
+  opacity: 0;
+  offset-rotate: 0deg;
+  animation: loading-screen-spark 1900ms ease-in-out infinite;
+}
+
+@keyframes loading-screen-spark {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0.9;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen__spark {
+    display: none;
+  }
 }
 
 .loading-screen__node {
@@ -74,14 +160,46 @@
   transform-box: fill-box;
   transform-origin: center;
   opacity: 0;
-  transform: scale(0.4);
-  animation:
-    loading-screen-appear 560ms var(--ease-spring) forwards,
-    loading-screen-pulse 2400ms ease-in-out infinite;
-  animation-delay:
-    calc(var(--i) * 150ms),
-    calc(560ms + var(--i) * 150ms);
+  transform: scale(0.35);
+  animation-name: loading-screen-appear, loading-screen-pulse;
+  animation-timing-function: var(--ease-spring), ease-in-out;
+  animation-duration: 560ms, 2400ms;
+  animation-fill-mode: forwards, none;
+  animation-iteration-count: 1, infinite;
 }
+
+.loading-screen__node[data-gen='1'] {
+  --node-settle: 0.94;
+}
+
+.loading-screen__node[data-gen='2'] {
+  --node-settle: 0.88;
+}
+
+@keyframes loading-screen-appear {
+  to {
+    opacity: var(--node-settle, 1);
+    transform: scale(1);
+  }
+}
+
+@keyframes loading-screen-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px var(--accent-ring));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen__node {
+    animation: loading-screen-appear 1ms linear forwards;
+  }
+}
+
+/* --------------------------------- Texte --------------------------------- */
 
 .loading-screen__label {
   display: flex;
@@ -90,6 +208,18 @@
   font-size: 14.5px;
   letter-spacing: 0.01em;
   color: var(--text-secondary);
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(6px);
+  animation: loading-screen-label-in 640ms var(--ease-out) 1500ms forwards;
+}
+
+@keyframes loading-screen-label-in {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
 }
 
 .loading-screen__dots {
@@ -114,27 +244,11 @@
   animation-delay: 320ms;
 }
 
-@keyframes loading-screen-draw {
-  to {
-    stroke-dashoffset: 0;
-    opacity: 0.9;
-  }
-}
+/* -------------------------------- Keyframes -------------------------------- */
 
-@keyframes loading-screen-appear {
+@keyframes loading-screen-rotate {
   to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes loading-screen-pulse {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 0 transparent);
-  }
-  50% {
-    filter: drop-shadow(0 0 10px var(--accent-ring));
+    transform: rotate(360deg);
   }
 }
 
@@ -147,6 +261,23 @@
   50% {
     opacity: 1;
     transform: scale(1.04);
+  }
+}
+
+@keyframes loading-screen-dust {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.85;
+  }
+  82% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
   }
 }
 
