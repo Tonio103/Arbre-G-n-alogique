@@ -76,6 +76,14 @@ export interface DrawLinksParams {
   hasSelection: boolean;
   /** Unions du chemin de parenté affiché, tracées en accent par-dessus tout. */
   pathUnions?: Set<string>;
+  /**
+   * L'union qu'on vient de créer (nouveau proche ajouté), et l'avancement de
+   * son tracé — 0 au tout début, 1 une fois complet. Tant que `progress < 1`,
+   * cette union est retirée du tracé normal : sans quoi le trait complet
+   * transparaîtrait déjà sous l'animation, qui ne ferait plus que le
+   * souligner au lieu de le révéler.
+   */
+  growth?: { unionId: string; progress: number };
 }
 
 /**
@@ -85,29 +93,6 @@ export interface DrawLinksParams {
  * nettement ce qui descend de ce qui distribue.
  */
 const BUS_LIFT = (ROW_HEIGHT - CARD_HEIGHT) * 0.5;
-
-/** Rayon des coudes. Assez petit pour rester net, assez grand pour se voir. */
-const CORNER = 9;
-
-/**
- * Trace un coude arrondi entre trois points alignés en équerre.
- *
- * `arcTo` fait exactement cela et gère seul le cas dégénéré — deux points
- * confondus, ou un angle nul — sans qu'on ait à le détecter.
- */
-function elbow(
-  ctx: CanvasRenderingContext2D,
-  fromX: number,
-  fromY: number,
-  cornerX: number,
-  cornerY: number,
-  toX: number,
-  toY: number,
-): void {
-  ctx.moveTo(fromX, fromY);
-  ctx.arcTo(cornerX, cornerY, toX, toY, CORNER);
-  ctx.lineTo(toX, toY);
-}
 
 export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams): void {
   const { worldRect, dpr, palette, highlighted, hasSelection } = params;
@@ -176,23 +161,31 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  // L'union en cours d'apparition est retirée du tracé normal tant qu'elle
+  // n'est pas complète : sinon le trait entier transparaîtrait déjà dessous,
+  // et l'animation ne ferait que le souligner au lieu de le révéler.
+  const growingId = params.growth && params.growth.progress < 1 ? params.growth.unionId : undefined;
+  const drawableUnions = growingId
+    ? params.unions.filter((union) => union.id !== growingId)
+    : params.unions;
+
   // Trois passes, une par teinte : changer de couleur rompt le chemin, et un
   // millier de chemins d'un seul segment coûte bien plus que trois chemins
   // d'un millier de segments.
   const groups: Array<{ list: LayoutUnion[]; color: string; weight: number }> = hasSelection
     ? [
         {
-          list: params.unions.filter((union) => !highlighted.has(union.id)),
+          list: drawableUnions.filter((union) => !highlighted.has(union.id)),
           color: palette.dim,
           weight: 1.4,
         },
         {
-          list: params.unions.filter((union) => highlighted.has(union.id)),
+          list: drawableUnions.filter((union) => highlighted.has(union.id)),
           color: palette.strong,
           weight: 2.6,
         },
       ]
-    : [{ list: params.unions, color: palette.line, weight: 1.7 }];
+    : [{ list: drawableUnions, color: palette.line, weight: 1.7 }];
 
   // L'ombre du trait suit l'échelle comme son épaisseur, sinon la lueur du
   // ciel ou le bavure de l'encre grossirait avec le zoom au lieu de rester
@@ -221,6 +214,29 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ctx.strokeStyle = palette.strong;
       ctx.lineWidth = 3.2 / density;
       ctx.stroke();
+    }
+  }
+
+  // L'union tout juste créée se dessine elle-même, trait par trait, dans le
+  // même ordre de lecture que le reste de l'arbre (alliance, descente, bus,
+  // puis chaque enfant) — la même technique de révélation par longueur de
+  // trait que le rideau d'ouverture, portée ici sur le canevas via
+  // `setLineDash`/`lineDashOffset` plutôt que `stroke-dashoffset` en SVG.
+  if (params.growth) {
+    const growing = params.unions.find((union) => union.id === params.growth!.unionId);
+    const length = growing ? unionPathLength(growing) : 0;
+    if (growing && length > 0) {
+      const progress = Math.min(1, Math.max(0, params.growth.progress));
+      ctx.beginPath();
+      traceUnion(ctx, growing);
+      ctx.setLineDash([length, length]);
+      ctx.lineDashOffset = length * (1 - progress);
+      ctx.strokeStyle = palette.strong;
+      ctx.lineWidth = 3 / density;
+      ctx.shadowColor = palette.glow.color;
+      ctx.shadowBlur = (palette.glow.blur + 5) / density;
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   }
 
@@ -296,22 +312,32 @@ function unionHub(union: LayoutUnion): { x: number; y: number } | undefined {
   return { x: cardCenterX(first.x), y: cardBottom(first.y) };
 }
 
-function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion): void {
-  const { partners, children } = union;
-  if (partners.length === 0) return;
+/** Un segment orthogonal, dans l'ordre où l'union se lit : `[x1, y1, x2, y2]`. */
+type Segment = readonly [number, number, number, number];
 
+/**
+ * Les segments d'une union, source commune au tracé normal (`traceUnion`) et
+ * au calcul de longueur pour son animation d'apparition (`unionPathLength`) :
+ * une seule géométrie, jamais deux versions qui pourraient diverger.
+ *
+ * Dans l'ordre de lecture : le trait d'alliance entre les deux portraits, la
+ * descente depuis le couple, le distributeur, puis une descente par enfant.
+ */
+function unionSegments(union: LayoutUnion): Segment[] {
+  const { partners, children } = union;
+  if (partners.length === 0) return [];
+
+  const segments: Segment[] = [];
   const sorted = [...partners].sort((a, b) => a.x - b.x);
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
 
-  // Le trait d'alliance, entre les deux portraits.
   if (sorted.length > 1 && union.adjacent) {
     const y = portraitCenterY(Math.min(first.y, last.y));
-    ctx.moveTo(cardCenterX(first.x), y);
-    ctx.lineTo(cardCenterX(last.x), y);
+    segments.push([cardCenterX(first.x), y, cardCenterX(last.x), y]);
   }
 
-  if (children.length === 0) return;
+  if (children.length === 0) return segments;
 
   // Le départ : du milieu du trait d'alliance pour un couple, du bas de la
   // carte pour un parent seul.
@@ -336,35 +362,48 @@ function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion): void {
   // Enfant unique à l'aplomb du couple : un simple trait droit. Le bus n'aurait
   // rien à distribuer, et son coude se lirait comme un détour.
   if (children.length === 1 && Math.abs(leftMost - startX) < 1) {
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(leftMost, childTop);
-    return;
+    segments.push([startX, startY, leftMost, childTop]);
+    return segments;
   }
 
   // La descente depuis le couple.
-  ctx.moveTo(startX, startY);
-  ctx.lineTo(startX, busY);
+  segments.push([startX, startY, startX, busY]);
 
   // Le distributeur. Il couvre les enfants et rejoint l'aplomb du couple, même
   // quand celui-ci tombe hors de la fratrie — cas d'un enfant unique décalé.
   const busLeft = Math.min(leftMost, startX);
   const busRight = Math.max(rightMost, startX);
   if (busRight - busLeft > 0.5) {
-    ctx.moveTo(busLeft, busY);
-    ctx.lineTo(busRight, busY);
+    segments.push([busLeft, busY, busRight, busY]);
   }
 
-  // Une descente par enfant, avec un coude arrondi à la sortie du bus.
+  // Une descente par enfant : un simple trait droit depuis le bus. Aucun
+  // coude à arrondir ici — le bus et chaque descente sont deux traits
+  // distincts qui se rejoignent au même point, pas un unique chemin continu
+  // que `arcTo` pourrait infléchir.
   for (const child of children) {
     const centre = cardCenterX(child.x);
     const top = cardTop(child.y);
-    if (top - busY <= CORNER * 2) {
-      ctx.moveTo(centre, busY);
-      ctx.lineTo(centre, top);
-      continue;
-    }
-    elbow(ctx, centre, busY, centre, top, centre, top);
+    segments.push([centre, busY, centre, top]);
   }
+
+  return segments;
+}
+
+function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion): void {
+  for (const [x1, y1, x2, y2] of unionSegments(union)) {
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+  }
+}
+
+/** Longueur totale du trait d'une union — voir `growth` dans `DrawLinksParams`. */
+function unionPathLength(union: LayoutUnion): number {
+  let total = 0;
+  for (const [x1, y1, x2, y2] of unionSegments(union)) {
+    total += Math.hypot(x2 - x1, y2 - y1);
+  }
+  return total;
 }
 
 /** Étendue d'une union, pour ne dessiner que ce qui est réellement visible. */

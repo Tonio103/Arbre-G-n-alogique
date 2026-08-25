@@ -36,6 +36,11 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
     widthsRef.current = itemsRef.current.map((element) => element?.offsetWidth ?? 160);
   }, [regions]);
 
+  // Indices actuellement affichés : une étiquette qui y entre (absente au
+  // dernier passage, présente à celui-ci) rejoue son entrée — voir
+  // `data-entering` plus bas et `.branch-label-surface` dans `chrome.css`.
+  const shownRef = useRef<Set<number>>(new Set());
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
@@ -71,6 +76,7 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
           element.style.opacity = '0';
           element.style.visibility = 'hidden';
           element.style.pointerEvents = 'none';
+          shownRef.current.delete(index);
         };
 
         const screenX = region.centerX * scale + x;
@@ -113,6 +119,16 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
         element.style.visibility = 'visible';
         element.style.pointerEvents = 'auto';
         element.style.transform = `translate3d(${Math.round(screenX)}px, ${Math.round(screenY)}px, 0) translate(-50%, -100%)`;
+
+        // Absente au dernier passage : elle entre pour de vrai, pas de retour
+        // d'une étiquette déjà visible qui n'aurait fait que se déplacer.
+        if (!shownRef.current.has(index)) {
+          shownRef.current.add(index);
+          element.dataset.entering = 'true';
+          window.setTimeout(() => {
+            delete element.dataset.entering;
+          }, 520);
+        }
       }
     };
 
@@ -189,8 +205,16 @@ export function BranchLabels({ regions, viewport, onFocusRegion }: BranchLabelsP
           }}
           title={`${region.label} — ${region.count} personnes`}
         >
-          <span className="branch-name">{region.label}</span>
-          <span className="branch-count">{region.count}</span>
+          {/*
+           * Le `transform` du bouton lui-même positionne l'étiquette dans
+           * l'écran (voir `apply` ci-dessus) : l'entrée anime donc ce
+           * conteneur intérieur, jamais le bouton, sous peine d'effacer son
+           * positionnement à chaque image de l'animation.
+           */}
+          <span className="branch-label-surface">
+            <span className="branch-name">{region.label}</span>
+            <span className="branch-count">{region.count}</span>
+          </span>
           {/* Amarre vers l'endroit désigné : sans elle, l'étiquette flotte au
               milieu de l'arbre sans qu'on sache de quoi elle parle. Portée par
               un élément dédié, les pseudo-éléments du verre étant pris par la

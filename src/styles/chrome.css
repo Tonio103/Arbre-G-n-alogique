@@ -578,6 +578,7 @@
   width: 1.5px;
   height: 16px;
   transform: translateX(-50%);
+  transform-origin: top;
   border-radius: 1px;
   background: linear-gradient(var(--glass-border-strong), transparent);
   pointer-events: none;
@@ -617,6 +618,51 @@
   background: var(--glass-panel-solid);
 }
 
+.branch-label-surface {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * Entrée d'une étiquette : une montée plutôt qu'un simple fondu, et le fil
+ * d'amarre qui se déroule depuis l'étiquette vers le point qu'il désigne —
+ * l'inverse de sa lecture visuelle (de haut en bas), mais l'ordre dans
+ * lequel `transform-origin: top` le fait grandir donne bien l'impression
+ * qu'il descend se planter sur la branche.
+ */
+.branch-label[data-entering] .branch-label-surface {
+  animation: branch-label-rise 460ms var(--ease-spring) both;
+}
+
+.branch-label[data-entering] .branch-tether {
+  animation: branch-tether-grow 340ms var(--ease-out) 90ms both;
+}
+
+@keyframes branch-label-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.94);
+  }
+}
+
+@keyframes branch-tether-grow {
+  from {
+    transform: translateX(-50%) scaleY(0);
+  }
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-label[data-entering] .branch-label-surface,
+  .branch-label[data-entering] .branch-tether {
+    animation: none;
+  }
+}
+
 .branch-name {
   font-size: 12px;
   font-weight: 550;
@@ -646,6 +692,7 @@
   width: 1.5px;
   height: 16px;
   transform: translateX(-50%);
+  transform-origin: top;
   border-radius: 1px;
   background: linear-gradient(var(--glass-border-strong), transparent);
   pointer-events: none;

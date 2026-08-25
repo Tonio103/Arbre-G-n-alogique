@@ -26,7 +26,10 @@ export interface FamilyGraph {
   warnings: string[];
 }
 
-const unionKey = (a: string, b?: string): string =>
+/** Exporté pour prédire l'identifiant d'une union avant même la reconstruction
+ *  du graphe — voir `growingUnionId` dans `App.tsx`, qui anime le trait d'une
+ *  union tout juste créée dès l'instant où on sait qui la compose. */
+export const unionKey = (a: string, b?: string): string =>
   b ? `u:${[a, b].sort().join('+')}` : `u:${a}`;
 
 const toSpouseLink = (entry: string | SpouseLink): SpouseLink =>

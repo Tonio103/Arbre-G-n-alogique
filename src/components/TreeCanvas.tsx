@@ -33,6 +33,8 @@ export interface TreeCanvasProps {
   pathUnions?: Set<string>;
   /** Le chemin complet, ordonné — pour animer la lumière qui le parcourt. */
   relation?: RelationPath;
+  /** Union tout juste créée : son trait se dessine au lieu d'apparaître d'un coup. */
+  growingUnionId?: string | null;
 }
 
 interface VisibleState {
@@ -77,6 +79,7 @@ export function TreeCanvas({
   pathPeople,
   pathUnions,
   relation,
+  growingUnionId,
 }: TreeCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
@@ -393,6 +396,7 @@ export function TreeCanvas({
           hasSelection={hasSelection}
           theme={theme}
           pathUnions={pathUnions}
+          growingUnionId={growingUnionId}
         />
 
         <PathFlow layout={layout} relation={relation} />

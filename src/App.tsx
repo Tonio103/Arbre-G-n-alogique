@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useFamilyTree } from '@/hooks/useFamilyTree';
+import { unionKey } from '@/domain/graph';
 import { useDataset } from '@/hooks/useDataset';
 import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
@@ -296,13 +297,33 @@ export default function App() {
     [datasetCtrl],
   );
 
+  /*
+   * L'union qu'on vient de créer.
+   *
+   * Son identifiant se prédit sans attendre la reconstruction du graphe (voir
+   * `unionKey`) : on le connaît dès qu'on sait qui la compose, au moment même
+   * de l'ajout. `LinkLayer` s'en sert pour dessiner ce trait au lieu de le
+   * faire apparaître d'un coup — voir l'écran de chargement pour la même
+   * idée, appliquée cette fois à une seule branche plutôt qu'à l'arbre entier.
+   */
+  const [growingUnionId, setGrowingUnionId] = useState<string | null>(null);
+  const growingTimerRef = useRef(0);
+  const growUnion = useCallback((id: string) => {
+    window.clearTimeout(growingTimerRef.current);
+    setGrowingUnionId(id);
+    growingTimerRef.current = window.setTimeout(() => setGrowingUnionId(null), 900);
+  }, []);
+  useEffect(() => () => window.clearTimeout(growingTimerRef.current), []);
+
   const addPersonParent = useCallback(
     (childId: string, input: NewPersonInput) => {
       const existingIds = new Set(graph.people.keys());
       const parent = createPerson(input, existingIds);
+      const nextParents = [...(graph.people.get(childId)?.parents ?? []), parent.id].slice(0, 2);
       datasetCtrl.mutate((people) => addParent(people, childId, parent));
+      growUnion(nextParents.length > 1 ? unionKey(nextParents[0], nextParents[1]) : unionKey(nextParents[0]));
     },
-    [datasetCtrl, graph],
+    [datasetCtrl, graph, growUnion],
   );
 
   const addPersonSpouse = useCallback(
@@ -310,8 +331,9 @@ export default function App() {
       const existingIds = new Set(graph.people.keys());
       const spouse = createPerson(input, existingIds);
       datasetCtrl.mutate((people) => addSpouse(people, personId, spouse, union));
+      growUnion(unionKey(personId, spouse.id));
     },
-    [datasetCtrl, graph],
+    [datasetCtrl, graph, growUnion],
   );
 
   const addPersonChild = useCallback(
@@ -320,8 +342,9 @@ export default function App() {
       const child = createPerson(input, existingIds);
       const parentIds = otherParentId ? [parentId, otherParentId] : [parentId];
       datasetCtrl.mutate((people) => addChild(people, parentIds, child));
+      growUnion(otherParentId ? unionKey(parentId, otherParentId) : unionKey(parentId));
     },
-    [datasetCtrl, graph],
+    [datasetCtrl, graph, growUnion],
   );
 
   // Diagnostic : en développement, le graphe et le placement sont exposés pour
@@ -415,6 +438,7 @@ export default function App() {
         pathPeople={relation?.people}
         pathUnions={relation?.unions}
         relation={relation}
+        growingUnionId={growingUnionId}
       />
 
       <TopBar

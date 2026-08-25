@@ -17,7 +17,13 @@ export interface LinkLayerProps {
   pathUnions?: Set<string>;
   /** Change quand le thème change : la palette est relue. */
   theme: string;
+  /** Union tout juste créée (nouveau proche ajouté) : son trait se dessine
+   *  au lieu d'apparaître d'un coup — voir `GROWTH_MS` plus bas. */
+  growingUnionId?: string | null;
 }
+
+/** Durée de l'apparition d'un trait tout juste créé. */
+const GROWTH_MS = 640;
 
 function readPalette(theme: string): LinkPalette {
   const styles = getComputedStyle(document.documentElement);
@@ -79,11 +85,13 @@ export function LinkLayer({
   hasSelection,
   pathUnions,
   theme,
+  growingUnionId,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
   const paletteRef = useRef<LinkPalette | null>(null);
   const forceRef = useRef<(() => void) | null>(null);
+  const growthRef = useRef<{ unionId: string; start: number } | null>(null);
 
   const stateRef = useRef({ highlightUnions, hasSelection, pathUnions });
   stateRef.current = { highlightUnions, hasSelection, pathUnions };
@@ -141,6 +149,12 @@ export function LinkLayer({
         highlighted: stateRef.current.highlightUnions,
         hasSelection: stateRef.current.hasSelection,
         pathUnions: stateRef.current.pathUnions,
+        growth: growthRef.current
+          ? {
+              unionId: growthRef.current.unionId,
+              progress: Math.min(1, (performance.now() - growthRef.current.start) / GROWTH_MS),
+            }
+          : undefined,
       });
     };
 
@@ -210,6 +224,37 @@ export function LinkLayer({
   useEffect(() => {
     forceRef.current?.();
   }, [highlightUnions, hasSelection, pathUnions, theme]);
+
+  // L'apparition d'un trait tout juste créé : redessine à chaque image
+  // pendant `GROWTH_MS`, puis relâche — le reste du temps, `LinkLayer` ne
+  // redessine que quand la vue bouge (voir plus haut), pas à chaque image.
+  useEffect(() => {
+    if (!growingUnionId) return undefined;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    growthRef.current = { unionId: growingUnionId, start: performance.now() };
+    if (reduced) {
+      growthRef.current = null;
+      forceRef.current?.();
+      return undefined;
+    }
+
+    let frame = 0;
+    const tick = (): void => {
+      forceRef.current?.();
+      if (growthRef.current && performance.now() - growthRef.current.start < GROWTH_MS) {
+        frame = requestAnimationFrame(tick);
+      } else {
+        growthRef.current = null;
+        forceRef.current?.();
+      }
+    };
+    frame = requestAnimationFrame(tick);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      growthRef.current = null;
+    };
+  }, [growingUnionId]);
 
   return <canvas ref={canvasRef} className="stage-canvas" aria-hidden="true" />;
 }
