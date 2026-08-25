@@ -49,6 +49,50 @@
 }
 
 /*
+ * Le décor respire.
+ *
+ * Un ciel figé se lit comme une image ; un ciel qui scintille très légèrement
+ * se lit comme un lieu. L'amplitude reste minuscule et la période très longue
+ * — on ne doit jamais surprendre le mouvement, seulement sentir, au bout de
+ * quelques minutes, que le fond n'était pas tout à fait immobile.
+ */
+:root[data-theme='dark'] .backdrop {
+  animation: sky-twinkle 9s var(--ease-inout) infinite;
+}
+
+@keyframes sky-twinkle {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(1.07) saturate(1.15);
+  }
+}
+
+/* Atlas : le parchemin ne scintille pas, il respire — un souffle de lumière
+   bien plus lent et bien plus discret que celui du ciel. */
+:root[data-theme='light'] .backdrop {
+  animation: paper-breathe 16s var(--ease-inout) infinite;
+}
+
+@keyframes paper-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.018);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation: none;
+  }
+}
+
+/*
  * Atlas généalogique, suite : le filigrane de courbes de niveau concentriques
  * de la première version ne lisait pas comme une carte ancienne mais comme
  * des ronds — retiré. Même principe que le ciel étoilé (quatre passes de
@@ -149,7 +193,7 @@
 .hint-bar {
   position: absolute;
   left: 50%;
-  bottom: 22px;
+  bottom: calc(22px + var(--safe-bottom));
   transform: translateX(-50%);
   display: flex;
   align-items: center;

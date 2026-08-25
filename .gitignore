@@ -11,3 +11,5 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 coverage
+.wrangler
+.claude

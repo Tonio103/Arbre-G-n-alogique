@@ -21,11 +21,13 @@ import type { FamilyDataset } from './schema';
  * fichiers, sans qu'ils aient à toucher au navigateur de qui que ce soit.
  * Aucun fichier à ce nom : la famille de démonstration reste affichée.
  */
+/*
 const jsonModules = import.meta.glob('./ma-famille.json', { eager: true }) as Record<
   string,
   { default: FamilyDataset }
 >;
 const importedFamily = Object.values(jsonModules)[0]?.default ?? null;
+*/
 
 /**
  * ── Ou à la main, en TypeScript ──────────────────────────────────────────────
@@ -67,57 +69,37 @@ const importedFamily = Object.values(jsonModules)[0]?.default ?? null;
  * n'est corrigé ni bloqué — un arbre réel a ses zones douteuses — mais tout
  * est signalé, dans la console et sur un bandeau dans l'application.
  */
-export const MA_FAMILLE: FamilyDataset | null = importedFamily;
-
 /*
+ * La famille de démonstration est désormais désactivée : `MA_FAMILLE` n'est
+ * plus `importedFamily` (qui retomberait sur les Beaumont fictifs tant
+ * qu'aucun GEDCOM ou JSON n'est importé), mais le noyau ci-dessous — Antoine
+ * et Stella Albertini, sans aucun ancêtre inventé. Le reste de la famille
+ * (parents, grands-parents de chaque côté, fratries…) se construit depuis
+ * l'application elle-même, fiche après fiche, avec « Ajouter un proche » :
+ * inventer ici des noms de grands-parents qu'on ne connaît pas produirait un
+ * arbre faux plutôt qu'un arbre incomplet.
+ */
 export const MA_FAMILLE: FamilyDataset | null = {
-  title: 'Durand — Petit',
-  subtitle: 'De Saint-Malo à Lyon, cinq générations',
-  // Personne mise en avant à l'ouverture. À défaut, la plus ancienne.
-  rootId: 'marie-durand-1912',
-
-  // Étiquettes affichées en vue éloignée, pour se repérer dans un grand arbre.
-  // Chacune nomme l'espace occupé par la descendance de la personne visée.
-  branches: [{ label: 'Branche de Saint-Malo', anchorId: 'jean-durand-1880' }],
+  title: 'Famille Albertini',
+  rootId: 'antoine-albertini',
 
   people: [
     {
-      id: 'jean-durand-1880',
-      firstName: 'Jean',
-      lastName: 'Durand',
+      id: 'antoine-albertini',
+      firstName: 'Antoine',
+      lastName: 'Albertini',
       gender: 'm',
-      birthDate: '1880-02-14',
-      birthPlace: 'Saint-Malo',
-      deathDate: '1951-11-03',
-      profession: 'Charpentier de marine',
-      headline: 'Charpentier de marine',
-      spouses: [{ id: 'louise-petit-1884', status: 'married', since: '1908-06-20' }],
+      spouses: ['stella-albertini'],
     },
     {
-      id: 'louise-petit-1884',
-      firstName: 'Louise',
-      lastName: 'Durand',
-      maidenName: 'Petit',
+      id: 'stella-albertini',
+      firstName: 'Stella',
+      lastName: 'Albertini',
       gender: 'f',
-      birthDate: '1884',
-      deathDate: '1969',
-    },
-    {
-      id: 'marie-durand-1912',
-      firstName: 'Marie',
-      lastName: 'Durand',
-      gender: 'f',
-      birthDate: '1912-09-01',
-      birthPlace: 'Saint-Malo',
-      profession: 'Institutrice',
-      biography: 'Elle a tenu la classe unique du village pendant trente et un ans.',
-      interests: ['Botanique', 'Chorale'],
-      anecdotes: ['Gardait une carte du Finistère punaisée au-dessus de son lit.'],
-      milestones: [{ year: '1934', title: 'Nommée à Plouër-sur-Rance' }],
-      memories: ['L’odeur de la craie et du poêle à bois.'],
-      custom: { 'Décoration': 'Palmes académiques, 1962' },
-      parents: ['jean-durand-1880', 'louise-petit-1884'],
     },
   ],
 };
+
+/*
+export const MA_FAMILLE: FamilyDataset | null = importedFamily;
 */

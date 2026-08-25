@@ -90,6 +90,19 @@
   --topbar-height: 68px;
   --panel-width: 400px;
 
+  /*
+   * Zones sûres (encoche, barre de gestes, découpe de caméra…).
+   *
+   * `env()` vaut zéro sur tout appareil sans découpe — ces variables ne
+   * changent donc rien ailleurs qu'au bord d'un écran qui en a une. Un écran
+   * tenu à la verticale est justement le cas où ces bords comptent le plus :
+   * l'encoche est en haut, la barre de gestes en bas, sur toute la largeur.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
   /* Typographie des titres — voir base.css : le thème sombre garde la
      police du corps de texte, sa singularité tient à la lueur. */
   --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial,

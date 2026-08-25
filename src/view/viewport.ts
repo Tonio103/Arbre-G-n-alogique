@@ -80,6 +80,19 @@ export function transformForPoint(
 const easeOutQuint = (t: number): number => 1 - Math.pow(1 - t, 5);
 const easeInOutCubic = (t: number): number =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+/**
+ * Détente avec léger dépassement — la même sensation que `--ease-spring` en
+ * CSS, portée ici en fonction pour les animations pilotées en JavaScript. Un
+ * geste ponctuel (recentrer la vue d'ensemble d'un clic) gagne à se sentir
+ * comme un objet qu'on relâche plutôt que comme un simple fondu de
+ * coordonnées ; un geste continu (glisser) ne doit jamais l'utiliser, sous
+ * peine de rejouer le dépassement à chaque image du glissé.
+ */
+const easeOutBack = (t: number): number => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
 
 /**
  * Point à garder fixe à l'écran pendant un zoom animé.
@@ -310,7 +323,7 @@ export class ViewportController {
   animateTo(
     target: Transform,
     duration = 720,
-    ease: 'out' | 'inout' = 'out',
+    ease: 'out' | 'inout' | 'back' = 'out',
     onDone?: () => void,
     anchor?: ZoomAnchor,
   ): void {
@@ -322,7 +335,7 @@ export class ViewportController {
       to,
       start: performance.now(),
       duration: Math.max(1, duration),
-      ease: ease === 'out' ? easeOutQuint : easeInOutCubic,
+      ease: ease === 'out' ? easeOutQuint : ease === 'back' ? easeOutBack : easeInOutCubic,
       onDone,
       anchor,
     };
@@ -408,11 +421,12 @@ export class ViewportController {
     scale = Math.max(this.transform.scale, 0.9),
     offsetRight = 0,
     duration = 760,
+    ease: 'out' | 'inout' | 'back' = 'inout',
   ): void {
     this.animateTo(
       transformForPoint(worldX, worldY, this.size, scale, offsetRight),
       duration,
-      'inout',
+      ease,
     );
   }
 }

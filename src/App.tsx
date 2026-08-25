@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { useDataset } from '@/hooks/useDataset';
 import { useTheme } from '@/hooks/useTheme';
@@ -40,17 +41,9 @@ import '@/styles/chrome.css';
 import '@/styles/detail.css';
 import '@/styles/family-map.css';
 import '@/styles/data-panel.css';
-import '@/styles/loading.css';
-
-/**
- * Durée minimale de l'écran de chargement.
- *
- * Le graphe se calcule en quelques millisecondes — rien à attendre côté
- * machine. Mais un écran qui clignote avant de disparaître donne l'impression
- * d'un bug plutôt que d'un chargement ; on préfère un sas volontaire, tenu le
- * temps qu'il faut pour se voir, même quand tout était déjà prêt.
- */
-const MIN_LOADING_MS = 5000;
+import '@/styles/loading-screen.css';
+import '@/styles/path-flow.css';
+import '@/styles/theme-transition.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
 const PANEL_OFFSET = 400;
@@ -59,6 +52,50 @@ export default function App() {
   const datasetCtrl = useDataset();
   const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(datasetCtrl.dataset);
   const [theme, toggleTheme] = useTheme();
+
+  /**
+   * Bascule de thème, en iris.
+   *
+   * `startViewTransition` fige l'écran, laisse `toggleTheme` changer l'état,
+   * puis anime la différence — c'est cette capture qui permet à
+   * `theme-transition.css` de balayer un thème par l'autre depuis le point du
+   * geste plutôt que d'un bord de l'écran. L'API n'existe pas partout, et un
+   * mouvement réduit demandé doit rester sans effet visuel : dans les deux
+   * cas, on se contente de la bascule instantanée déjà en place.
+   */
+  const toggleThemeFromPoint = useCallback(
+    (x: number, y: number) => {
+      const doc = document as Document & {
+        startViewTransition?: (callback: () => void) => {
+          ready: Promise<void>;
+          finished: Promise<void>;
+          updateCallbackDone: Promise<void>;
+        };
+      };
+      if (!doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        toggleTheme();
+        return;
+      }
+      document.documentElement.style.setProperty('--reveal-x', `${x}px`);
+      document.documentElement.style.setProperty('--reveal-y', `${y}px`);
+      // `startViewTransition` fige l'écran au moment où le callback rend la
+      // main : un `setState` React ordinaire ne peint qu'au prochain cycle,
+      // trop tard pour la capture. `flushSync` force la mise à jour du DOM
+      // avant que le callback ne se termine.
+      const transition = doc.startViewTransition(() => {
+        flushSync(() => {
+          toggleTheme();
+        });
+      });
+      // Le navigateur peut interrompre une transition (geste répété trop
+      // vite, onglet masqué) : une promesse rejetée sans anse remonterait en
+      // erreur non interceptée alors que la bascule, elle, a déjà eu lieu.
+      transition.ready.catch(() => {});
+      transition.finished.catch(() => {});
+      transition.updateCallbackDone.catch(() => {});
+    },
+    [toggleTheme],
+  );
   // Une seule source de lumière pour tout le verre de l'interface.
   useGlassLight();
   const compact = useIsCompact();
@@ -69,19 +106,6 @@ export default function App() {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showDataPanel, setShowDataPanel] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
-
-  // Voir MIN_LOADING_MS : le sas reste affiché ce temps-là avant de s'effacer,
-  // qu'il y ait eu quelque chose à attendre ou non.
-  const [loadingPhase, setLoadingPhase] = useState<'visible' | 'leaving' | 'done'>('visible');
-  useEffect(() => {
-    const timer = window.setTimeout(() => setLoadingPhase('leaving'), MIN_LOADING_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
-  useEffect(() => {
-    if (loadingPhase !== 'leaving') return;
-    const timer = window.setTimeout(() => setLoadingPhase('done'), 420);
-    return () => window.clearTimeout(timer);
-  }, [loadingPhase]);
 
   /**
    * Le point de repère.
@@ -164,54 +188,6 @@ export default function App() {
     focusOn(graph.rootId, { scale: 1.05, duration: 820 });
   }, [graph.rootId, focusOn]);
 
-  /**
-   * Parcourir la famille au clavier.
-   *
-   * Les flèches seules déplacent la vue — c'est le geste de lecture d'un plan.
-   * Avec la touche Option, elles suivent la parenté : vers le haut on remonte
-   * à un parent, vers le bas on descend à un enfant, sur les côtés on longe la
-   * fratrie. C'est la seule façon de traverser un arbre sans souris, et la plus
-   * rapide même avec.
-   */
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (!event.altKey || event.metaKey || event.ctrlKey) return;
-      if (!selectedId) return;
-      const person = graph.people.get(selectedId);
-      if (!person) return;
-
-      let next: string | undefined;
-      if (event.key === 'ArrowUp') {
-        next = person.parents[0];
-      } else if (event.key === 'ArrowDown') {
-        next = person.children[0];
-      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        const step = event.key === 'ArrowRight' ? 1 : -1;
-        // Fratrie d'abord, conjoint à défaut : une personne sans frère ni sœur
-        // n'est pas pour autant une impasse.
-        const family = [...person.siblings, selectedId].sort(
-          (a, b) =>
-            (graph.people.get(a)?.birthYear ?? 0) - (graph.people.get(b)?.birthYear ?? 0),
-        );
-        if (family.length > 1) {
-          const index = family.indexOf(selectedId);
-          next = family[(index + step + family.length) % family.length];
-        } else {
-          next = person.spouseLinks[0]?.id;
-        }
-      } else {
-        return;
-      }
-
-      if (!next || !graph.people.has(next)) return;
-      event.preventDefault();
-      selectPerson(next);
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [graph, selectedId, selectPerson]);
-
   const fitAll = useCallback(() => {
     setFlaggedId(null);
     viewport.fit(layout.bounds, FIT_PADDING, 0.9, 820);
@@ -220,6 +196,7 @@ export default function App() {
   // Ouverture : l'arbre entier apparaît d'abord, puis la vue plonge vers la
   // personne principale. En une seconde, on comprend l'échelle et où l'on est.
   const introRef = useRef(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (introRef.current) return;
     // Tant que la version partagée n'a pas répondu, l'arbre affiché n'est
@@ -229,6 +206,9 @@ export default function App() {
     const stageSize = viewport.size;
     if (stageSize.width <= 1) return;
     introRef.current = true;
+    // Le rideau de chargement se retire ici : c'est le premier instant où
+    // l'arbre est réellement cadré, pas un délai arbitraire.
+    setReady(true);
 
     // L'arbre entier d'abord : on doit voir de quoi il s'agit — un arbre, sa
     // silhouette, son ampleur — avant de descendre dans une branche.
@@ -263,39 +243,6 @@ export default function App() {
     viewport.fit(layout.bounds, FIT_PADDING, 0.92, 720);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datasetCtrl.replaceVersion]);
-
-  // Raccourcis clavier généraux, inactifs pendant la saisie d'une recherche.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.isContentEditable)) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      switch (event.key) {
-        case '0':
-          event.preventDefault();
-          fitAll();
-          break;
-        case 'h':
-        case 'H':
-          event.preventDefault();
-          goHome();
-          break;
-        case 'l':
-        case 'L':
-          event.preventDefault();
-          setHighlightMode((mode) => (mode === 'close' ? 'lineage' : 'close'));
-          break;
-        case 'Escape':
-          if (selectedId) setSelectedId(null);
-          break;
-        default:
-          break;
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [fitAll, goHome, selectedId]);
 
   // La pastille de recherche s'estompe d'elle-même.
   useEffect(() => {
@@ -450,7 +397,7 @@ export default function App() {
 
   return (
     <div className="app" ref={appRef} data-panel-open={selectedPerson ? true : undefined}>
-      {loadingPhase !== 'done' && <LoadingScreen leaving={loadingPhase === 'leaving'} />}
+      <LoadingScreen ready={ready} />
       <GlassFilters />
       <Backdrop viewport={viewport} />
 
@@ -467,6 +414,7 @@ export default function App() {
         theme={theme}
         pathPeople={relation?.people}
         pathUnions={relation?.unions}
+        relation={relation}
       />
 
       <TopBar
@@ -483,7 +431,7 @@ export default function App() {
           setHighlightMode((mode) => (mode === 'close' ? 'lineage' : 'close'))
         }
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onToggleTheme={toggleThemeFromPoint}
         showMiniMap={showMiniMap}
         onToggleMiniMap={() => setShowMiniMap((value) => !value)}
         onOpenData={() => setShowDataPanel(true)}
@@ -548,18 +496,6 @@ export default function App() {
         <span className="hint-sep" aria-hidden="true" />
         <span>
           <kbd>Glisser</kbd> déplacer
-        </span>
-        <span className="hint-sep" aria-hidden="true" />
-        <span>
-          <kbd>⌘</kbd> <kbd>K</kbd> rechercher
-        </span>
-        <span className="hint-sep" aria-hidden="true" />
-        <span>
-          <kbd>0</kbd> vue d’ensemble
-        </span>
-        <span className="hint-sep" aria-hidden="true" />
-        <span>
-          <kbd>⌥</kbd> <kbd>↑↓←→</kbd> suivre la parenté
         </span>
       </div>
 

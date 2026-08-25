@@ -16,6 +16,15 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  /*
+   * Ken Burns discret : le zoom n'est pas une transition qu'on regarde finir,
+   * c'est un mouvement qui doit encore être en train de se faire quand le
+   * regard s'en va déjà — d'où une durée bien plus longue que tout le reste
+   * de l'interface. `.node` et `.detail-identity` déclenchent le survol
+   * chacun à leur façon (voir `node.css`, `detail.css`) ; l'image elle-même
+   * ne porte que le mouvement, jamais la condition qui le déclenche.
+   */
+  transition: transform 6.5s var(--ease-out);
 }
 
 /*

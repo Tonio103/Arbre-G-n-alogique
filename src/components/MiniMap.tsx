@@ -121,18 +121,23 @@ export function MiniMap({ layout, viewport, highlighted, theme }: MiniMapProps) 
     const unsubscribe = viewport.subscribe(schedule);
 
     // Cliquer ou glisser sur la vue d'ensemble déplace le cadre.
-    const goTo = (clientX: number, clientY: number): void => {
+    const goTo = (clientX: number, clientY: number, ease: 'out' | 'inout' | 'back' = 'inout'): void => {
       const box = canvas.getBoundingClientRect();
       const worldX = (clientX - box.left - offsetX) / scaleX;
       const worldY = (clientY - box.top - offsetY) / scaleY;
-      viewport.focusPoint(worldX, worldY, viewport.transform.scale, 0, 420);
+      viewport.focusPoint(worldX, worldY, viewport.transform.scale, 0, 420, ease);
     };
 
     let dragging = false;
     const onPointerDown = (event: PointerEvent): void => {
       dragging = true;
       canvas.setPointerCapture(event.pointerId);
-      goTo(event.clientX, event.clientY);
+      // Un simple clic pose le cadre d'un geste net : le léger dépassement
+      // avant l'arrêt le fait sentir comme un objet qu'on relâche, pas comme
+      // une coordonnée qui se met à jour. Réservé au clic, jamais au glissé
+      // continu ci-dessous — un dépassement rejoué à chaque image d'un
+      // glissé donnerait le mal de mer plutôt qu'une sensation physique.
+      goTo(event.clientX, event.clientY, 'back');
     };
     const onPointerMove = (event: PointerEvent): void => {
       if (!dragging) return;

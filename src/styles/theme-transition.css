@@ -1,0 +1,42 @@
+/*
+ * Bascule de thème : un iris, pas un fondu.
+ *
+ * Le thème ne remplace pas une couleur par une autre, il change de monde —
+ * du ciel étoilé à l'atlas de papier. Un fondu croisé mélangerait un instant
+ * les deux ; un iris qui s'ouvre depuis le bouton pressé montre au contraire
+ * le second monde balayer le premier depuis l'endroit exact du geste, comme
+ * si la lumière du nouveau thème partait du doigt qui l'a demandée.
+ *
+ * `--reveal-x`/`--reveal-y` sont posées juste avant l'appel à
+ * `startViewTransition` (voir `App.tsx`), à la position du bouton. Sans
+ * prise en charge de l'API — ou avec un mouvement réduit demandé — la
+ * bascule reste instantanée, sans qu'aucune règle ici n'entre en jeu.
+ */
+::view-transition-group(root) {
+  animation-duration: 620ms;
+}
+
+::view-transition-old(root) {
+  animation: none;
+}
+
+::view-transition-new(root) {
+  animation: theme-reveal-iris 620ms var(--ease-inout) forwards;
+}
+
+@keyframes theme-reveal-iris {
+  from {
+    clip-path: circle(0% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(145% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

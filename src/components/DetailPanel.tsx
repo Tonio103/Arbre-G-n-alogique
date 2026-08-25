@@ -138,15 +138,6 @@ export function DetailPanel({
     setAddingRelative(null);
   }, [person?.id]);
 
-  useEffect(() => {
-    if (!person) return undefined;
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [person, onClose]);
-
   if (!person) return null;
 
   const spouseIds = person.spouseLinks.map((link) => link.id);

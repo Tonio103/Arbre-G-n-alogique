@@ -2,9 +2,9 @@
 
 .detail {
   position: absolute;
-  top: calc(var(--topbar-height) + 26px);
-  right: 14px;
-  bottom: 14px;
+  top: calc(var(--topbar-height) + 26px + var(--safe-top));
+  right: calc(14px + var(--safe-right));
+  bottom: calc(14px + var(--safe-bottom));
   z-index: 18;
   display: flex;
   flex-direction: column;
@@ -28,6 +28,12 @@
   gap: 14px;
   min-width: 0;
   flex: 1;
+}
+
+/* Ken Burns sur le grand portrait d'en-tête — même dérive lente que sur les
+   médaillons de l'arbre (voir `node.css`, `avatar.css`). */
+.detail-identity:hover .avatar-image {
+  transform: scale(1.12);
 }
 
 .detail-names {
@@ -632,12 +638,13 @@
 
 /* --------------------------------- Adaptatif --------------------------------- */
 
-@media (max-width: 860px) {
+/* Même seuil que `useIsCompact` — voir la note dans `chrome.css`. */
+@media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
   .detail {
     top: auto;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    left: calc(8px + var(--safe-left));
+    right: calc(8px + var(--safe-right));
+    bottom: calc(8px + var(--safe-bottom));
     width: auto;
     max-width: none;
     max-height: 74vh;
@@ -718,6 +725,198 @@
 .edit-field input:focus,
 .edit-field select:focus,
 .edit-field textarea:focus {
+  outline: none;
+  border-color: var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/*
+ * Listes éditables : passions, anecdotes, souvenirs, événements marquants.
+ * Chacune reprend le langage visuel de son affichage en lecture (`.chip`,
+ * `.timeline-*`) plutôt que d'inventer une forme à part pour l'édition.
+ */
+.edit-list-field {
+  gap: 8px;
+}
+
+.edit-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.edit-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px 4px 11px;
+  border-radius: 999px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.edit-chip-remove {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.edit-chip-remove:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.edit-list-add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-list-add-row input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.edit-list-add-row input:focus {
+  outline: none;
+  border-color: var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.edit-list-add {
+  align-self: flex-start;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px dashed var(--glass-border-strong);
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.edit-list-add:hover:not(:disabled) {
+  border-color: var(--accent-ring);
+  color: var(--accent);
+}
+
+.edit-list-add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.edit-list-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.edit-list-row textarea {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.edit-list-row textarea:focus {
+  outline: none;
+  border-color: var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.edit-list-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--glass-fill);
+  color: var(--text-tertiary);
+  font-size: 15px;
+  line-height: 1;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.edit-list-remove:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Lignes à deux champs + suppression : liens (libellé/adresse), champs
+   libres (clé/valeur). Les deux champs se partagent la ligne à égalité. */
+.edit-form-row--fields input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.edit-milestone-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--glass-border);
+}
+
+.edit-milestone-row:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.edit-milestone-row .edit-form-row {
+  align-items: center;
+}
+
+.edit-milestone-year {
+  flex: none;
+  width: 64px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.edit-milestone-row input:not(.edit-milestone-year) {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.edit-milestone-row input:focus {
   outline: none;
   border-color: var(--accent-ring);
   box-shadow: 0 0 0 3px var(--accent-soft);

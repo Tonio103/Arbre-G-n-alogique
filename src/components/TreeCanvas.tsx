@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { NodePosition, TreeLayout } from '@/domain/layout';
-import type { HighlightSet } from '@/domain/relations';
+import type { HighlightSet, RelationPath } from '@/domain/relations';
 import type { SpatialIndex } from '@/view/spatial';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
@@ -13,6 +13,7 @@ import {
 } from '@/view/metrics';
 import { PersonNode, type NodeDetail } from './PersonNode';
 import { LinkLayer } from './LinkLayer';
+import { PathFlow } from './PathFlow';
 
 export interface TreeCanvasProps {
   graph: FamilyGraph;
@@ -30,6 +31,8 @@ export interface TreeCanvasProps {
   pathPeople?: Set<string>;
   /** Unions traversées par ce chemin. */
   pathUnions?: Set<string>;
+  /** Le chemin complet, ordonné — pour animer la lumière qui le parcourt. */
+  relation?: RelationPath;
 }
 
 interface VisibleState {
@@ -73,6 +76,7 @@ export function TreeCanvas({
   theme,
   pathPeople,
   pathUnions,
+  relation,
 }: TreeCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
@@ -345,43 +349,6 @@ export function TreeCanvas({
     };
   }, [viewport]);
 
-  // --- Clavier : déplacement et zoom sans souris ---
-  const onKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>): void => {
-      // Au clavier, chaque appui est un saut : tout est glissé. Maintenir une
-      // flèche enchaîne les cibles, ce qui donne un défilement continu plutôt
-      // qu'une succession de bonds.
-      const step = event.shiftKey ? 260 : 90;
-      const half = { width: viewport.size.width / 2, height: viewport.size.height / 2 };
-      switch (event.key) {
-        case 'ArrowLeft':
-          viewport.panBySmooth(step, 0, 180);
-          break;
-        case 'ArrowRight':
-          viewport.panBySmooth(-step, 0, 180);
-          break;
-        case 'ArrowUp':
-          viewport.panBySmooth(0, step, 180);
-          break;
-        case 'ArrowDown':
-          viewport.panBySmooth(0, -step, 180);
-          break;
-        case '+':
-        case '=':
-          viewport.zoomAtSmooth(half.width, half.height, 1.3, 220);
-          break;
-        case '-':
-        case '_':
-          viewport.zoomAtSmooth(half.width, half.height, 1 / 1.3, 220);
-          break;
-        default:
-          return;
-      }
-      event.preventDefault();
-    },
-    [viewport],
-  );
-
   const handleSelect = useCallback(
     (id: string) => {
       // Un déplacement de l'arbre ne doit pas se terminer par une sélection.
@@ -413,10 +380,7 @@ export function TreeCanvas({
       ref={stageRef}
       className="stage"
       data-grabbing={grabbing || undefined}
-      tabIndex={0}
-      role="application"
-      aria-label="Arbre généalogique : flèches pour se déplacer, plus et moins pour zoomer"
-      onKeyDown={onKeyDown}
+      aria-label="Arbre généalogique"
       onClick={handleBackgroundClick}
     >
       <div ref={worldRef} className="world" data-cheap={visible.cheap || undefined}>
@@ -430,6 +394,8 @@ export function TreeCanvas({
           theme={theme}
           pathUnions={pathUnions}
         />
+
+        <PathFlow layout={layout} relation={relation} />
 
         {detail !== 'none' &&
           visible.nodes.map((node) => {

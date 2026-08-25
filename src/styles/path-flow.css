@@ -1,0 +1,47 @@
+/*
+ * Le flux lumineux d'un chemin de parenté — voir `PathFlow`.
+ *
+ * Vit dans `.world`, aux mêmes coordonnées que les médaillons et le canevas
+ * des liens : `overflow: visible` sur une boîte de taille nulle, exactement
+ * comme `.world` lui-même, pour ne rien recadrer.
+ */
+.path-flow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.path-flow-track {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.16;
+}
+
+.path-flow-spark {
+  fill: var(--accent-strong);
+  filter: drop-shadow(0 0 5px var(--accent)) drop-shadow(0 0 10px var(--accent-ring));
+}
+
+.path-flow-spark--b {
+  fill: var(--accent-rose);
+  filter: drop-shadow(0 0 5px var(--accent-rose)) drop-shadow(0 0 10px var(--accent-rose));
+}
+
+.path-flow-spark--c {
+  fill: var(--accent-warm);
+  filter: drop-shadow(0 0 5px var(--accent-warm)) drop-shadow(0 0 10px var(--accent-warm));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path-flow-spark {
+    display: none;
+  }
+}

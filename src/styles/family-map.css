@@ -2,8 +2,8 @@
 
 .family-map-widget {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
+  right: calc(14px + var(--safe-right));
+  bottom: calc(14px + var(--safe-bottom));
   z-index: 12;
   display: flex;
   flex-direction: column;
@@ -14,7 +14,7 @@
 }
 
 .app[data-panel-open] .family-map-widget {
-  right: calc(var(--panel-width) + 26px);
+  right: calc(var(--panel-width) + 26px + var(--safe-right));
 }
 
 /*

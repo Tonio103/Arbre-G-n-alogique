@@ -90,20 +90,6 @@ export function SearchField({ graph, index, onPick, total, anchorId }: SearchFie
     setActive(0);
   }, [deferredQuery, vitality, branch]);
 
-  // Raccourci global : ⌘K ou Ctrl+K place le curseur dans le champ.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
-        setOpen(true);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event: PointerEvent): void => {
@@ -202,11 +188,7 @@ export function SearchField({ graph, index, onPick, total, anchorId }: SearchFie
               />
             </svg>
           </button>
-        ) : (
-          <kbd className="search-kbd" aria-hidden="true">
-            ⌘K
-          </kbd>
-        )}
+        ) : null}
       </div>
 
       {open && (

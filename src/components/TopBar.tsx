@@ -28,7 +28,8 @@ export interface TopBarProps {
   highlightMode: HighlightMode;
   onToggleHighlightMode: () => void;
   theme: 'dark' | 'light';
-  onToggleTheme: () => void;
+  /** Coordonnées de l'écran d'où fait rayonner la transition de thème. */
+  onToggleTheme: (x: number, y: number) => void;
   showMiniMap: boolean;
   onToggleMiniMap: () => void;
   onOpenData: () => void;
@@ -137,12 +138,15 @@ export function TopBar({
           >
             <MapIcon />
           </IconButton>
-          <IconButton
-            label={theme === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'}
-            onClick={onToggleTheme}
+          <button
+            type="button"
+            className="icon-button"
+            title={theme === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'}
+            aria-label={theme === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'}
+            onClick={(event) => onToggleTheme(event.clientX, event.clientY)}
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </IconButton>
+          </button>
           <IconButton className="hide-compact" label="Importer / exporter vos données" onClick={onOpenData}>
             <ImportIcon />
           </IconButton>

@@ -2,9 +2,9 @@
 
 .topbar {
   position: absolute;
-  top: 14px;
-  left: 14px;
-  right: 14px;
+  top: calc(14px + var(--safe-top));
+  left: calc(14px + var(--safe-left));
+  right: calc(14px + var(--safe-right));
   z-index: 20;
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(240px, 460px) minmax(180px, 1fr);
@@ -202,17 +202,6 @@
   display: none;
 }
 
-.search-kbd {
-  flex: none;
-  padding: 3px 7px;
-  border-radius: 8px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  font-family: inherit;
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
 .search-clear {
   display: grid;
   place-items: center;
@@ -263,6 +252,49 @@
   flex-direction: column;
   gap: 2px;
   max-height: min(52vh, 400px);
+}
+
+/*
+ * Arrivée en cascade, comme les sections de la fiche (voir `detail-cascade`
+ * dans `detail.css`) : une liste qui se remplit d'un bloc se lit comme une
+ * image figée, un léger décalage lui rend une lecture. Les incréments
+ * restent courts — on tape vite, la liste se recompose à chaque lettre, la
+ * cascade ne doit jamais donner l'impression de retarder la frappe.
+ */
+.search-list li {
+  animation: search-cascade 280ms var(--ease-out) both;
+}
+
+@keyframes search-cascade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.search-list li:nth-child(1) {
+  animation-delay: 0ms;
+}
+.search-list li:nth-child(2) {
+  animation-delay: 18ms;
+}
+.search-list li:nth-child(3) {
+  animation-delay: 36ms;
+}
+.search-list li:nth-child(4) {
+  animation-delay: 54ms;
+}
+.search-list li:nth-child(5) {
+  animation-delay: 72ms;
+}
+.search-list li:nth-child(6) {
+  animation-delay: 90ms;
+}
+.search-list li:nth-child(7) {
+  animation-delay: 108ms;
+}
+.search-list li:nth-child(n + 8) {
+  animation-delay: 126ms;
 }
 
 .search-result {
@@ -318,8 +350,8 @@
 
 .minimap {
   position: absolute;
-  left: 14px;
-  bottom: 14px;
+  left: calc(14px + var(--safe-left));
+  bottom: calc(14px + var(--safe-bottom));
   z-index: 12;
   padding: 8px;
   border-radius: 20px;
@@ -338,7 +370,7 @@
 
 .rail {
   position: absolute;
-  right: 14px;
+  right: calc(14px + var(--safe-right));
   top: 50%;
   transform: translateY(-50%);
   z-index: 12;
@@ -437,11 +469,18 @@
   }
 }
 
-@media (max-width: 860px) {
+/*
+ * Le même seuil que `useIsCompact` (voir `useMediaQuery.ts`) : largeur
+ * étroite, ou portrait jusqu'à 1024px — une tablette tenue à la verticale
+ * a besoin de la même mise en page resserrée qu'un téléphone, pas de la
+ * mise en page de bureau simplement parce qu'elle a la largeur nominale
+ * pour l'accueillir.
+ */
+@media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
   .topbar {
-    top: 10px;
-    left: 10px;
-    right: 10px;
+    top: calc(10px + var(--safe-top));
+    left: calc(10px + var(--safe-left));
+    right: calc(10px + var(--safe-right));
     height: auto;
     padding: 10px 10px 10px 14px;
     grid-template-columns: 1fr auto;
@@ -471,13 +510,13 @@
   }
 
   .rail {
-    right: 8px;
+    right: calc(8px + var(--safe-right));
     padding: 8px 5px;
   }
 
   /* En feuille basse, la fiche occupe le bas de l'écran : le rail s'efface. */
   .app[data-panel-open] .rail {
-    right: 8px;
+    right: calc(8px + var(--safe-right));
     opacity: 0;
     pointer-events: none;
   }
@@ -644,8 +683,8 @@
 
 .notice {
   position: absolute;
-  top: calc(var(--topbar-height) + 26px);
-  right: 20px;
+  top: calc(var(--topbar-height) + 26px + var(--safe-top));
+  right: calc(20px + var(--safe-right));
   z-index: 7;
   width: min(380px, calc(100vw - 40px));
   padding: 14px 16px 12px;
@@ -729,9 +768,9 @@
 @media (max-width: 720px) {
   .notice {
     top: auto;
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
+    right: calc(12px + var(--safe-right));
+    bottom: calc(12px + var(--safe-bottom));
+    left: calc(12px + var(--safe-left));
     width: auto;
   }
 }
