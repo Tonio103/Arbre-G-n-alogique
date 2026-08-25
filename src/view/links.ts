@@ -288,6 +288,24 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       const by = portraitCenterY(link.b.y);
       ctx.moveTo(cardCenterX(link.a.x), ay);
       ctx.lineTo(cardCenterX(link.b.x), by);
+
+      /*
+       * Cette union a des enfants, rattachés au sous-arbre du premier
+       * partenaire (voir `buildPlacementForest` dans `domain/layout.ts`) :
+       * le pointillé se prolonge jusqu'au point même où le trait plein de
+       * filiation commence. Sans ce prolongement, le mariage et la
+       * descendance se lisaient comme deux faits sans rapport — comme si
+       * les enfants n'avaient qu'un parent — alors que c'est le même geste,
+       * poursuivi.
+       */
+      const union = params.unions.find((candidate) => candidate.id === link.id);
+      if (union && union.children.length > 0) {
+        const hub = unionHub(union);
+        if (hub) {
+          ctx.moveTo(cardCenterX(link.a.x), ay);
+          ctx.lineTo(hub.x, hub.y);
+        }
+      }
     }
     ctx.setLineDash([6 / density, 6 / density]);
     ctx.strokeStyle = hasSelection ? palette.dim : palette.cross;
