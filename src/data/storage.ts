@@ -1,16 +1,17 @@
 import type { FamilyDataset } from './schema';
 
 /**
- * La famille de l'utilisateur, gardée dans le navigateur.
+ * La famille de l'utilisateur, partagée entre tous les appareils.
  *
- * Un arbre importé ou modifié dans l'application n'a nulle part où vivre :
- * il n'y a pas de serveur, et les fichiers `core-family.ts` / `ma-famille.ts`
- * sont compilés dans le bundle, pas réinscriptibles depuis l'interface. Le
- * stockage local du navigateur est donc la seule mémoire dont on dispose —
- * ce qui en fait aussi la seule sauvegarde : voir `gedcom-export.ts` et le
- * bouton d'export pour en sortir une copie qui survit à un « vider le cache ».
+ * Un arbre importé ou modifié dans l'application passe par `/api/family`,
+ * servi par le Worker (voir `worker/index.ts`) et gardé dans Cloudflare KV —
+ * la seule mémoire commune à tout le monde qui ouvre le site, protégée par
+ * Cloudflare Access au même titre que le reste. Avant cette API, chaque
+ * navigateur gardait sa propre copie (`localStorage`) : un proche ouvrant le
+ * site depuis son téléphone ne voyait jamais ce qui avait été saisi
+ * ailleurs. Voir aussi `gedcom-export.ts` et le bouton d'export pour sortir
+ * une copie qui survit à une panne ou une erreur de manipulation.
  */
-const STORAGE_KEY = 'arbre-famille-v1';
 
 export interface StoredFamily {
   dataset: FamilyDataset;
@@ -19,38 +20,43 @@ export interface StoredFamily {
   savedAt: string;
 }
 
-export function loadStoredFamily(): StoredFamily | null {
-  if (typeof window === 'undefined') return null;
+/** `null` si rien n'a encore été enregistré, ou si l'API est injoignable —
+ *  l'appelant retombe alors sur l'arbre local (voir `useDataset`). */
+export async function fetchStoredFamily(): Promise<StoredFamily | null> {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredFamily;
+    const response = await fetch('/api/family');
+    if (!response.ok) return null;
+    const parsed = (await response.json()) as StoredFamily | null;
     if (!parsed?.dataset?.people || !Array.isArray(parsed.dataset.people)) return null;
     return parsed;
   } catch {
-    // Une entrée corrompue ne doit pas empêcher l'application de démarrer :
-    // elle retombe simplement sur la démonstration.
+    // Hors ligne, ou le Worker n'est pas encore relié à un espace KV.
     return null;
   }
 }
 
-export function saveStoredFamily(dataset: FamilyDataset, source: StoredFamily['source']): void {
-  if (typeof window === 'undefined') return;
+export async function saveStoredFamily(dataset: FamilyDataset, source: StoredFamily['source']): Promise<void> {
   const entry: StoredFamily = { dataset, source, savedAt: new Date().toISOString() };
+  let response: Response;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entry));
-  } catch (error) {
-    // Le quota du navigateur est dépassé, ou le stockage est désactivé
-    // (navigation privée, par exemple) : l'appelant décide quoi en dire.
-    throw new Error(
-      error instanceof Error && error.name === 'QuotaExceededError'
-        ? "L'arbre est trop volumineux pour la mémoire du navigateur."
-        : "Le navigateur refuse d'enregistrer (stockage désactivé ?).",
-    );
+    response = await fetch('/api/family', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(entry),
+    });
+  } catch {
+    throw new Error('Impossible de joindre le serveur — vérifiez votre connexion.');
+  }
+  if (!response.ok) {
+    throw new Error("Le serveur a refusé d'enregistrer cette modification.");
   }
 }
 
-export function clearStoredFamily(): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(STORAGE_KEY);
+export async function clearStoredFamily(): Promise<void> {
+  try {
+    await fetch('/api/family', { method: 'DELETE' });
+  } catch {
+    // Une réinitialisation qui échoue à prévenir le serveur n'empêche pas
+    // de revenir localement à la démonstration — voir `useDataset.reset`.
+  }
 }
