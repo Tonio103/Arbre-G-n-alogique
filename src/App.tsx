@@ -222,6 +222,10 @@ export default function App() {
   const introRef = useRef(false);
   useEffect(() => {
     if (introRef.current) return;
+    // Tant que la version partagée n'a pas répondu, l'arbre affiché n'est
+    // qu'un brouillon local — inutile de cadrer dessus pour devoir recadrer
+    // une seconde fois dès que la vraie version arrive.
+    if (datasetCtrl.loading) return;
     const stageSize = viewport.size;
     if (stageSize.width <= 1) return;
     introRef.current = true;
@@ -240,7 +244,7 @@ export default function App() {
       if (root) viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1800);
     }, 1500);
     return () => window.clearTimeout(timer);
-  }, [viewport, layout]);
+  }, [viewport, layout, datasetCtrl.loading]);
 
   /*
    * Un import ou un retour à la démonstration change l'arbre de forme au
