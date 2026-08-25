@@ -959,6 +959,75 @@
   gap: 8px;
 }
 
+/* Nouvelle personne, ou lien vers une fiche qui existe déjà — voir `AddRelativeForm`. */
+.relative-mode {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-fill-faint);
+}
+
+.relative-mode-option {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-tertiary);
+  text-align: center;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.relative-mode-option:hover {
+  color: var(--text-secondary);
+}
+
+.relative-mode-option[data-on] {
+  background: var(--glass-fill-strong);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-inset);
+}
+
+.relative-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  margin-top: 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.relative-candidates-empty {
+  padding: 10px 4px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.relative-candidate {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.relative-candidate:hover {
+  background: var(--glass-fill-hover);
+  color: var(--text-primary);
+}
+
+.relative-candidate[data-selected] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 550;
+}
+
 /* Mouvement réduit : le contenu reste en place, seule la lisibilité compte. */
 @media (prefers-reduced-motion: reduce) {
   .detail-section {

@@ -13,6 +13,9 @@ import {
   addSpouse,
   createPerson,
   deletePerson,
+  linkChild,
+  linkParent,
+  linkSpouse,
   upsertPerson,
   type NewPersonInput,
 } from '@/domain/edit';
@@ -347,6 +350,32 @@ export default function App() {
     [datasetCtrl, graph, growUnion],
   );
 
+  const linkPersonParent = useCallback(
+    (childId: string, parentId: string) => {
+      const nextParents = [...(graph.people.get(childId)?.parents ?? []), parentId].slice(0, 2);
+      datasetCtrl.mutate((people) => linkParent(people, childId, parentId));
+      growUnion(nextParents.length > 1 ? unionKey(nextParents[0], nextParents[1]) : unionKey(nextParents[0]));
+    },
+    [datasetCtrl, graph, growUnion],
+  );
+
+  const linkPersonSpouse = useCallback(
+    (personId: string, spouseId: string, union?: { status: UnionStatus; since?: string; place?: string }) => {
+      datasetCtrl.mutate((people) => linkSpouse(people, personId, spouseId, union));
+      growUnion(unionKey(personId, spouseId));
+    },
+    [datasetCtrl, growUnion],
+  );
+
+  const linkPersonChild = useCallback(
+    (parentId: string, childId: string, otherParentId: string | null) => {
+      const parentIds = otherParentId ? [parentId, otherParentId] : [parentId];
+      datasetCtrl.mutate((people) => linkChild(people, parentIds, childId));
+      growUnion(otherParentId ? unionKey(parentId, otherParentId) : unionKey(parentId));
+    },
+    [datasetCtrl, growUnion],
+  );
+
   // Diagnostic : en développement, le graphe et le placement sont exposés pour
   // pouvoir vérifier depuis l'extérieur que chaque personne affichée est
   // réellement reliée à sa parenté.
@@ -511,6 +540,9 @@ export default function App() {
         onAddParent={(input) => selectedId && addPersonParent(selectedId, input)}
         onAddSpouse={(input, union) => selectedId && addPersonSpouse(selectedId, input, union)}
         onAddChild={(input, otherParentId) => selectedId && addPersonChild(selectedId, input, otherParentId)}
+        onLinkParent={(parentId) => selectedId && linkPersonParent(selectedId, parentId)}
+        onLinkSpouse={(spouseId, union) => selectedId && linkPersonSpouse(selectedId, spouseId, union)}
+        onLinkChild={(childId, otherParentId) => selectedId && linkPersonChild(selectedId, childId, otherParentId)}
       />
 
       <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>

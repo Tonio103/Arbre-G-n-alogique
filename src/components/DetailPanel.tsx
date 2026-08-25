@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { Person, PersonRecord, UnionStatus } from '@/data/schema';
 import { computeCurrentAge, formatDate } from '@/domain/dates';
-import { describeRelationship, type RelationPath } from '@/domain/relations';
+import { ancestorsOf, describeRelationship, descendantsOf, type RelationPath } from '@/domain/relations';
 import { lifeTrace } from '@/domain/timeline';
 import type { NewPersonInput } from '@/domain/edit';
 import { Avatar } from './Avatar';
@@ -31,6 +31,10 @@ export interface DetailPanelProps {
   onAddParent: (input: NewPersonInput) => void;
   onAddSpouse: (input: NewPersonInput, union?: { status: UnionStatus; since?: string; place?: string }) => void;
   onAddChild: (input: NewPersonInput, otherParentId: string | null) => void;
+  /** Les mêmes gestes, mais vers une personne qui a déjà sa propre fiche. */
+  onLinkParent: (parentId: string) => void;
+  onLinkSpouse: (spouseId: string, union?: { status: UnionStatus; since?: string; place?: string }) => void;
+  onLinkChild: (childId: string, otherParentId: string | null) => void;
 }
 
 function Section({
@@ -112,9 +116,42 @@ export function DetailPanel({
   onAddParent,
   onAddSpouse,
   onAddChild,
+  onLinkParent,
+  onLinkSpouse,
+  onLinkChild,
 }: DetailPanelProps) {
   const [editing, setEditing] = useState(false);
   const [addingRelative, setAddingRelative] = useState<RelativeKind | null>(null);
+
+  /*
+   * Qui peut être relié tel quel, pour ce rôle précis.
+   *
+   * Toujours soi-même exclu, et déjà exclu ce qui rendrait le lien
+   * redondant (un parent déjà enregistré) ou impossible (son propre
+   * descendant comme parent, son propre ascendant comme enfant) — la
+   * validation plus fine (dates, cohérence d'ensemble) reste au bandeau
+   * d'anomalies, comme pour tout le reste de l'arbre.
+   */
+  const relativeCandidates = useMemo(() => {
+    if (!person || !addingRelative) return [];
+    const exclude = new Set<string>([person.id]);
+    if (addingRelative === 'parent') {
+      for (const id of person.parents) exclude.add(id);
+      for (const id of descendantsOf(graph, person.id).keys()) exclude.add(id);
+    } else if (addingRelative === 'spouse') {
+      for (const link of person.spouseLinks) exclude.add(link.id);
+    } else {
+      for (const id of person.children) exclude.add(id);
+      for (const id of ancestorsOf(graph, person.id).keys()) exclude.add(id);
+    }
+    const list: Array<{ id: string; name: string }> = [];
+    for (const id of graph.order) {
+      if (exclude.has(id)) continue;
+      const candidate = graph.people.get(id);
+      if (candidate) list.push({ id, name: candidate.displayName });
+    }
+    return list;
+  }, [graph, person, addingRelative]);
   // Ce que cette personne est pour le point de repère, en toutes lettres.
   const kinship = useMemo(() => {
     if (!anchorId || !person || anchorId === person.id) return undefined;
@@ -397,11 +434,18 @@ export function DetailPanel({
                 const spouse = graph.people.get(link.id);
                 return { id: link.id, name: spouse?.displayName ?? link.id };
               })}
+              candidates={relativeCandidates}
               onCancel={() => setAddingRelative(null)}
               onSubmit={(input, otherParentId, union) => {
                 if (addingRelative === 'parent') onAddParent(input);
                 else if (addingRelative === 'spouse') onAddSpouse(input, union);
                 else onAddChild(input, otherParentId);
+                setAddingRelative(null);
+              }}
+              onLink={(existingId, otherParentId, union) => {
+                if (addingRelative === 'parent') onLinkParent(existingId);
+                else if (addingRelative === 'spouse') onLinkSpouse(existingId, union);
+                else onLinkChild(existingId, otherParentId);
                 setAddingRelative(null);
               }}
             />

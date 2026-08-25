@@ -111,3 +111,44 @@ export function addParent(people: PersonRecord[], childId: string, parent: Perso
     p.id === childId ? { ...p, parents: [...(p.parents ?? []), parent.id].slice(0, 2) } : p,
   );
 }
+
+/*
+ * Relier plutôt que créer.
+ *
+ * `addParent`/`addSpouse`/`addChild` créent toujours une personne neuve — le
+ * cas courant, une naissance ou une union qu'on découvre. Mais deux enfants
+ * qui partagent un second parent, ou un couple dont l'un des deux existe déjà
+ * ailleurs dans l'arbre, ont besoin de l'inverse : relier une fiche qui
+ * existe déjà, sans en dupliquer le contenu sous un nouvel identifiant.
+ */
+
+/** Relie un parent déjà existant — remplit le second parent sans en créer
+ *  un nouveau. Un lien déjà posé n'est pas dupliqué. */
+export function linkParent(people: PersonRecord[], childId: string, parentId: string): PersonRecord[] {
+  return people.map((p) => {
+    if (p.id !== childId) return p;
+    const parents = (p.parents ?? []).filter((id) => id !== parentId);
+    return { ...p, parents: [...parents, parentId].slice(0, 2) };
+  });
+}
+
+/** Relie un conjoint déjà existant, des deux côtés à la fois — voir `addSpouse`. */
+export function linkSpouse(
+  people: PersonRecord[],
+  personId: string,
+  otherId: string,
+  options?: { status?: UnionStatus; since?: string; place?: string },
+): PersonRecord[] {
+  const forward: SpouseLink = { id: otherId, status: options?.status ?? 'married', since: options?.since, place: options?.place };
+  const backward: SpouseLink = { id: personId, status: options?.status ?? 'married', since: options?.since, place: options?.place };
+  return people.map((p) => {
+    if (p.id === personId) return { ...p, spouses: [...(p.spouses ?? []), forward] };
+    if (p.id === otherId) return { ...p, spouses: [...(p.spouses ?? []), backward] };
+    return p;
+  });
+}
+
+/** Relie un enfant déjà existant à un ou deux parents — voir `addChild`. */
+export function linkChild(people: PersonRecord[], parentIds: string[], childId: string): PersonRecord[] {
+  return people.map((p) => (p.id === childId ? { ...p, parents: parentIds.slice(0, 2) } : p));
+}
