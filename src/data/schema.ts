@@ -96,7 +96,14 @@ export interface PersonRecord {
    */
   custom?: Record<string, string | string[]>;
 
-  /** Identifiants des parents (0, 1 ou 2). Source de vérité de la filiation. */
+  /**
+   * Identifiants des parents. Source de vérité de la filiation.
+   *
+   * Deux le plus souvent, mais rien ne l'impose : une adoption, une
+   * reconnaissance ou une famille recomposée en donnent trois ou quatre à un
+   * même enfant, et les inscrire tous vaut mieux que de choisir lesquels
+   * comptent.
+   */
   parents?: string[];
   /** Conjoints. Le lien est symétrisé automatiquement. */
   spouses?: Array<string | SpouseLink>;

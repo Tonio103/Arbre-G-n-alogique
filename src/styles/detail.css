@@ -685,11 +685,19 @@
 
 /* ------------------------------ Formulaires ------------------------------ */
 
-.edit-form {
+/* Le panneau d'édition : le formulaire des champs, puis l'éditeur de liens
+   et la zone dangereuse — ces deux-là hors du <form>, voir `PersonEditForm`. */
+.edit-pane {
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 4px 20px 20px;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .edit-form-row {
@@ -957,6 +965,122 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* --------------------------- Éditeur de liens --------------------------- */
+
+.edit-form-relations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Les liens ne suivent pas la règle du formulaire — ils s'appliquent tout de
+   suite. Le dire évite de chercher un « Enregistrer » qui ne les concerne pas. */
+.edit-form-relations-note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+.relation-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.relation-editor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.relation-editor-empty {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.relation-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.relation-editor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 11px;
+  border-radius: 12px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+}
+
+.relation-editor-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.relation-editor-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.relation-editor-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  font-size: 15px;
+  line-height: 1;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.relation-editor-remove:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Retirer un lien se confirme : le geste est discret mais change l'arbre. */
+.relation-editor-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.relation-editor-danger {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: 11.5px;
+  font-weight: 550;
+  color: #d64c3c;
+}
+
+.relation-editor-cancel {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.relation-editor-cancel:hover {
+  color: var(--text-secondary);
 }
 
 /* Nouvelle personne, ou lien vers une fiche qui existe déjà — voir `AddRelativeForm`. */

@@ -8,6 +8,7 @@ import type { NewPersonInput } from '@/domain/edit';
 import { Avatar } from './Avatar';
 import { RelationList } from './PersonRelations';
 import { PersonEditForm } from './PersonEditForm';
+import { RelationEditor } from './RelationEditor';
 import { AddRelativeForm, type RelativeKind } from './AddRelativeForm';
 import { AddPersonIcon, CloseIcon, EditIcon, HomeIcon, PeopleIcon, PinIcon } from './icons';
 
@@ -35,6 +36,10 @@ export interface DetailPanelProps {
   onLinkParent: (parentId: string) => void;
   onLinkSpouse: (spouseId: string, union?: { status: UnionStatus; since?: string; place?: string }) => void;
   onLinkChild: (childId: string, otherParentId: string | null) => void;
+  /** Défait un lien sans supprimer aucune des deux fiches. */
+  onDetachParent: (parentId: string) => void;
+  onDetachSpouse: (spouseId: string) => void;
+  onDetachChild: (childId: string) => void;
 }
 
 function Section({
@@ -119,6 +124,9 @@ export function DetailPanel({
   onLinkParent,
   onLinkSpouse,
   onLinkChild,
+  onDetachParent,
+  onDetachSpouse,
+  onDetachChild,
 }: DetailPanelProps) {
   const [editing, setEditing] = useState(false);
   const [addingRelative, setAddingRelative] = useState<RelativeKind | null>(null);
@@ -290,6 +298,21 @@ export function DetailPanel({
             }}
             onCancel={() => setEditing(false)}
             onDelete={() => onDeletePerson(person.id)}
+            relationEditor={
+              <RelationEditor
+                graph={graph}
+                person={person}
+                onAddParent={onAddParent}
+                onAddSpouse={onAddSpouse}
+                onAddChild={onAddChild}
+                onLinkParent={onLinkParent}
+                onLinkSpouse={onLinkSpouse}
+                onLinkChild={onLinkChild}
+                onDetachParent={onDetachParent}
+                onDetachSpouse={onDetachSpouse}
+                onDetachChild={onDetachChild}
+              />
+            }
           />
         </div>
       ) : (
@@ -451,12 +474,12 @@ export function DetailPanel({
             />
           ) : (
             <div className="relative-add-buttons">
-              {person.parents.length < 2 && (
-                <button type="button" className="action-button" onClick={() => setAddingRelative('parent')}>
-                  <AddPersonIcon />
-                  Parent
-                </button>
-              )}
+              {/* Pas de plafond à deux : une adoption ou une reconnaissance
+                  ajoute des parents plutôt qu'elle n'en remplace. */}
+              <button type="button" className="action-button" onClick={() => setAddingRelative('parent')}>
+                <AddPersonIcon />
+                Parent
+              </button>
               <button type="button" className="action-button" onClick={() => setAddingRelative('spouse')}>
                 <AddPersonIcon />
                 Conjoint·e

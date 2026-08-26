@@ -26,11 +26,17 @@ export interface FamilyGraph {
   warnings: string[];
 }
 
-/** Exporté pour prédire l'identifiant d'une union avant même la reconstruction
- *  du graphe — voir `growingUnionId` dans `App.tsx`, qui anime le trait d'une
- *  union tout juste créée dès l'instant où on sait qui la compose. */
-export const unionKey = (a: string, b?: string): string =>
-  b ? `u:${[a, b].sort().join('+')}` : `u:${a}`;
+/**
+ * Exporté pour prédire l'identifiant d'une union avant même la reconstruction
+ * du graphe — voir `growingUnionId` dans `App.tsx`, qui anime le trait d'une
+ * union tout juste créée dès l'instant où on sait qui la compose.
+ *
+ * Accepte un nombre quelconque de parents : une adoption en donne trois ou
+ * quatre à un même enfant. La version précédente n'en prenait que deux et
+ * laissait tomber les suivants — deux fratries adoptives partageant leurs
+ * deux premiers parents se retrouvaient alors dans la même union.
+ */
+export const unionKey = (...ids: string[]): string => `u:${[...ids].sort().join('+')}`;
 
 const toSpouseLink = (entry: string | SpouseLink): SpouseLink =>
   typeof entry === 'string' ? { id: entry, status: 'married' } : { ...entry };
@@ -157,10 +163,15 @@ export function buildFamilyGraph(dataset: FamilyDataset): FamilyGraph {
       if (parents.includes(parentId)) continue;
       parents.push(parentId);
     }
-    if (parents.length > 2) {
-      warnings.push(`« ${id} » a plus de deux parents ; seuls les deux premiers sont utilisés.`);
-      parents.length = 2;
-    }
+    /*
+     * Aucun plafond à deux parents.
+     *
+     * Cette normalisation en gardait autrefois les deux premiers et signalait
+     * les autres comme une anomalie. C'en était une du point de vue de la
+     * biologie, pas de celui d'une famille : une adoption, une reconnaissance
+     * ou une famille recomposée en donnent trois ou quatre, et les inscrire
+     * tous vaut mieux que d'avoir à choisir lesquels comptent.
+     */
     parentsOf.set(id, parents);
     for (const parentId of parents) childrenOf.get(parentId)!.push(id);
   }
@@ -282,7 +293,7 @@ export function buildFamilyGraph(dataset: FamilyDataset): FamilyGraph {
 
   const ensureUnion = (partners: string[]): Union => {
     const sorted = [...partners].sort();
-    const key = unionKey(sorted[0], sorted[1]);
+    const key = unionKey(...sorted);
     let union = unions.get(key);
     if (!union) {
       union = { id: key, partners: sorted, children: [], status: 'unknown' };

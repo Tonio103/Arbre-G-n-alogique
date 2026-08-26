@@ -13,6 +13,9 @@ import {
   addSpouse,
   createPerson,
   deletePerson,
+  detachChild,
+  detachParent,
+  detachSpouse,
   linkChild,
   linkParent,
   linkSpouse,
@@ -376,6 +379,34 @@ export default function App() {
     [datasetCtrl, growUnion],
   );
 
+  /*
+   * Défaire un lien.
+   *
+   * Aucune fiche n'est supprimée : seule la relation disparaît. Corriger une
+   * filiation fausse ou un remariage mal noté imposait jusqu'ici de supprimer
+   * la personne et de tout ressaisir.
+   */
+  const detachPersonParent = useCallback(
+    (childId: string, parentId: string) => {
+      datasetCtrl.mutate((people) => detachParent(people, childId, parentId));
+    },
+    [datasetCtrl],
+  );
+
+  const detachPersonSpouse = useCallback(
+    (personId: string, spouseId: string) => {
+      datasetCtrl.mutate((people) => detachSpouse(people, personId, spouseId));
+    },
+    [datasetCtrl],
+  );
+
+  const detachPersonChild = useCallback(
+    (parentId: string, childId: string) => {
+      datasetCtrl.mutate((people) => detachChild(people, parentId, childId));
+    },
+    [datasetCtrl],
+  );
+
   // Diagnostic : en développement, le graphe et le placement sont exposés pour
   // pouvoir vérifier depuis l'extérieur que chaque personne affichée est
   // réellement reliée à sa parenté.
@@ -489,6 +520,9 @@ export default function App() {
         onLinkParent={(parentId) => selectedId && linkPersonParent(selectedId, parentId)}
         onLinkSpouse={(spouseId, union) => selectedId && linkPersonSpouse(selectedId, spouseId, union)}
         onLinkChild={(childId, otherParentId) => selectedId && linkPersonChild(selectedId, childId, otherParentId)}
+        onDetachParent={(parentId) => selectedId && detachPersonParent(selectedId, parentId)}
+        onDetachSpouse={(spouseId) => selectedId && detachPersonSpouse(selectedId, spouseId)}
+        onDetachChild={(childId) => selectedId && detachPersonChild(selectedId, childId)}
       />
 
       <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>

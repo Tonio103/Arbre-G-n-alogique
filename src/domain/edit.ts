@@ -63,7 +63,7 @@ export function upsertPerson(people: PersonRecord[], person: PersonRecord): Pers
   return next;
 }
 
-function spouseId(link: string | SpouseLink): string {
+function spouseIdOf(link: string | SpouseLink): string {
   return typeof link === 'string' ? link : link.id;
 }
 
@@ -75,7 +75,7 @@ export function deletePerson(people: PersonRecord[], id: string): PersonRecord[]
     .filter((p) => p.id !== id)
     .map((p) => {
       const parents = p.parents?.filter((pid) => pid !== id);
-      const spouses = p.spouses?.filter((s) => spouseId(s) !== id);
+      const spouses = p.spouses?.filter((s) => spouseIdOf(s) !== id);
       if (parents === p.parents && spouses === p.spouses) return p;
       return { ...p, parents, spouses };
     });
@@ -103,12 +103,12 @@ export function addChild(people: PersonRecord[], parentIds: string[], child: Per
   return [...people, { ...child, parents: parentIds }];
 }
 
-/** Ajoute un parent à quelqu'un qui n'en a pas encore deux — au-delà, il
- *  faudrait d'abord en retirer un, ce que l'appelant vérifie. */
+/** Ajoute un parent. Le nombre n'est pas plafonné : une adoption ou une
+ *  reconnaissance en donne trois ou quatre (voir `schema.ts`). */
 export function addParent(people: PersonRecord[], childId: string, parent: PersonRecord): PersonRecord[] {
   const withParent = [...people, parent];
   return withParent.map((p) =>
-    p.id === childId ? { ...p, parents: [...(p.parents ?? []), parent.id].slice(0, 2) } : p,
+    p.id === childId ? { ...p, parents: [...(p.parents ?? []), parent.id] } : p,
   );
 }
 
@@ -122,13 +122,13 @@ export function addParent(people: PersonRecord[], childId: string, parent: Perso
  * existe déjà, sans en dupliquer le contenu sous un nouvel identifiant.
  */
 
-/** Relie un parent déjà existant — remplit le second parent sans en créer
- *  un nouveau. Un lien déjà posé n'est pas dupliqué. */
+/** Relie un parent déjà existant, sans créer de nouvelle fiche. Un lien déjà
+ *  posé n'est pas dupliqué. */
 export function linkParent(people: PersonRecord[], childId: string, parentId: string): PersonRecord[] {
   return people.map((p) => {
     if (p.id !== childId) return p;
     const parents = (p.parents ?? []).filter((id) => id !== parentId);
-    return { ...p, parents: [...parents, parentId].slice(0, 2) };
+    return { ...p, parents: [...parents, parentId] };
   });
 }
 
@@ -148,7 +148,37 @@ export function linkSpouse(
   });
 }
 
-/** Relie un enfant déjà existant à un ou deux parents — voir `addChild`. */
+/** Relie un enfant déjà existant à ses parents — voir `addChild`. */
 export function linkChild(people: PersonRecord[], parentIds: string[], childId: string): PersonRecord[] {
-  return people.map((p) => (p.id === childId ? { ...p, parents: parentIds.slice(0, 2) } : p));
+  return people.map((p) => (p.id === childId ? { ...p, parents: [...parentIds] } : p));
+}
+
+/*
+ * Défaire un lien, sans supprimer personne.
+ *
+ * Retirer une union ou une filiation n'est pas la même chose que supprimer
+ * une fiche : la personne reste dans l'arbre avec tout ce qu'on sait d'elle,
+ * seul le lien disparaît. C'est ce qu'il faut pour corriger une erreur de
+ * saisie, un remariage mal noté ou une filiation qui s'avère fausse.
+ */
+
+/** Détache un parent de son enfant. */
+export function detachParent(people: PersonRecord[], childId: string, parentId: string): PersonRecord[] {
+  return people.map((p) =>
+    p.id === childId ? { ...p, parents: (p.parents ?? []).filter((id) => id !== parentId) } : p,
+  );
+}
+
+/** Défait une union, des deux côtés à la fois. */
+export function detachSpouse(people: PersonRecord[], personId: string, spouseId: string): PersonRecord[] {
+  return people.map((p) => {
+    if (p.id !== personId && p.id !== spouseId) return p;
+    const other = p.id === personId ? spouseId : personId;
+    return { ...p, spouses: (p.spouses ?? []).filter((s) => spouseIdOf(s) !== other) };
+  });
+}
+
+/** Détache un enfant de ce parent-ci, en lui laissant ses autres parents. */
+export function detachChild(people: PersonRecord[], parentId: string, childId: string): PersonRecord[] {
+  return detachParent(people, childId, parentId);
 }

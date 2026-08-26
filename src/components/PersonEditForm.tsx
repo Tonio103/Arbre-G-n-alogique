@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import type { Milestone, Person, PersonRecord } from '@/data/schema';
 
 export interface PersonEditFormProps {
@@ -6,6 +6,17 @@ export interface PersonEditFormProps {
   onSave: (record: PersonRecord) => void;
   onCancel: () => void;
   onDelete: () => void;
+  /**
+   * L'éditeur de liens (parents, unions, enfants), rendu par la fiche et
+   * inséré ici.
+   *
+   * Il est passé plutôt que construit sur place parce qu'il ne suit pas la
+   * même règle que le reste du formulaire : les champs se valident en bloc à
+   * l'enregistrement, un lien s'applique à l'instant où on le pose. Le
+   * mélanger à `values` reviendrait à pouvoir « annuler » une filiation déjà
+   * inscrite dans l'arbre.
+   */
+  relationEditor?: ReactNode;
 }
 
 interface Field {
@@ -341,7 +352,13 @@ function CustomFieldsEditor({
  * ici : il est reconstruit à partir des dates, des unions et des naissances
  * d'enfants déjà saisies (voir `domain/timeline.ts`), pas ressaisi à part.
  */
-export function PersonEditForm({ person, onSave, onCancel, onDelete }: PersonEditFormProps) {
+export function PersonEditForm({
+  person,
+  onSave,
+  onCancel,
+  onDelete,
+  relationEditor,
+}: PersonEditFormProps) {
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {
       firstName: person.firstName,
@@ -422,6 +439,7 @@ export function PersonEditForm({ person, onSave, onCancel, onDelete }: PersonEdi
   };
 
   return (
+    <div className="edit-pane">
     <form className="edit-form" onSubmit={handleSubmit}>
       <div className="edit-form-row edit-form-row--split">
         <label className="edit-field">
@@ -509,6 +527,25 @@ export function PersonEditForm({ person, onSave, onCancel, onDelete }: PersonEdi
           Annuler
         </button>
       </div>
+    </form>
+
+    {/*
+      * Hors du <form> ci-dessus, délibérément.
+      *
+      * L'éditeur de liens contient lui-même un formulaire (`AddRelativeForm`)
+      * et le HTML interdit d'imbriquer deux <form> : le navigateur rattache
+      * alors le bouton intérieur au formulaire extérieur. Placé dedans,
+      * « Ajouter » enregistrait la fiche et refermait le panneau au lieu
+      * d'ajouter le proche.
+      */}
+    {relationEditor && (
+      <div className="edit-form-relations">
+        <p className="edit-form-relations-note">
+          Les liens s’appliquent immédiatement, sans passer par « Enregistrer ».
+        </p>
+        {relationEditor}
+      </div>
+    )}
 
       <div className="edit-form-danger">
         {!confirmingDelete ? (
@@ -529,6 +566,6 @@ export function PersonEditForm({ person, onSave, onCancel, onDelete }: PersonEdi
           </div>
         )}
       </div>
-    </form>
+    </div>
   );
 }
