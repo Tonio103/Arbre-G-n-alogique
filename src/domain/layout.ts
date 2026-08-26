@@ -273,21 +273,22 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
   }
 
   /*
-   * Les filiations que la bande ne peut pas porter.
+   * Les filiations que la bande ne peut pas porter ne sont pas dessinées.
    *
    * Une personne n'occupe qu'une place, mais ses deux parents peuvent vivre
    * dans deux familles différentes — c'est le cas dès que les deux conjoints
-   * d'un couple ont eux-mêmes des parents connus. Le lien vers le second se
-   * trace donc à part, en pointillé, comme sur un arbre imprimé : mieux vaut
-   * un trait qui s'annonce comme un renvoi qu'un trait plein qui traverse
-   * l'arbre en prétendant être une descente.
+   * d'un couple ont eux-mêmes des parents connus. Une version précédente les
+   * traçait en pointillé, d'un parent à l'enfant : six traits en diagonale
+   * qui traversaient tout l'arbre de part en part, bien plus nuisibles à la
+   * lecture que le lien qu'ils rendaient. Un arbre imprimé ne fait pas
+   * autrement : il répète le nom ailleurs, il ne tire pas un fil à travers la
+   * page.
+   *
+   * Le lien n'est pas perdu pour autant : la fiche de la personne montre ses
+   * deux parents, cliquables, et le bandeau d'anomalies signale ce que le
+   * dessin ne peut pas porter.
    */
-  for (const link of secondaryLinks) {
-    const parent = partnerOf(link.parentId);
-    const child = partnerOf(link.childId);
-    if (!parent || !child) continue;
-    crossLinks.push({ id: `p:${link.parentId}>${link.childId}`, a: parent, b: child, status: 'unknown' });
-  }
+  void secondaryLinks;
 
   // Chaque famille sur son propre étage, pour que deux traits de filiation
   // ne se confondent jamais — voir `assignBusLanes`.
