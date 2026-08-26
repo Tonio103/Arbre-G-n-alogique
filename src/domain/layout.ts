@@ -436,6 +436,20 @@ function spreadRow(blocks: NodePosition[][]): void {
   }
 }
 
+/** Milieu d'une rangée entière, du bord gauche du premier bloc au bord droit
+ *  du dernier — sert à annuler la dérive de `spreadRow`. */
+function rowCenter(blocks: NodePosition[][]): number {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const members of blocks) {
+    for (const member of members) {
+      min = Math.min(min, member.x);
+      max = Math.max(max, member.x + CARD_WIDTH);
+    }
+  }
+  return Number.isFinite(min) ? (min + max) / 2 : 0;
+}
+
 /** Remet les blocs d'une rangée dans l'ordre de leur position courante. */
 function sortRowByPosition(blocks: NodePosition[][]): void {
   blocks.sort((a, b) => Math.min(...a.map((m) => m.x)) - Math.min(...b.map((m) => m.x)));
@@ -583,9 +597,14 @@ function refinePositions(
     return Number.isFinite(min) ? (min + max) / 2 : undefined;
   };
 
-  // Assez de passes pour que l'information traverse tout l'arbre dans les deux
-  // sens, sans chercher une convergence parfaite : au-delà, le dessin ne bouge
-  // plus assez pour qu'on le voie.
+  /*
+   * Six passes, pas davantage — c'est un optimum mesuré, pas un compromis de
+   * prudence. Chaque passe rapproche les familles mais écarte aussi un peu
+   * les rangées, et au-delà de six le second effet l'emporte : sur l'arbre de
+   * quatre-vingts personnes qui a servi de référence, douze passes rallongent
+   * les traits au lieu de les raccourcir, et quarante les rallongent de
+   * moitié.
+   */
   for (let pass = 0; pass < 6; pass += 1) {
     const downward = pass % 2 === 0;
     const order = downward ? generations : [...generations].reverse();
@@ -612,7 +631,23 @@ function refinePositions(
         for (const member of block) member.x += shift;
       }
 
+      /*
+       * Écarter puis recentrer la rangée sur elle-même.
+       *
+       * `spreadRow` ne sait que pousser vers la droite : à chaque passe, une
+       * rangée qui se dégage gagne donc du terrain de ce côté, et rien ne le
+       * lui reprend. Sur plusieurs passes cette dérive s'accumule — mesuré,
+       * l'arbre s'élargissait d'un tiers et les traits s'allongeaient au lieu
+       * de se raccourcir, si bien qu'augmenter le nombre de passes dégradait
+       * le dessin. Ramener la rangée sur son propre centre après coup annule
+       * ce biais sans rien changer aux écarts qu'elle vient d'obtenir.
+       */
+      const before = rowCenter(blocks);
       spreadRow(blocks);
+      const drift = rowCenter(blocks) - before;
+      if (Math.abs(drift) > 0.5) {
+        for (const block of blocks) for (const member of block) member.x -= drift;
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { Milestone, Person, PersonRecord } from '@/data/schema';
+import { toPersonRecord } from '@/domain/edit';
 
 export interface PersonEditFormProps {
   person: Person;
@@ -396,8 +397,10 @@ export function PersonEditForm({
 
   const handleSubmit = (event: FormEvent): void => {
     event.preventDefault();
+    // `person` est la fiche enrichie : n'en garder que ce qui a été saisi,
+    // sans les déductions du graphe — voir `toPersonRecord`.
     const record: PersonRecord = {
-      ...person,
+      ...toPersonRecord(person),
       firstName: values.firstName.trim() || person.firstName,
       lastName: values.lastName.trim(),
       gender: gender ? (gender as PersonRecord['gender']) : undefined,

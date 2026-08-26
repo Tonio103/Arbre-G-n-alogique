@@ -52,6 +52,78 @@ export function createPerson(input: NewPersonInput, existingIds: Set<string>): P
   };
 }
 
+/**
+ * Ne garde d'une personne que ce qui a été saisi.
+ *
+ * `Person` est la fiche *enrichie* : le graphe y ajoute au chargement tout ce
+ * qu'il déduit — enfants, fratrie, unions, génération, nom affiché, initiales…
+ * Enregistrer cet objet tel quel figeait ces déductions dans les données
+ * sauvegardées, où elles n'ont rien à faire : elles y côtoyaient les vraies et
+ * pouvaient contredire le lien réel, faisant croire à une filiation que plus
+ * personne ne déclarait. Sur un arbre de quatre-vingts personnes, vingt-sept
+ * fiches en portaient la trace.
+ *
+ * Seuls les champs de `PersonRecord` (voir `schema.ts`) sont donc conservés.
+ */
+export function toPersonRecord(person: PersonRecord): PersonRecord {
+  const {
+    id,
+    firstName,
+    lastName,
+    maidenName,
+    middleNames,
+    nickname,
+    gender,
+    birthDate,
+    birthPlace,
+    deathDate,
+    deathPlace,
+    photo,
+    profession,
+    education,
+    residences,
+    headline,
+    biography,
+    interests,
+    anecdotes,
+    milestones,
+    memories,
+    notes,
+    links,
+    custom,
+    parents,
+    spouses,
+  } = person;
+  return {
+    id,
+    firstName,
+    lastName,
+    maidenName,
+    middleNames,
+    nickname,
+    gender,
+    birthDate,
+    birthPlace,
+    deathDate,
+    deathPlace,
+    photo,
+    profession,
+    education,
+    residences,
+    headline,
+    biography,
+    interests,
+    anecdotes,
+    milestones,
+    memories,
+    notes,
+    links,
+    custom,
+    parents,
+    spouses,
+  };
+}
+
 /** Ajoute une personne, ou remplace intégralement sa fiche si son
  *  identifiant existe déjà — c'est ainsi que la modification d'une fiche
  *  existante se distingue de la création d'une nouvelle. */

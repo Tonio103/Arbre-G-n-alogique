@@ -9,6 +9,7 @@ import type {
 } from '@/data/schema';
 import { normalizeText } from './text';
 import { parseYear, computeAgeAtDeath } from './dates';
+import { toPersonRecord } from './edit';
 
 export interface FamilyGraph {
   title: string;
@@ -170,7 +171,18 @@ export function buildFamilyGraph(dataset: FamilyDataset): FamilyGraph {
       warnings.push(`Identifiant en double ignoré : « ${record.id} ».`);
       continue;
     }
-    records.set(record.id, record);
+    /*
+     * Ne retenir que ce qui a été saisi.
+     *
+     * Une version antérieure enregistrait la fiche *enrichie* — enfants,
+     * fratrie, unions, génération, tout ce que le graphe déduit — dans les
+     * données sauvegardées. Ces déductions figées y restent, et rien ne
+     * garantit qu'elles disent encore la vérité : un `children` d'hier peut
+     * nommer un enfant qui, lui, ne déclare plus ce parent. Les écarter au
+     * chargement évite qu'une donnée périmée entre en concurrence avec le
+     * lien réel, et répare au passage les arbres déjà pollués.
+     */
+    records.set(record.id, toPersonRecord(record));
   }
 
   // --- Filiation : nettoyage des références et dérivation des enfants ---
