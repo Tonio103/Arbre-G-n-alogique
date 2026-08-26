@@ -97,34 +97,163 @@ export interface TreeLayout {
   branchOf: Map<string, number>;
 }
 
+/**
+ * Un bloc : un couple côte à côte, ou une personne seule.
+ *
+ * L'ascendance de chaque membre se rattache **au-dessus** de lui, la
+ * descendance du couple **en dessous**. C'est ce qui distingue ce placement
+ * d'un simple arbre de descendance : un conjoint qui a lui-même des parents
+ * connus n'a plus à choisir entre « rester près de son conjoint » et
+ * « rester sous ses parents », puisque les deux tiennent enfin ensemble.
+ */
 interface PlacementNode {
   anchorId: string;
   /** Personnes du bloc, de gauche à droite (conjoints inclus). */
   members: string[];
-  /** Sous-arbres enfants, dans l'ordre horizontal. */
+  /**
+   * Sous-arbres d'ascendance, un par membre qui en a une.
+   *
+   * `memberIndex` dit au-dessus de quel membre du bloc cette lignée doit se
+   * centrer : celle de la personne de gauche reste à gauche, celle de droite
+   * à droite. Les centrer toutes sur le bloc entier les empilerait au même
+   * endroit, l'une par-dessus l'autre.
+   */
+  ancestorNodes: Array<PlacementNode & { memberIndex?: number }>;
+  /** Sous-arbres de descendance, dans l'ordre des naissances. */
   childNodes: PlacementNode[];
   generation: number;
   blockWidth: number;
-  /** Position du bloc, relative à l'origine locale du sous-arbre. */
-  blockOffset: number;
   /** Décalage de ce sous-arbre par rapport à l'origine de son parent. */
   offset: number;
-  contour: Contour;
+  /**
+   * Étendue horizontale occupée par ce sous-arbre, génération par génération.
+   *
+   * Indexée par génération absolue plutôt que par profondeur relative : un
+   * sous-arbre s'étend maintenant vers le haut *et* vers le bas, et une
+   * profondeur relative n'a plus de signe unique.
+   */
+  profile: Profile;
+}
+
+/** Étendue horizontale d'une génération : de `min` à `max`. */
+interface Span {
+  min: number;
+  max: number;
+}
+
+type Profile = Map<number, Span>;
+
+/** Fusionne `source`, décalée de `shift`, dans `target`. */
+function mergeProfile(target: Profile, source: Profile, shift: number): void {
+  for (const [generation, span] of source) {
+    const existing = target.get(generation);
+    const min = span.min + shift;
+    const max = span.max + shift;
+    if (existing) {
+      existing.min = Math.min(existing.min, min);
+      existing.max = Math.max(existing.max, max);
+    } else {
+      target.set(generation, { min, max });
+    }
+  }
+}
+
+/** Étendue totale d'un profil, toutes générations confondues. */
+function profileSpan(profile: Profile): Span {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const span of profile.values()) {
+    min = Math.min(min, span.min);
+    max = Math.max(max, span.max);
+  }
+  if (!Number.isFinite(min)) return { min: 0, max: 0 };
+  return { min, max };
+}
+
+/**
+ * Range une série de sous-arbres côte à côte, au plus serré.
+ *
+ * Chacun se décale juste assez pour ne toucher aucun de ses prédécesseurs, en
+ * ne comparant que les générations qu'ils ont réellement en commun : une
+ * branche courte peut ainsi se glisser sous la ramure de sa voisine au lieu
+ * de la pousser, et la largeur totale reste celle de la génération la plus
+ * fournie plutôt que celle du nombre de feuilles.
+ */
+function packGroup(nodes: PlacementNode[]): Profile {
+  const merged: Profile = new Map();
+  for (const node of nodes) {
+    let shift = 0;
+    for (const [generation, span] of node.profile) {
+      const taken = merged.get(generation);
+      if (!taken) continue;
+      shift = Math.max(shift, taken.max - span.min + SIBLING_GAP);
+    }
+    node.offset = shift;
+    mergeProfile(merged, node.profile, shift);
+  }
+  return merged;
+}
+
+/**
+ * Même rangement, mais en partant d'un encombrement déjà connu et en
+ * conservant la position souhaitée de chaque sous-arbre tant qu'elle ne
+ * heurte rien.
+ *
+ * L'ascendance ne se range pas comme une fratrie : chaque lignée vise le
+ * membre dont elle descend, et ne s'écarte de cette place que si elle
+ * empiète sur quelque chose de déjà posé — le bloc lui-même, ou la lignée
+ * de l'autre conjoint. Sans cette réserve, une lignée pouvait se retrouver
+ * exactement sur les cartes du bloc parent, une génération plus haut.
+ */
+function packGroupFrom(
+  nodes: Array<PlacementNode & { memberIndex?: number }>,
+  occupied: Profile,
+): Profile {
+  const merged: Profile = new Map();
+  mergeProfile(merged, occupied, 0);
+
+  const added: Profile = new Map();
+  for (const node of nodes) {
+    let shift = 0;
+    for (const [generation, span] of node.profile) {
+      const taken = merged.get(generation);
+      if (!taken) continue;
+      const min = span.min + node.offset;
+      const max = span.max + node.offset;
+      // Ne pousser que s'il y a réellement recouvrement.
+      if (max + SIBLING_GAP <= taken.min || min >= taken.max + SIBLING_GAP) continue;
+      shift = Math.max(shift, taken.max - min + SIBLING_GAP);
+    }
+    node.offset += shift;
+    mergeProfile(merged, node.profile, node.offset);
+    mergeProfile(added, node.profile, node.offset);
+  }
+  return added;
 }
 
 /**
  * Place chaque personne une seule fois.
  *
- * Une personne mariée dans la famille apparaît à côté de son conjoint ; une
- * personne née dans la famille apparaît sous ses parents. Quand les deux
- * conjoints sont nés dans l'arbre, le premier rencontré garde sa place et
- * l'union devient un lien croisé — ce que fait aussi un arbre sur papier.
+ * Le parcours descend depuis les plus anciens ancêtres connus, comme se lit
+ * un arbre imprimé. Ce qui change, c'est qu'un conjoint qui a lui-même des
+ * parents peut désormais rejoindre le bloc de son époux ou son épouse : son
+ * ascendance le suit et se place au-dessus de lui (`ancestorNodes`).
+ *
+ * Partir du repère de l'arbre plutôt que des ancêtres serait tentant — c'est
+ * autour de lui que tout s'organise — mais le ferait devenir le sommet de sa
+ * propre famille : ses frères et sœurs, rattachés à leurs parents un cran
+ * plus haut, se retrouveraient placés exactement sur lui.
  */
-function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
+function buildPlacementForest(graph: FamilyGraph): {
+  roots: PlacementNode[];
+  /** À quel bloc appartient chaque personne — un couple se déplace d'un seul tenant. */
+  blockOf: Map<string, string>;
+} {
   const { people, unions } = graph;
   const placed = new Set<string>();
   const placedUnions = new Set<string>();
   const roots: PlacementNode[] = [];
+  const blockOf = new Map<string, string>();
 
   // Nombre de descendants, par programmation dynamique : `graph.order` étant trié
   // par génération, le parcourir à l'envers garantit que les enfants sont comptés
@@ -143,9 +272,15 @@ function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
     placed.add(anchorId);
     const person = people.get(anchorId)!;
 
-    // Conjoints encore libres : ils rejoignent le bloc de cette personne.
-    // Un conjoint dont les parents figurent dans l'arbre garde en revanche sa
-    // place dans sa propre lignée ; son mariage devient alors un lien croisé.
+    /*
+     * Les conjoints rejoignent le bloc, y compris ceux qui ont eux-mêmes des
+     * parents dans l'arbre — c'est le changement décisif. Auparavant un tel
+     * conjoint restait dans sa propre lignée, à l'autre bout de l'arbre, et
+     * son mariage se réduisait à un pointillé qui traversait tout l'écran :
+     * avec quelques générations de chaque côté, plus rien ne se lisait comme
+     * une famille. Son ascendance étant désormais placée au-dessus de lui,
+     * il peut enfin tenir sa place auprès de son conjoint.
+     */
     const attachedSpouses: string[] = [];
     for (const unionId of person.unionIds) {
       const union = unions.get(unionId);
@@ -153,7 +288,6 @@ function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
       const partnerId = union.partners.find((p) => p !== anchorId);
       if (!partnerId) continue;
       if (placed.has(partnerId)) continue;
-      if ((people.get(partnerId)?.parents.length ?? 0) > 0) continue;
       placed.add(partnerId);
       attachedSpouses.push(partnerId);
     }
@@ -168,16 +302,31 @@ function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
       members = [attachedSpouses[0], anchorId, ...attachedSpouses.slice(1)];
     }
 
+    for (const memberId of members) blockOf.set(memberId, anchorId);
+
     const node: PlacementNode = {
       anchorId,
       members,
+      ancestorNodes: [],
       childNodes: [],
       generation: person.generation,
       blockWidth: members.length * CARD_WIDTH + (members.length - 1) * COUPLE_GAP,
-      blockOffset: 0,
       offset: 0,
-      contour: { left: [0], right: [0] },
+      profile: new Map(),
     };
+
+    // L'ascendance de chaque membre, dans l'ordre où les membres sont posés :
+    // la lignée de celui de gauche reste à gauche, celle de droite à droite,
+    // et les deux branches ne se croisent pas au-dessus du couple.
+    members.forEach((memberId, memberIndex) => {
+      const member = people.get(memberId);
+      if (!member) return;
+      const parents = member.parents.filter((id) => people.has(id) && !placed.has(id));
+      if (parents.length === 0) return;
+      const ancestor = makeNode(parents[0]) as PlacementNode & { memberIndex?: number };
+      ancestor.memberIndex = memberIndex;
+      node.ancestorNodes.push(ancestor);
+    });
 
     // Descendance : toute union d'un membre du bloc que personne n'a encore
     // prise en charge. La première visite emporte les enfants, ce qui garantit
@@ -223,93 +372,294 @@ function buildPlacementForest(graph: FamilyGraph): PlacementNode[] {
     roots.push(makeNode(id));
   }
 
-  return roots;
+  return { roots, blockOf };
 }
 
 /**
- * Place les sous-arbres par contours plutôt qu'en bandes exclusives.
+ * Dernier mot sur les recouvrements.
  *
- * Le placement naïf réserve à chaque sous-arbre une bande où nul autre n'entre.
- * Une personne sans descendance monopolise alors une colonne sur toute la
- * hauteur de l'arbre, et la largeur totale finit par valoir le nombre de
- * feuilles plutôt que la population de la génération la plus fournie — deux
- * fois et demie l'espace nécessaire, dans ce jeu de données. Les branches
- * doivent parcourir cette largeur en une génération de hauteur, ce qui les
- * couche à l'horizontale.
+ * Le placement récursif range chaque sous-arbre par rapport à ses voisins
+ * immédiats, mais deux branches très éloignées dans la récursion peuvent
+ * malgré tout se retrouver à la même hauteur, au même endroit : la lignée
+ * d'un conjoint remonte à une génération déjà occupée par une famille dont
+ * elle ne sait rien. Aucun réglage local ne peut le garantir.
  *
- * On garde donc, pour chaque sous-arbre, la silhouette de ses bords gauche et
- * droit, niveau par niveau. Deux voisins ne s'écartent alors que de ce que
- * leurs silhouettes exigent réellement : une branche courte se glisse sous la
- * ramure de sa voisine au lieu de la pousser.
+ * Cette passe balaie donc chaque génération de gauche à droite et écarte ce
+ * qui se chevauche, en déplaçant les couples d'un seul tenant. Elle ne
+ * réordonne rien — l'ordre issu du placement, qui regroupe les familles,
+ * est conservé — elle ne fait que garantir qu'aucune carte n'en recouvre
+ * une autre.
  */
-interface Contour {
-  /** Bord gauche, par profondeur relative au nœud (0 = sa propre rangée). */
-  left: number[];
-  right: number[];
+/** Regroupe les personnes par génération puis par bloc — la maille sur
+ *  laquelle travaillent l'écartement et le recentrage. */
+function groupByGeneration(
+  positions: Map<string, NodePosition>,
+  blockOf: Map<string, string>,
+): Map<number, NodePosition[][]> {
+  const byGeneration = new Map<number, Map<string, NodePosition[]>>();
+  for (const position of positions.values()) {
+    const generation = byGeneration.get(position.generation) ?? new Map<string, NodePosition[]>();
+    const key = blockOf.get(position.id) ?? position.id;
+    const group = generation.get(key) ?? [];
+    group.push(position);
+    generation.set(key, group);
+    byGeneration.set(position.generation, generation);
+  }
+
+  const result = new Map<number, NodePosition[][]>();
+  for (const [generation, blocks] of byGeneration) {
+    result.set(
+      generation,
+      [...blocks.values()].map((members) => members.sort((a, b) => a.x - b.x)),
+    );
+  }
+  return result;
 }
 
-function measure(node: PlacementNode): void {
-  if (node.childNodes.length === 0) {
-    node.blockOffset = 0;
-    node.contour = { left: [0], right: [node.blockWidth] };
-    return;
-  }
-
-  const merged: Contour = { left: [], right: [] };
-
-  for (let i = 0; i < node.childNodes.length; i += 1) {
-    const child = node.childNodes[i];
-    measure(child);
-
-    if (i === 0) {
-      child.offset = 0;
-    } else {
-      // Décalage minimal : le plus grand empiètement constaté sur les niveaux
-      // que les deux silhouettes ont en commun.
-      let shift = 0;
-      const shared = Math.min(merged.right.length, child.contour.left.length);
-      for (let d = 0; d < shared; d += 1) {
-        shift = Math.max(shift, merged.right[d] - child.contour.left[d] + SIBLING_GAP);
-      }
-      child.offset = shift;
+/**
+ * Écarte, sur une seule rangée, les blocs qui se chevauchent.
+ *
+ * L'ordre du tableau fait foi et n'est jamais remis en cause : c'est celui
+ * qu'`orderRows` a choisi pour croiser le moins de traits possible. Trier à
+ * nouveau par position defferait ce choix dès qu'un bloc dépasse son voisin
+ * en cherchant son centre.
+ */
+function spreadRow(blocks: NodePosition[][]): void {
+  let cursor = Number.NEGATIVE_INFINITY;
+  for (const members of blocks) {
+    const min = Math.min(...members.map((m) => m.x));
+    if (min < cursor) {
+      const shift = cursor - min;
+      for (const member of members) member.x += shift;
     }
+    cursor = Math.max(...members.map((m) => m.x)) + CARD_WIDTH + SIBLING_GAP;
+  }
+}
 
-    for (let d = 0; d < child.contour.left.length; d += 1) {
-      const left = child.contour.left[d] + child.offset;
-      const right = child.contour.right[d] + child.offset;
-      if (d < merged.left.length) {
-        merged.left[d] = Math.min(merged.left[d], left);
-        merged.right[d] = Math.max(merged.right[d], right);
-      } else {
-        merged.left.push(left);
-        merged.right.push(right);
+/** Remet les blocs d'une rangée dans l'ordre de leur position courante. */
+function sortRowByPosition(blocks: NodePosition[][]): void {
+  blocks.sort((a, b) => Math.min(...a.map((m) => m.x)) - Math.min(...b.map((m) => m.x)));
+}
+
+/**
+ * Dernier mot sur les recouvrements.
+ *
+ * Le placement récursif range chaque sous-arbre par rapport à ses voisins
+ * immédiats, mais deux branches très éloignées dans la récursion peuvent
+ * malgré tout se retrouver à la même hauteur, au même endroit : la lignée
+ * d'un conjoint remonte à une génération déjà occupée par une famille dont
+ * elle ne sait rien. Aucun réglage local ne peut le garantir.
+ *
+ * Cette passe balaie donc chaque génération de gauche à droite et écarte ce
+ * qui se chevauche, en déplaçant les couples d'un seul tenant. Elle ne
+ * réordonne rien — l'ordre issu du placement, qui regroupe les familles,
+ * est conservé — elle ne fait que garantir qu'aucune carte n'en recouvre
+ * une autre.
+ */
+function resolveOverlaps(rows: Map<number, NodePosition[][]>): void {
+  for (const blocks of rows.values()) {
+    sortRowByPosition(blocks);
+    spreadRow(blocks);
+  }
+}
+
+/**
+ * Met les rangées dans l'ordre qui croise le moins de traits.
+ *
+ * Le placement récursif décide de l'ordre horizontal au fil de sa descente,
+ * sans jamais voir l'arbre en entier : la lignée d'un conjoint rencontrée
+ * tard peut se poser entre deux familles déjà placées, et son trait doit
+ * alors traverser les leurs pour rejoindre son enfant. Rien dans la
+ * récursion ne peut le prévoir.
+ *
+ * Chaque bloc est donc réordonné selon la position moyenne de ce à quoi il
+ * se rattache dans la rangée voisine — un bloc dont les enfants sont à
+ * droite se place à droite. C'est la méthode classique de réduction des
+ * croisements : appliquée en alternance vers le haut et vers le bas, elle
+ * fait converger l'ordre de chaque rangée vers celui de ses voisines.
+ *
+ * Seul l'*ordre* est décidé ici ; les positions exactes restent à
+ * `refinePositions`, qui les recentre ensuite famille par famille.
+ */
+function orderRows(rows: Map<number, NodePosition[][]>, graph: FamilyGraph): void {
+  const generations = [...rows.keys()].sort((a, b) => a - b);
+  if (generations.length < 2) return;
+
+  for (let pass = 0; pass < 4; pass += 1) {
+    const downward = pass % 2 === 0;
+    const order = downward ? generations : [...generations].reverse();
+
+    for (const generation of order) {
+      const blocks = rows.get(generation)!;
+      if (blocks.length < 2) continue;
+
+      // Rang de chaque personne dans la rangée voisine, pour y mesurer une
+      // position moyenne indépendante des largeurs.
+      const referenceGeneration = downward ? generation - 1 : generation + 1;
+      const referenceBlocks = rows.get(referenceGeneration);
+      if (!referenceBlocks) continue;
+      const rank = new Map<string, number>();
+      referenceBlocks
+        .flat()
+        .sort((a, b) => a.x - b.x)
+        .forEach((position, index) => rank.set(position.id, index));
+
+      const scored = blocks.map((block, index) => {
+        const ranks: number[] = [];
+        for (const member of block) {
+          const person = graph.people.get(member.id);
+          if (!person) continue;
+          for (const id of downward ? person.parents : person.children) {
+            const found = rank.get(id);
+            if (found !== undefined) ranks.push(found);
+          }
+        }
+        // Sans rattachement dans la rangée voisine, un bloc garde sa place :
+        // le déplacer n'éviterait aucun croisement et défferait un groupement
+        // que le placement avait de bonnes raisons de former.
+        const barycenter =
+          ranks.length > 0 ? ranks.reduce((sum, value) => sum + value, 0) / ranks.length : index;
+        return { block, barycenter, index };
+      });
+
+      scored.sort((a, b) => a.barycenter - b.barycenter || a.index - b.index);
+
+      // Repose la rangée dans le nouvel ordre, au plus serré ; le recentrage
+      // vient après.
+      let cursor = Math.min(...blocks.flat().map((member) => member.x));
+      for (const { block } of scored) {
+        const left = Math.min(...block.map((member) => member.x));
+        const shift = cursor - left;
+        for (const member of block) member.x += shift;
+        cursor = Math.max(...block.map((member) => member.x)) + CARD_WIDTH + SIBLING_GAP;
       }
+
+      // L'ordre décidé doit survivre à cette fonction : `spreadRow` s'y fie
+      // désormais au lieu de retrier par position.
+      blocks.splice(0, blocks.length, ...scored.map((entry) => entry.block));
     }
   }
+}
 
-  // Le parent se centre sur la rangée de ses enfants — pas sur leur silhouette
-  // entière, qui peut déborder très loin à cause d'une descendance lointaine.
-  const first = node.childNodes[0];
-  const last = node.childNodes[node.childNodes.length - 1];
-  const childrenCenter =
-    (first.offset + first.contour.left[0] + last.offset + last.contour.right[0]) / 2;
-  node.blockOffset = childrenCenter - node.blockWidth / 2;
+/**
+ * Recentre chaque famille sur la sienne.
+ *
+ * Écarter les recouvrements suffit à rendre l'arbre lisible, mais pas juste :
+ * un bloc poussé vers la droite n'entraîne ni ses parents ni ses enfants, et
+ * la fratrie se retrouve décalée sous des parents restés en place. Le dessin
+ * devient un empilement de rangées correctes qui ne se répondent plus.
+ *
+ * Chaque bloc est donc attiré, tour à tour, vers le milieu de ce à quoi il
+ * est relié — ses parents au-dessus, ses enfants en dessous — puis la rangée
+ * est réécartée pour que le gain ne se paie pas d'un recouvrement. En
+ * alternant les passes vers le bas et vers le haut, les deux contraintes
+ * finissent par se rencontrer là où elles peuvent : un couple au-dessus de
+ * ses enfants, des enfants sous leurs parents.
+ */
+function refinePositions(
+  rows: Map<number, NodePosition[][]>,
+  positions: Map<string, NodePosition>,
+  graph: FamilyGraph,
+): void {
+  const generations = [...rows.keys()].sort((a, b) => a - b);
+  if (generations.length < 2) return;
 
-  node.contour = {
-    left: [node.blockOffset, ...merged.left],
-    right: [node.blockOffset + node.blockWidth, ...merged.right],
+  const centerOf = (members: NodePosition[]): number => {
+    const min = Math.min(...members.map((m) => m.x));
+    const max = Math.max(...members.map((m) => m.x)) + CARD_WIDTH;
+    return (min + max) / 2;
   };
+
+  /** Milieu des cartes citées, en ne comptant que celles réellement placées. */
+  const anchorFor = (ids: Iterable<string>): number | undefined => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const id of ids) {
+      const position = positions.get(id);
+      if (!position) continue;
+      min = Math.min(min, position.x);
+      max = Math.max(max, position.x + CARD_WIDTH);
+    }
+    return Number.isFinite(min) ? (min + max) / 2 : undefined;
+  };
+
+  // Assez de passes pour que l'information traverse tout l'arbre dans les deux
+  // sens, sans chercher une convergence parfaite : au-delà, le dessin ne bouge
+  // plus assez pour qu'on le voie.
+  for (let pass = 0; pass < 6; pass += 1) {
+    const downward = pass % 2 === 0;
+    const order = downward ? generations : [...generations].reverse();
+
+    for (const generation of order) {
+      const blocks = rows.get(generation)!;
+
+      for (const block of blocks) {
+        const related = new Set<string>();
+        for (const member of block) {
+          const person = graph.people.get(member.id);
+          if (!person) continue;
+          // Vers le bas, on suit ses parents ; vers le haut, ses enfants.
+          for (const id of downward ? person.parents : person.children) related.add(id);
+        }
+        const anchor = anchorFor(related);
+        if (anchor === undefined) continue;
+
+        // Amorti : un bloc tiré d'un coup sur sa cible repousserait ses
+        // voisins, qui repousseraient les leurs — la rangée entière
+        // oscillerait d'une passe à l'autre au lieu de se poser.
+        const shift = (anchor - centerOf(block)) * 0.6;
+        if (Math.abs(shift) < 0.5) continue;
+        for (const member of block) member.x += shift;
+      }
+
+      spreadRow(blocks);
+    }
+  }
 }
 
-/** Étendue horizontale réellement occupée par un sous-arbre. */
-function contourSpan(node: PlacementNode): { min: number; max: number } {
-  let min = Infinity;
-  let max = -Infinity;
-  for (let d = 0; d < node.contour.left.length; d += 1) {
-    min = Math.min(min, node.contour.left[d]);
-    max = Math.max(max, node.contour.right[d]);
+/**
+ * Calcule l'encombrement d'un sous-arbre, ascendance comprise.
+ *
+ * Le bloc occupe `[0, blockWidth]` dans son propre repère. Ses deux groupes
+ * — l'ascendance au-dessus, la descendance en dessous — se centrent chacun
+ * sur lui : c'est ce centrage qui fait qu'une fratrie tombe sous le milieu de
+ * ses parents plutôt que sous l'un d'eux, et que les deux lignées d'un couple
+ * se répartissent de part et d'autre.
+ */
+function measure(node: PlacementNode): void {
+  for (const child of node.ancestorNodes) measure(child);
+  for (const child of node.childNodes) measure(child);
+
+  const profile: Profile = new Map();
+  profile.set(node.generation, { min: 0, max: node.blockWidth });
+
+  const blockCenter = node.blockWidth / 2;
+  /** Centre horizontal du membre d'indice `index`, dans le repère du bloc. */
+  const memberCenter = (index: number): number =>
+    index * (CARD_WIDTH + COUPLE_GAP) + CARD_WIDTH / 2;
+
+  // L'ascendance se centre sur le membre dont elle descend ; la descendance,
+  // elle, se centre sur le couple entier — c'est ce qui fait tomber une
+  // fratrie sous le milieu de ses parents plutôt que sous l'un d'eux.
+  if (node.ancestorNodes.length > 0) {
+    for (const ancestor of node.ancestorNodes) {
+      const span = profileSpan(ancestor.profile);
+      const target = memberCenter(ancestor.memberIndex ?? 0);
+      ancestor.offset = target - (span.min + span.max) / 2;
+    }
+    const packed = packGroupFrom(node.ancestorNodes, profile);
+    mergeProfile(profile, packed, 0);
   }
-  return { min, max };
+
+  if (node.childNodes.length > 0) {
+    const groupProfile = packGroup(node.childNodes);
+    const span = profileSpan(groupProfile);
+    const shift = blockCenter - (span.min + span.max) / 2;
+    for (const child of node.childNodes) child.offset += shift;
+    mergeProfile(profile, groupProfile, shift);
+  }
+
+  node.profile = profile;
 }
 
 /**
@@ -323,7 +673,7 @@ function contourSpan(node: PlacementNode): { min: number; max: number } {
  * c'est la structure, pas une silhouette.
  *
  * `origin` est la position, en coordonnées du monde, de l'origine locale du
- * sous-arbre — celle à laquelle contours et décalages se rapportent.
+ * sous-arbre — celle à laquelle profils et décalages se rapportent.
  */
 function assign(
   node: PlacementNode,
@@ -331,7 +681,7 @@ function assign(
   positions: Map<string, NodePosition>,
   graph: FamilyGraph,
 ): void {
-  let cursor = origin + node.blockOffset;
+  let cursor = origin;
 
   for (const memberId of node.members) {
     const generation = graph.people.get(memberId)?.generation ?? node.generation;
@@ -344,10 +694,14 @@ function assign(
     cursor += CARD_WIDTH + COUPLE_GAP;
   }
 
+  for (const child of node.ancestorNodes) {
+    assign(child, origin + child.offset, positions, graph);
+  }
   for (const child of node.childNodes) {
     assign(child, origin + child.offset, positions, graph);
   }
 }
+
 
 
 const decadeLabel = (years: number[]): string => {
@@ -358,7 +712,7 @@ const decadeLabel = (years: number[]): string => {
 };
 
 export function computeLayout(graph: FamilyGraph): TreeLayout {
-  const roots = buildPlacementForest(graph);
+  const { roots, blockOf } = buildPlacementForest(graph);
   const positions = new Map<string, NodePosition>();
 
   // Nombre de descendants par personne, calculé de bas en haut de l'ordre
@@ -376,7 +730,7 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
   let cursor = 0;
   for (const root of roots) {
     measure(root);
-    const span = contourSpan(root);
+    const span = profileSpan(root.profile);
     // L'origine se cale pour que le bord gauche réel du sous-arbre tombe
     // exactement sur le curseur.
     assign(root, cursor - span.min, positions, graph);
@@ -390,6 +744,18 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
     positions.set(id, { id, x: cursor, y: generation * ROW_HEIGHT, generation });
     cursor += CARD_WIDTH + SIBLING_GAP;
   }
+
+  /*
+   * Trois passes, sur une seule et même découpe en rangées et en blocs :
+   * écarter ce qui se recouvre, ordonner chaque rangée pour croiser le moins
+   * de traits, puis recentrer chaque famille sur la sienne. L'ordre décidé
+   * par la deuxième passe est ensuite tenu pour acquis — c'est pourquoi les
+   * trois partagent `rows` au lieu de le recalculer chacune de leur côté.
+   */
+  const blockRows = groupByGeneration(positions, blockOf);
+  resolveOverlaps(blockRows);
+  orderRows(blockRows, graph);
+  refinePositions(blockRows, positions, graph);
 
   // --- Liens ---
   const layoutUnions: LayoutUnion[] = [];

@@ -6,11 +6,7 @@ import type { SpatialIndex } from '@/view/spatial';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
 import type { HoverStore } from '@/view/hover-store';
-import {
-  BLUR_BUDGET,
-  LOD_COMPACT,
-  LOD_FULL,
-} from '@/view/metrics';
+import { LOD_COMPACT, LOD_FULL } from '@/view/metrics';
 import { PersonNode, type NodeDetail } from './PersonNode';
 import { LinkLayer } from './LinkLayer';
 import { PathFlow } from './PathFlow';
@@ -40,10 +36,9 @@ export interface TreeCanvasProps {
 interface VisibleState {
   nodes: NodePosition[];
   detail: NodeDetail | 'none';
-  cheap: boolean;
 }
 
-const EMPTY_VISIBLE: VisibleState = { nodes: [], detail: 'none', cheap: false };
+const EMPTY_VISIBLE: VisibleState = { nodes: [], detail: 'none' };
 
 /** Le niveau de détail suit le zoom : texte complet, prénom seul, puis points. */
 function detailForScale(scale: number): NodeDetail | 'none' {
@@ -133,11 +128,10 @@ export function TreeCanvas({
       nodes.sort((a, b) => a.y - b.y || a.x - b.x);
 
       const previous = visibleRef.current;
-      const cheap = nodes.length > BLUR_BUDGET;
-      if (previous.detail === detail && previous.cheap === cheap && sameNodes(previous.nodes, nodes)) {
+      if (previous.detail === detail && sameNodes(previous.nodes, nodes)) {
         return;
       }
-      setVisible({ nodes, detail, cheap });
+      setVisible({ nodes, detail });
     };
 
     const apply = (): void => {
@@ -386,7 +380,7 @@ export function TreeCanvas({
       aria-label="Arbre généalogique"
       onClick={handleBackgroundClick}
     >
-      <div ref={worldRef} className="world" data-cheap={visible.cheap || undefined}>
+      <div ref={worldRef} className="world">
         <LinkLayer
           stageRef={stageRef}
           viewport={viewport}

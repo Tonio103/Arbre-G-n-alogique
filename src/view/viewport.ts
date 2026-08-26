@@ -1,5 +1,5 @@
 import type { Bounds } from '@/domain/layout';
-import { FIT_PADDING, MAX_SCALE, MIN_SCALE } from './metrics';
+import { FIT_PADDING, MAX_SCALE, MIN_SCALE, MIN_SCALE_FIT_RATIO } from './metrics';
 import type { Rect } from './spatial';
 
 export interface Transform {
@@ -143,6 +143,10 @@ export class ViewportController {
 
   private bounds: Bounds;
   private readonly listeners = new Set<Listener>();
+  /** Échelle en dessous de laquelle il n'y a plus rien à découvrir — voir
+   *  `recomputeMinScale`. Recalculée à chaque changement de bornes ou de
+   *  taille de cadre, jamais pendant un geste. */
+  private minScale = MIN_SCALE;
 
   private animation: Animation | null = null;
   private velocityX = 0;
@@ -165,10 +169,43 @@ export class ViewportController {
 
   setBounds(bounds: Bounds): void {
     this.bounds = bounds;
+    this.recomputeMinScale();
   }
 
   setSize(size: Size): void {
     this.size = size;
+    this.recomputeMinScale();
+  }
+
+  /**
+   * La limite de dézoom, calculée plutôt que fixée.
+   *
+   * Une constante ne peut pas convenir aux deux extrêmes : assez basse pour
+   * qu'un arbre de cinq cents personnes tienne à l'écran, elle laisse une
+   * famille de huit se réduire à un point perdu dans le vide ; assez haute
+   * pour cette famille-là, elle empêche de voir le grand arbre en entier.
+   * La borne suit donc le contenu — on peut toujours reculer jusqu'à voir
+   * tout l'arbre, plus une marge, et pas au-delà.
+   */
+  private recomputeMinScale(): void {
+    const width = Math.max(this.bounds.maxX - this.bounds.minX, 1);
+    const height = Math.max(this.bounds.maxY - this.bounds.minY, 1);
+    const fit = Math.min(
+      (this.size.width - FIT_PADDING * 2) / width,
+      (this.size.height - FIT_PADDING * 2) / height,
+    );
+    // Le cadre n'est pas encore mesuré (taille 1×1 au montage) : on garde le
+    // plancher absolu, sans quoi la limite se figerait sur une valeur absurde.
+    if (!Number.isFinite(fit) || fit <= 0 || this.size.width <= 1) {
+      this.minScale = MIN_SCALE;
+      return;
+    }
+    this.minScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, fit * MIN_SCALE_FIT_RATIO));
+  }
+
+  /** Bornes effectives : le plancher adaptatif ci-dessus, pas la constante. */
+  private clampToLimits(scale: number): number {
+    return Math.min(MAX_SCALE, Math.max(this.minScale, scale));
   }
 
   destroy(): void {
@@ -203,7 +240,7 @@ export class ViewportController {
   }
 
   set(transform: Transform, options?: { clamp?: boolean }): void {
-    const scale = clampScale(transform.scale);
+    const scale = this.clampToLimits(transform.scale);
     const next = { ...transform, scale };
     this.transform = options?.clamp === false ? next : this.clampTransform(next);
     this.emit();
@@ -221,7 +258,7 @@ export class ViewportController {
   /** Zoom en gardant fixe le point de l'écran visé (curseur ou centre du pinch). */
   zoomAt(screenX: number, screenY: number, factor: number): void {
     this.stopAnimation();
-    const scale = clampScale(this.transform.scale * factor);
+    const scale = this.clampToLimits(this.transform.scale * factor);
     const applied = scale / this.transform.scale;
     this.set({
       scale,
@@ -256,7 +293,7 @@ export class ViewportController {
    */
   zoomAtSmooth(screenX: number, screenY: number, factor: number, duration = 170): void {
     const base = this.animation ? this.animation.to : this.transform;
-    const scale = clampScale(base.scale * factor);
+    const scale = this.clampToLimits(base.scale * factor);
     const applied = scale / base.scale;
     // Le point du monde que le curseur désigne réellement, à l'échelle
     // affichée à cet instant — pas la cible d'une animation encore en cours,
@@ -327,7 +364,7 @@ export class ViewportController {
     onDone?: () => void,
     anchor?: ZoomAnchor,
   ): void {
-    const to = this.clampTransform({ ...target, scale: clampScale(target.scale) });
+    const to = this.clampTransform({ ...target, scale: this.clampToLimits(target.scale) });
     this.velocityX = 0;
     this.velocityY = 0;
     this.animation = {

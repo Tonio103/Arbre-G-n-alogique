@@ -30,12 +30,25 @@ export const ROW_HEIGHT = 230;
 export const FIT_PADDING = 120;
 
 /**
- * Un arbre de plusieurs centaines de personnes est très large et peu haut.
- * Le zoom minimal doit descendre assez bas pour en montrer toute l'étendue
- * d'un seul coup d'œil, sous forme de constellation.
+ * Bornes absolues du zoom.
+ *
+ * `MIN_SCALE` n'est qu'un plancher de sécurité pour les très grands arbres :
+ * la vraie limite est calculée à l'exécution par `ViewportController`, qui
+ * empêche de dézoomer au-delà de ce qui montre l'arbre entier. Sans elle,
+ * un arbre de huit personnes se laissait réduire à un point perdu au milieu
+ * du vide, sans rien pour dire dans quel sens revenir.
  */
-export const MIN_SCALE = 0.006;
+export const MIN_SCALE = 0.02;
 export const MAX_SCALE = 2.4;
+
+/**
+ * Marge de dézoom au-delà du cadrage complet.
+ *
+ * À 1, on ne pourrait pas reculer d'un pixel de plus que l'arbre entier —
+ * un mur, juste au moment où l'on cherche à prendre du recul. À 0,55, il
+ * reste de quoi respirer autour sans jamais perdre l'arbre de vue.
+ */
+export const MIN_SCALE_FIT_RATIO = 0.55;
 
 /** Seuils de niveau de détail : au-delà, on dégrade le rendu pour tenir la fluidité. */
 export const LOD_FULL = 0.52;

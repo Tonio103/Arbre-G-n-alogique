@@ -387,68 +387,14 @@ export default function App() {
   const selectedPerson = selectedId ? (graph.people.get(selectedId) ?? null) : null;
 
   /*
-   * Marque les périodes où la vue bouge. La réfraction du verre recalcule
-   * tout l'arrière-plan à chaque image ; pendant un déplacement soutenu, ce
-   * coût est bien réel pour la machine (mesuré : deux fois moins d'images).
-   *
-   * Ce coût n'est en revanche pas du tout invisible à l'œil, contrairement à
-   * ce que prétendait ce commentaire jusqu'ici — suspendre le flou change
-   * radicalement l'aspect de la surface, et une bascule aussi visible pour
-   * un simple clic sur un bouton de zoom ou un petit glisser se voit comme un
-   * scintillement plutôt que comme une optimisation discrète.
-   *
-   * D'où le délai de grâce : la suspension ne s'engage qu'après deux cent
-   * soixante millisecondes de mouvement ininterrompu — plus long que la durée
-   * de tout geste isolé déclenché par l'interface (un clic sur un bouton de
-   * zoom en vaut deux cent quarante). Un geste isolé — un clic sur un
-   * bouton, un glisser bref, un seul cran de molette — se termine donc avant
-   * ce seuil et ne bascule jamais : le verre garde son flou du début à la
-   * fin. Seul un défilement réellement soutenu, celui qui coûte
-   * effectivement cher, déclenche la bascule.
-   *
-   * Le délai de retour, lui, doit couvrir les pauses entre deux gestes qui
-   * font partie du même geste continu. Une molette physique envoie ses crans
-   * avec des pauses irrégulières, parfois plus longues que les cent soixante-
-   * dix millisecondes d'un zoom glissé : un délai de retour trop court
-   * referme le flou entre deux crans, et le cran suivant doit alors le
-   * rouvrir — recalculer le flou de sept surfaces de verre à la fois est
-   * justement ce que cette suspension est censée éviter. Mesuré, ce va-et-
-   * vient double le nombre d'images perdues par rapport à une suspension qui
-   * tient la pause.
+   * Le verre gardait autrefois une marque `data-moving` pendant les gestes,
+   * qui suspendait son flou et sa réfraction le temps du déplacement (voir
+   * `liquid-glass.css`). La bascule se voyait à chaque zoom et à chaque
+   * glissé : la netteté constante vaut mieux ici que les images gagnées, et
+   * plus rien ne lit cette marque.
    */
-  const appRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const GRACE = 260;
-    const RELEASE = 340;
-    let timer = 0;
-    let burstStart = 0;
-    let engaged = false;
-    const unsubscribe = viewport.subscribe(() => {
-      const element = appRef.current;
-      if (!element) return;
-      const now = performance.now();
-      if (!burstStart) burstStart = now;
-
-      if (!engaged && now - burstStart > GRACE) {
-        engaged = true;
-        element.dataset.moving = 'true';
-      }
-
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        burstStart = 0;
-        engaged = false;
-        if (appRef.current) appRef.current.dataset.moving = 'false';
-      }, RELEASE);
-    });
-    return () => {
-      unsubscribe();
-      window.clearTimeout(timer);
-    };
-  }, [viewport]);
-
   return (
-    <div className="app" ref={appRef} data-panel-open={selectedPerson ? true : undefined}>
+    <div className="app" data-panel-open={selectedPerson ? true : undefined}>
       <LoadingScreen ready={ready} />
       <GlassFilters />
       <Backdrop viewport={viewport} />

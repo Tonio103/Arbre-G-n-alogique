@@ -214,44 +214,23 @@
   -webkit-backdrop-filter: var(--lg-lens);
 }
 
-/* Le déplacement de bord n'a de sens qu'immobile. Pendant que l'arbre défile,
-   la réfraction recalcule tout l'arrière-plan à chaque image pour un effet que
-   l'œil ne peut pas suivre : on la suspend.
-
-   La couche est retirée, pas seulement privée de son filtre. Depuis qu'elle
-   couvre toute la surface et non plus un liseré, la laisser en place — même
-   inerte — maintient une couche de composition de la taille du panneau
-   au-dessus de la scène, et coûte un tiers des images par seconde. */
-.app[data-moving='true'] .lg::before {
-  display: none;
-}
-
 /*
- * Le flou d'arrière-plan, suspendu le temps du geste.
+ * Le verre ne se suspend plus pendant le geste.
  *
- * C'est, de loin, la dépense la plus lourde de l'interface : le navigateur doit
- * relire le fond sous chaque panneau et le refondre à chaque image, et le fond
- * change à chaque image dès que l'arbre bouge. Mesuré ici, il coûte la moitié
- * du budget d'affichage — trente-deux images par seconde pendant un
- * déplacement, soixante sans lui.
+ * Une version précédente coupait la réfraction (`.lg::before`) et le flou
+ * d'arrière-plan dès que l'arbre bougeait : c'est la dépense la plus lourde
+ * de l'interface, et la couper faisait gagner près du double d'images par
+ * seconde pendant un déplacement soutenu.
  *
- * Ce qu'on perd, personne ne le regarde : on ne contemple pas la texture d'un
- * panneau pendant qu'on fait défiler ce qu'il y a derrière. Ce qu'on gagne se
- * sent à chaque geste.
+ * Mais la bascule se voyait. Le verre changeait d'aspect à chaque zoom, à
+ * chaque glissé, et revenait après coup — un scintillement permanent, là où
+ * l'optimisation était censée passer inaperçue. La netteté constante vaut
+ * mieux ici que les images gagnées : le flou, la transparence, les reflets,
+ * les bordures et les ombres restent donc en place en permanence.
  *
- * La masse compense la perte : sans flou, un verre à vingt pour cent laisserait
- * lire l'arbre au travers du texte. Le changement est instantané à l'aller —
- * une transition laisserait, le temps du fondu, un panneau à la fois
- * transparent et net — et se fond au retour, quand la règle normale reprend la
- * main avec sa transition.
+ * Les jetons `--lg-tint-alpha-moving` existent toujours dans le thème mais
+ * ne sont plus appliqués : rien ne les lit désormais.
  */
-.app[data-moving='true'] .lg {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  --lg-tint-alpha: var(--lg-tint-alpha-moving);
-  --lg-tint-alpha-edge: var(--lg-tint-alpha-edge-moving);
-  transition: none;
-}
 
 /*
  * Du verre posé sur du verre.
