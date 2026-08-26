@@ -169,6 +169,73 @@ function mergeParentBlocks(
 }
 
 /**
+ * Range les frères et sœurs à côté des leurs, du côté opposé au conjoint.
+ *
+ * Réunir les familles d'origine (voir `mergeParentBlocks`) laisse dehors les
+ * frères et sœurs de chaque membre réuni : ils forment leur propre bloc,
+ * posé avant ou après la rangée selon le hasard du parcours. Isabelle Maillet
+ * se retrouvait ainsi à l'extrême droite alors que son frère François ouvrait
+ * la rangée à gauche — et le trait qui la reliait à leurs parents traversait
+ * tout ce qui se trouvait entre les deux.
+ *
+ * Chacun rejoint donc la rangée, immédiatement à côté de son frère ou de sa
+ * sœur, du côté où il n'y a pas le conjoint : une personne mariée a son époux
+ * d'un côté et sa fratrie de l'autre, exactement comme on l'écrit sur un
+ * arbre. Les enfants d'une même fratrie se retrouvent alors contigus, sous
+ * leurs parents eux-mêmes contigus — et les traits cessent de se croiser.
+ */
+function absorbSiblings(
+  graph: FamilyGraph,
+  blocks: Block[],
+  blockOf: Map<string, Block>,
+): Block[] {
+  const dropped = new Set<Block>();
+
+  /*
+   * Les grandes rangées absorbent, les isolés sont absorbés — jamais
+   * l'inverse. Dans l'ordre naturel du tableau, le bloc d'une personne seule
+   * pouvait happer la rangée réunie de sa sœur et se retrouver en tête,
+   * plaçant sa fratrie à l'envers de ses parents.
+   */
+  for (const block of [...blocks].sort((a, b) => b.members.length - a.members.length)) {
+    if (dropped.has(block)) continue;
+
+    let index = 0;
+    while (index < block.members.length) {
+      const memberId = block.members[index];
+      const person = graph.people.get(memberId);
+      if (!person) {
+        index += 1;
+        continue;
+      }
+
+      // De quel côté est le conjoint ? La fratrie ira de l'autre.
+      const spousePositions = person.spouseLinks
+        .map((link) => block.members.indexOf(link.id))
+        .filter((position) => position >= 0);
+      const spouseOnRight = spousePositions.some((position) => position > index);
+
+      for (const siblingId of person.siblings) {
+        const siblingBlock = blockOf.get(siblingId);
+        if (!siblingBlock || siblingBlock === block || dropped.has(siblingBlock)) continue;
+
+        const at = spouseOnRight ? index : index + 1;
+        block.members.splice(at, 0, ...siblingBlock.members);
+        for (const id of siblingBlock.members) blockOf.set(id, block);
+        dropped.add(siblingBlock);
+        if (spouseOnRight) index += siblingBlock.members.length;
+      }
+
+      index += 1;
+    }
+
+    block.ownWidth = block.members.length * CARD_WIDTH + (block.members.length - 1) * COUPLE_GAP;
+  }
+
+  return blocks.filter((block) => !dropped.has(block));
+}
+
+/**
  * Relie les blocs entre eux : qui descend de qui.
  *
  * Un bloc n'a qu'un seul bloc parent — celui qui le porte dans la bande. Le
@@ -305,7 +372,37 @@ export function computePlacement(graph: FamilyGraph): Placement {
   // Les quatre grands-parents d'un couple sur une même rangée, pour qu'aucune
   // filiation ne se retrouve sans trait — voir `mergeParentBlocks`.
   const merged = mergeParentBlocks(graph, blocks, blockOf);
-  const { roots, secondaryLinks, detachedFiliations } = linkBlocks(graph, merged, blockOf);
+  // Chaque fratrie contiguë, du côté opposé au conjoint — voir `absorbSiblings`.
+  const rows = absorbSiblings(graph, merged, blockOf);
+  const { roots, secondaryLinks, detachedFiliations } = linkBlocks(graph, rows, blockOf);
+
+  /*
+   * Chaque groupe d'enfants sous ses propres parents.
+   *
+   * Une rangée réunie compte plusieurs couples ; ses enfants sont autant de
+   * groupes distincts. Les poser dans l'ordre où on les a rencontrés place le
+   * groupe de gauche à droite une fois sur deux, et son trait traverse alors
+   * toute la rangée. Les ranger selon la position moyenne de leurs parents
+   * suffit à ce que l'ordre des enfants suive celui des parents.
+   */
+  for (const block of rows) {
+    if (block.children.length < 2) continue;
+    const rank = new Map<Block, number>();
+    for (const child of block.children) {
+      const positions: number[] = [];
+      for (const memberId of child.members) {
+        for (const parentId of graph.people.get(memberId)?.parents ?? []) {
+          const at = block.members.indexOf(parentId);
+          if (at >= 0) positions.push(at);
+        }
+      }
+      rank.set(
+        child,
+        positions.length > 0 ? positions.reduce((s, v) => s + v, 0) / positions.length : Number.MAX_SAFE_INTEGER,
+      );
+    }
+    block.children.sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
+  }
 
   const positions = new Map<string, NodePosition>();
   let cursor = 0;
