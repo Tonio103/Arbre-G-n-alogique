@@ -65,61 +65,73 @@ function buildInitials(firstName: string, lastName: string): string {
 /**
  * Assigne une profondeur à chaque personne.
  *
- * Deux contraintes se disputent : un enfant est une génération sous ses parents,
- * et deux conjoints doivent partager la même ligne pour être dessinés côte à côte.
- * On relaxe donc itérativement les deux règles jusqu'à stabilisation, en poussant
- * toujours vers le bas — ce qui converge et laisse les mariages alignés même quand
- * les deux époux viennent de branches de profondeurs différentes.
+ * Trois règles, toutes locales : un enfant est exactement une génération sous
+ * chacun de ses parents, un parent exactement une au-dessus de chacun de ses
+ * enfants, et deux conjoints partagent la leur. Elles se propagent de proche
+ * en proche à partir du repère de l'arbre, chaque personne prenant sa
+ * profondeur de la première voisine déjà placée.
+ *
+ * La version précédente calculait au contraire la profondeur comme la plus
+ * longue chaîne d'ancêtres au-dessus de soi, puis tirait les conjoints vers
+ * le bas pour les aligner. Le résultat était juste pour le couple et faux
+ * pour tout le reste : quelqu'un entré dans la famille par mariage, dont on
+ * ne connaît pas les parents, partait de la génération zéro puis descendait
+ * de cinq rangées rejoindre son époux — en y laissant ses propres parents,
+ * restés tout en haut. Le trait qui les reliait traversait alors la moitié de
+ * l'arbre, et les rangées se mélangeaient là où il passait. Propager d'un
+ * cran à la fois garde chaque filiation à un cran, où qu'elle se trouve.
+ *
+ * Un mariage entre cousins peut rendre les trois règles contradictoires : la
+ * première profondeur attribuée l'emporte alors, et l'écart restant est
+ * signalé plutôt que corrigé — c'est une particularité de la famille, pas une
+ * erreur de saisie.
  */
 function assignGenerations(
   records: Map<string, PersonRecord>,
   spouseMap: Map<string, Set<string>>,
   warnings: string[],
+  rootId?: string,
 ): Map<string, number> {
-  const generation = new Map<string, number>();
-  for (const id of records.keys()) generation.set(id, 0);
-
-  const MAX_PASSES = 60;
-  let pass = 0;
-  let changed = true;
-
-  while (changed && pass < MAX_PASSES) {
-    changed = false;
-    pass += 1;
-
-    for (const [id, record] of records) {
-      const parents = record.parents ?? [];
-      let target = generation.get(id) ?? 0;
-      for (const parentId of parents) {
-        if (!records.has(parentId)) continue;
-        const parentGen = generation.get(parentId) ?? 0;
-        if (parentGen + 1 > target) target = parentGen + 1;
-      }
-      if (target !== generation.get(id)) {
-        generation.set(id, target);
-        changed = true;
-      }
-    }
-
-    for (const [id, partners] of spouseMap) {
-      if (!records.has(id)) continue;
-      let target = generation.get(id) ?? 0;
-      for (const partnerId of partners) {
-        if (!records.has(partnerId)) continue;
-        const partnerGen = generation.get(partnerId) ?? 0;
-        if (partnerGen > target) target = partnerGen;
-      }
-      if (target !== generation.get(id)) {
-        generation.set(id, target);
-        changed = true;
-      }
+  const childrenOf = new Map<string, string[]>();
+  for (const id of records.keys()) childrenOf.set(id, []);
+  for (const [id, record] of records) {
+    for (const parentId of record.parents ?? []) {
+      if (records.has(parentId)) childrenOf.get(parentId)!.push(id);
     }
   }
 
-  if (pass >= MAX_PASSES) {
-    warnings.push(
-      'Les générations n’ont pas convergé : il existe probablement une boucle de filiation dans les données.',
-    );
+  const generation = new Map<string, number>();
+
+  /*
+   * L'ordre de départ compte : la première personne visitée d'un groupe
+   * relié fixe la profondeur de tout le groupe. On part du repère de l'arbre
+   * — celui autour de qui il est construit — pour que ce soit sa parenté qui
+   * serve de référence, et non la première fiche venue.
+   */
+  const seeds = [rootId, ...records.keys()].filter((id): id is string => Boolean(id) && records.has(id!));
+
+  for (const seed of seeds) {
+    if (generation.has(seed)) continue;
+    generation.set(seed, 0);
+    const queue: string[] = [seed];
+
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      const depth = generation.get(id)!;
+      const record = records.get(id);
+      if (!record) continue;
+
+      const visit = (otherId: string, otherDepth: number): void => {
+        if (!records.has(otherId)) return;
+        if (generation.has(otherId)) return;
+        generation.set(otherId, otherDepth);
+        queue.push(otherId);
+      };
+
+      for (const partnerId of spouseMap.get(id) ?? []) visit(partnerId, depth);
+      for (const parentId of record.parents ?? []) visit(parentId, depth - 1);
+      for (const childId of childrenOf.get(id) ?? []) visit(childId, depth + 1);
+    }
   }
 
   // Ramener la génération minimale à 0.
@@ -127,6 +139,23 @@ function assignGenerations(
   for (const value of generation.values()) min = Math.min(min, value);
   if (min !== 0 && Number.isFinite(min)) {
     for (const [id, value] of generation) generation.set(id, value - min);
+  }
+
+  // Ce qui reste contradictoire après coup : une filiation qui n'enjambe pas
+  // exactement une génération. Rare, et toujours dû à une boucle dans les
+  // liens — on le dit sans rien forcer.
+  for (const [id, record] of records) {
+    const depth = generation.get(id);
+    if (depth === undefined) continue;
+    for (const parentId of record.parents ?? []) {
+      const parentDepth = generation.get(parentId);
+      if (parentDepth === undefined) continue;
+      if (depth - parentDepth !== 1) {
+        warnings.push(
+          `La filiation entre « ${parentId} » et « ${id} » n’enjambe pas une seule génération : il existe probablement une boucle dans les liens.`,
+        );
+      }
+    }
   }
 
   return generation;
@@ -209,7 +238,7 @@ export function buildFamilyGraph(dataset: FamilyDataset): FamilyGraph {
   const spouseSets = new Map<string, Set<string>>();
   for (const [id, links] of spouseLinks) spouseSets.set(id, new Set(links.keys()));
 
-  const generation = assignGenerations(records, spouseSets, warnings);
+  const generation = assignGenerations(records, spouseSets, warnings, dataset.rootId);
 
   // --- Personnes normalisées ---
   const people = new Map<string, Person>();
