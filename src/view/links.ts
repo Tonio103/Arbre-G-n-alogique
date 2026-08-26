@@ -94,6 +94,18 @@ export interface DrawLinksParams {
  */
 const BUS_LIFT = (ROW_HEIGHT - CARD_HEIGHT) * 0.5;
 
+/**
+ * Écart entre deux étages de traits distributeurs (voir `assignBusLanes`).
+ *
+ * Assez pour qu'on distingue deux traits d'un coup d'œil, assez peu pour que
+ * plusieurs tiennent dans l'espace disponible entre deux rangées. Le dernier
+ * étage est ramené dans cet espace plutôt que de déborder sur les cartes.
+ */
+const BUS_LANE_STEP = 18;
+/** Le trait ne doit ni toucher les enfants ni remonter sur les parents. */
+const BUS_LIFT_MIN = 22;
+const BUS_LIFT_MAX = ROW_HEIGHT - CARD_HEIGHT - 16;
+
 export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams): void {
   const { worldRect, dpr, palette, highlighted, hasSelection } = params;
   const density = Math.max(params.density, 0.02);
@@ -377,7 +389,10 @@ function unionSegments(union: LayoutUnion): Segment[] {
     rightMost = Math.max(rightMost, centre);
   }
 
-  const busY = childTop - BUS_LIFT;
+  // L'étage de cette famille : deux traits qui se recouvrent ne doivent pas
+  // se confondre en une seule ligne (voir `assignBusLanes` dans `layout.ts`).
+  const lift = Math.min(BUS_LIFT_MAX, Math.max(BUS_LIFT_MIN, BUS_LIFT + union.busLane * BUS_LANE_STEP));
+  const busY = childTop - lift;
 
   // Enfant unique à l'aplomb du couple : un simple trait droit. Le bus n'aurait
   // rien à distribuer, et son coude se lirait comme un détour.

@@ -36,6 +36,11 @@ export interface LayoutUnion {
   /** Vrai quand les deux conjoints sont côte à côte (cas courant). */
   adjacent: boolean;
   status: string;
+  /**
+   * Étage du trait distributeur, pour ne pas se confondre avec celui d'une
+   * autre famille — voir `assignBusLanes`.
+   */
+  busLane: number;
 }
 
 /** Mariage reliant deux branches éloignées : dessiné en courbe pointillée. */
@@ -698,6 +703,55 @@ function measure(node: PlacementNode): void {
 }
 
 /**
+ * Donne à chaque famille son propre étage de trait.
+ *
+ * Le trait qui distribue une fratrie court à mi-chemin entre la rangée des
+ * parents et celle des enfants. À la même hauteur pour toutes les familles
+ * d'une même rangée, deux traits dont les portées se croisent se rejoignent
+ * en une seule ligne continue — et le dessin se met à mentir : les enfants de
+ * l'une paraissent pendre du trait de l'autre, donc être frères et sœurs de
+ * gens qui ne le sont pas. Sur l'arbre qui a servi de référence, quatorze
+ * traits sur trente se confondaient ainsi, dont ceux des parents de deux
+ * conjoints — qui semblaient du coup frère et sœur.
+ *
+ * Les familles dont les portées se recouvrent sont donc réparties sur des
+ * étages distincts, au plus près les unes des autres : c'est le rangement
+ * classique par intervalles, celui d'un agenda qui empile les rendez-vous qui
+ * se chevauchent. Une famille dont la portée est libre reste à l'étage zéro,
+ * la hauteur naturelle.
+ */
+function assignBusLanes(unions: LayoutUnion[]): void {
+  const byChildRow = new Map<number, LayoutUnion[]>();
+  for (const union of unions) {
+    if (union.children.length === 0) continue;
+    const childTop = Math.min(...union.children.map((child) => child.y));
+    const group = byChildRow.get(childTop) ?? [];
+    group.push(union);
+    byChildRow.set(childTop, group);
+  }
+
+  for (const group of byChildRow.values()) {
+    const spans = group
+      .map((union) => ({
+        union,
+        min: Math.min(union.anchorX, ...union.children.map((child) => cardCenterX(child.x))),
+        max: Math.max(union.anchorX, ...union.children.map((child) => cardCenterX(child.x))),
+      }))
+      .sort((a, b) => a.min - b.min || a.max - b.max);
+
+    // Dernière abscisse occupée par chaque étage : un trait reprend le premier
+    // étage libéré avant lui, et n'en ouvre un nouveau qu'à défaut.
+    const laneEnds: number[] = [];
+    for (const span of spans) {
+      let lane = 0;
+      while (lane < laneEnds.length && laneEnds[lane] > span.min - SIBLING_GAP) lane += 1;
+      laneEnds[lane] = span.max;
+      span.union.busLane = lane;
+    }
+  }
+}
+
+/**
  * Assigne les coordonnées définitives à partir des décalages calculés.
  *
  * Les générations sont des rangées régulières : la plus ancienne en haut, la
@@ -853,6 +907,7 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
       anchorY,
       adjacent,
       status: union.status,
+      busLane: 0,
     };
     layoutUnions.push(layoutUnion);
     unionById.set(union.id, layoutUnion);
@@ -877,6 +932,10 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
       });
     }
   }
+
+  // Chaque famille sur son propre étage, pour que deux traits de filiation
+  // ne se confondent jamais — voir `assignBusLanes`.
+  assignBusLanes(layoutUnions);
 
   const branchOf = new Map<string, number>();
 
