@@ -64,6 +64,83 @@ function buildInitials(firstName: string, lastName: string): string {
 }
 
 /**
+ * Recale les branches détachées sur les dates de naissance.
+ *
+ * Une lignée que rien ne relie au reste — un lien de filiation oublié, un
+ * import partiel — voit ses générations numérotées pour elle seule, à partir
+ * de zéro. Rien ne dit alors à quelle hauteur la poser : elle se retrouve
+ * calée sur le haut de l'arbre, et un ancêtre né en 1714 se dessine sur la
+ * même rangée que quelqu'un né en 1926. C'est ce qui donnait l'impression que
+ * les générations étaient mélangées, alors que chacune était juste dans son
+ * propre groupe.
+ *
+ * Les dates de naissance disent, elles, à quelle époque chaque groupe
+ * appartient. On mesure d'abord l'écart réel entre une génération et la
+ * suivante dans cet arbre-ci — il varie beaucoup d'une famille à l'autre —
+ * puis on décale chaque groupe détaché du nombre de générations qui le remet
+ * à son époque. Un groupe sans aucune date connue ne bouge pas : rien ne
+ * permettrait de trancher.
+ */
+function alignIslandsByBirthYear(
+  records: Map<string, PersonRecord>,
+  generation: Map<string, number>,
+  island: Map<string, number>,
+  islands: string[][],
+  warnings: string[],
+): void {
+  if (islands.length < 2) return;
+
+  // L'écart entre deux générations, mesuré sur cet arbre plutôt que supposé :
+  // la médiane des différences d'âge entre parent et enfant.
+  const gaps: number[] = [];
+  for (const record of records.values()) {
+    const childYear = parseYear(record.birthDate);
+    if (childYear === undefined) continue;
+    for (const parentId of record.parents ?? []) {
+      const parentYear = parseYear(records.get(parentId)?.birthDate);
+      if (parentYear === undefined) continue;
+      const gap = childYear - parentYear;
+      if (gap > 12 && gap < 70) gaps.push(gap);
+    }
+  }
+  gaps.sort((a, b) => a - b);
+  const span = gaps.length > 0 ? gaps[Math.floor(gaps.length / 2)] : 30;
+
+  /** L'année qu'aurait la génération 0 de ce groupe, en moyenne. */
+  const baseline = (members: string[]): number | undefined => {
+    let total = 0;
+    let count = 0;
+    for (const id of members) {
+      const year = parseYear(records.get(id)?.birthDate);
+      if (year === undefined) continue;
+      total += year - (generation.get(id) ?? 0) * span;
+      count += 1;
+    }
+    return count > 0 ? total / count : undefined;
+  };
+
+  const mainIsland = island.get([...islands[0]][0]) ?? 0;
+  const reference = baseline(islands[mainIsland]);
+  if (reference === undefined) return;
+
+  for (let index = 0; index < islands.length; index += 1) {
+    if (index === mainIsland) continue;
+    const members = islands[index];
+    const base = baseline(members);
+    if (base === undefined) continue;
+
+    const shift = Math.round((base - reference) / span);
+    if (shift === 0) continue;
+    for (const id of members) generation.set(id, (generation.get(id) ?? 0) + shift);
+
+    const who = records.get(members[0]);
+    warnings.push(
+      `La branche de « ${who?.firstName ?? members[0]} ${who?.lastName ?? ''} » n’est reliée à personne : elle a été replacée d’après les dates de naissance, à ${Math.abs(shift)} génération${Math.abs(shift) > 1 ? 's' : ''} ${shift > 0 ? 'plus bas' : 'plus haut'}.`,
+    );
+  }
+}
+
+/**
  * Assigne une profondeur à chaque personne.
  *
  * Trois règles, toutes locales : un enfant est exactement une génération sous
@@ -111,9 +188,15 @@ function assignGenerations(
    */
   const seeds = [rootId, ...records.keys()].filter((id): id is string => Boolean(id) && records.has(id!));
 
+  /** À quel groupe relié appartient chaque personne — voir l'alignement plus bas. */
+  const island = new Map<string, number>();
+  const islands: string[][] = [];
+
   for (const seed of seeds) {
     if (generation.has(seed)) continue;
     generation.set(seed, 0);
+    const members: string[] = [seed];
+    island.set(seed, islands.length);
     const queue: string[] = [seed];
 
     while (queue.length > 0) {
@@ -126,6 +209,8 @@ function assignGenerations(
         if (!records.has(otherId)) return;
         if (generation.has(otherId)) return;
         generation.set(otherId, otherDepth);
+        island.set(otherId, islands.length);
+        members.push(otherId);
         queue.push(otherId);
       };
 
@@ -133,7 +218,11 @@ function assignGenerations(
       for (const parentId of record.parents ?? []) visit(parentId, depth - 1);
       for (const childId of childrenOf.get(id) ?? []) visit(childId, depth + 1);
     }
+
+    islands.push(members);
   }
+
+  alignIslandsByBirthYear(records, generation, island, islands, warnings);
 
   // Ramener la génération minimale à 0.
   let min = Number.POSITIVE_INFINITY;
