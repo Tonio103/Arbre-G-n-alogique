@@ -37,6 +37,79 @@ const named = (graph: FamilyGraph, id: string): string => {
 };
 
 /**
+ * Ce qui n'est relié à rien.
+ *
+ * Un lien de filiation ne se déclare que d'un côté — l'enfant nomme ses
+ * parents — et il suffit qu'il manque là pour qu'une lignée entière se
+ * détache, même si tout le reste de ses liens internes est intact. Elle
+ * continue alors d'être dessinée, mais à côté de l'arbre, comme une famille
+ * étrangère : rien à l'écran ne dit que c'est un oubli plutôt qu'un choix.
+ *
+ * On part donc du repère et on marche dans toutes les directions — parents,
+ * enfants, conjoints. Ce qu'on n'atteint pas est signalé, groupé par îlot,
+ * en nommant quelqu'un de chaque : c'est par cette personne-là qu'on ira
+ * rebrancher la branche.
+ */
+function findDetached(graph: FamilyGraph): Anomaly[] {
+  if (!graph.rootId || !graph.people.has(graph.rootId)) return [];
+
+  const reachable = new Set<string>([graph.rootId]);
+  const queue = [graph.rootId];
+  while (queue.length > 0) {
+    const person = graph.people.get(queue.shift()!);
+    if (!person) continue;
+    const neighbours = [
+      ...person.parents,
+      ...person.children,
+      ...person.spouseLinks.map((link) => link.id),
+    ];
+    for (const id of neighbours) {
+      if (reachable.has(id) || !graph.people.has(id)) continue;
+      reachable.add(id);
+      queue.push(id);
+    }
+  }
+
+  // Regrouper les personnes hors d'atteinte en îlots, pour ne pas répéter le
+  // même avertissement une fois par personne.
+  const anomalies: Anomaly[] = [];
+  const seen = new Set<string>();
+  for (const id of graph.order) {
+    if (reachable.has(id) || seen.has(id)) continue;
+    const island: string[] = [];
+    const stack = [id];
+    seen.add(id);
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      island.push(current);
+      const person = graph.people.get(current);
+      if (!person) continue;
+      for (const other of [
+        ...person.parents,
+        ...person.children,
+        ...person.spouseLinks.map((link) => link.id),
+      ]) {
+        if (seen.has(other) || !graph.people.has(other)) continue;
+        seen.add(other);
+        stack.push(other);
+      }
+    }
+
+    const who = named(graph, island[0]);
+    anomalies.push({
+      level: 'erreur',
+      id: island[0],
+      message:
+        island.length === 1
+          ? `${who} n’est reliée à personne : ni parents, ni conjoint, ni enfants.`
+          : `${who} et ${island.length - 1} autre${island.length > 2 ? 's' : ''} forment une branche détachée du reste de l’arbre — il manque un lien de filiation pour l’y rattacher.`,
+    });
+  }
+
+  return anomalies;
+}
+
+/**
  * Relit l'arbre et rend la liste des invraisemblances.
  *
  * L'ordre est celui de la lecture : les anomalies structurelles d'abord — un
@@ -48,6 +121,8 @@ export function auditFamily(graph: FamilyGraph): Anomaly[] {
   // Ce que la construction du graphe a déjà relevé : références inconnues,
   // doublons, boucles de filiation.
   for (const message of graph.warnings) anomalies.push({ level: 'erreur', message });
+
+  anomalies.push(...findDetached(graph));
 
   for (const id of graph.order) {
     const person = graph.people.get(id);
