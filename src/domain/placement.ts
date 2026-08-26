@@ -107,6 +107,68 @@ function buildBlocks(graph: FamilyGraph): { blocks: Block[]; blockOf: Map<string
 }
 
 /**
+ * Réunit en un seul bloc les familles d'origine d'un même couple.
+ *
+ * Quand les deux conjoints ont chacun leurs parents, deux familles se
+ * disputent la place au-dessus d'eux. Le modèle en bandes n'en laisse gagner
+ * qu'une : l'autre se retrouvait rejetée à l'autre bout de l'arbre, et le
+ * lien vers elle ne pouvait plus être tracé — Manuel Albertini paraissait
+ * ainsi n'avoir aucun parent, alors que les siens figuraient bien dans
+ * l'arbre, à cinquante cartes de là.
+ *
+ * Elles sont donc réunies : les quatre grands-parents forment une seule
+ * rangée au-dessus du couple, chacun sur sa moitié. C'est exactement la
+ * disposition d'un arbre d'ascendance imprimé, et elle supprime le problème
+ * plutôt qu'elle ne l'arbitre — après cette réunion, plus aucun bloc n'a deux
+ * familles d'origine, donc plus aucune filiation ne reste sans trait.
+ *
+ * La réunion se propage : le bloc réuni a lui-même plusieurs familles
+ * d'origine, qui se réunissent à leur tour, génération après génération.
+ */
+function mergeParentBlocks(
+  graph: FamilyGraph,
+  blocks: Block[],
+  blockOf: Map<string, Block>,
+): Block[] {
+  let alive = blocks;
+
+  for (let pass = 0; pass < 40; pass += 1) {
+    const dropped = new Set<Block>();
+
+    for (const block of alive) {
+      if (dropped.has(block)) continue;
+
+      // Les familles d'origine de ce bloc, dans l'ordre de ses membres : la
+      // lignée du conjoint de gauche reste à gauche.
+      const origins: Block[] = [];
+      for (const memberId of block.members) {
+        for (const parentId of graph.people.get(memberId)?.parents ?? []) {
+          const parentBlock = blockOf.get(parentId);
+          if (!parentBlock || parentBlock === block || origins.includes(parentBlock)) continue;
+          origins.push(parentBlock);
+        }
+      }
+      if (origins.length < 2) continue;
+
+      const [keep, ...rest] = origins;
+      for (const other of rest) {
+        if (other === keep || dropped.has(other)) continue;
+        keep.members.push(...other.members);
+        for (const memberId of other.members) blockOf.set(memberId, keep);
+        dropped.add(other);
+      }
+      keep.ownWidth =
+        keep.members.length * CARD_WIDTH + (keep.members.length - 1) * COUPLE_GAP;
+    }
+
+    if (dropped.size === 0) break;
+    alive = alive.filter((block) => !dropped.has(block));
+  }
+
+  return alive;
+}
+
+/**
  * Relie les blocs entre eux : qui descend de qui.
  *
  * Un bloc n'a qu'un seul bloc parent — celui qui le porte dans la bande. Le
@@ -240,7 +302,10 @@ function place(
  */
 export function computePlacement(graph: FamilyGraph): Placement {
   const { blocks, blockOf } = buildBlocks(graph);
-  const { roots, secondaryLinks, detachedFiliations } = linkBlocks(graph, blocks, blockOf);
+  // Les quatre grands-parents d'un couple sur une même rangée, pour qu'aucune
+  // filiation ne se retrouve sans trait — voir `mergeParentBlocks`.
+  const merged = mergeParentBlocks(graph, blocks, blockOf);
+  const { roots, secondaryLinks, detachedFiliations } = linkBlocks(graph, merged, blockOf);
 
   const positions = new Map<string, NodePosition>();
   let cursor = 0;
