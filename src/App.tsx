@@ -36,6 +36,7 @@ import { DataNotice } from '@/components/DataNotice';
 import { DataPanel } from '@/components/DataPanel';
 import { MiniMap } from '@/components/MiniMap';
 import { ViewSwitch, type ViewMode } from '@/components/ViewSwitch';
+import { FamilyBanner } from '@/components/FamilyBanner';
 /*
  * Les trois autres vues et le guide ne sont chargés qu'à l'ouverture.
  *
@@ -83,18 +84,19 @@ export default function App() {
    */
   const [focusId, setFocusId] = useState<string | null>(null);
   /*
-   * Les personnes qu'on a demandé à déplier.
+   * La personne dont on regarde la famille « à part ».
    *
    * Un point sous une carte signale une union que l'ascendance ne montre pas
-   * — un conjoint absent, souvent des enfants derrière. Cliquer la personne
-   * les fait apparaître ICI, sans redessiner l'arbre autour d'elle : on
-   * agrandit ce qu'on regarde au lieu de l'effacer.
+   * — un conjoint absent, souvent des enfants derrière. Cliquer cette
+   * personne ouvre SA famille seule : ses parents, sa fratrie, son conjoint,
+   * ses enfants. Une croix referme et rend l'arbre exactement tel qu'il
+   * était, `focusId` n'ayant pas bougé.
    */
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const [familyOf, setFamilyOf] = useState<string | null>(null);
   const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(
     datasetCtrl.dataset,
-    focusId ?? undefined,
-    expanded,
+    familyOf ?? focusId ?? undefined,
+    familyOf !== null,
   );
   const [theme, toggleTheme] = useTheme();
 
@@ -253,8 +255,8 @@ export default function App() {
         setFocusId(id);
         return;
       }
-      // Déjà dessinée : on l'amène au centre, et on déplie ce qu'elle cache —
-      // conjoint et enfants que l'ascendance seule ne montre pas.
+      // Déjà dessinée : on l'amène au centre. Et si elle cache une union que
+      // cette vue ne montre pas, on ouvre sa famille à part.
       focusOn(id);
       const person = graph.people.get(id);
       const hidden =
@@ -262,9 +264,7 @@ export default function App() {
         [...person.spouseLinks.map((link) => link.id), ...person.children].some(
           (other) => graph.people.has(other) && !placed.has(other),
         );
-      // Ne recréer l'ensemble que s'il change vraiment : une identité neuve
-      // relancerait le calcul du placement pour rien.
-      if (hidden) setExpanded((current) => (current.has(id) ? current : new Set(current).add(id)));
+      if (hidden) setFamilyOf(id);
     },
     [focusOn, graph],
   );
@@ -292,7 +292,7 @@ export default function App() {
   const goHome = useCallback(() => {
     setSelectedId(graph.rootId);
     setFlaggedId(graph.rootId);
-    setExpanded(new Set());
+    setFamilyOf(null);
     setFocusId(graph.rootId);
   }, [graph.rootId]);
 
@@ -309,6 +309,17 @@ export default function App() {
     if (!focusId) return;
     focusOn(focusId, { scale: 1.05, duration: 620 });
   }, [focusId, focusOn]);
+
+  // Échap referme la vue famille : c'est le geste attendu de tout ce qui se
+  // superpose, et il évite d'avoir à viser la croix.
+  useEffect(() => {
+    if (!familyOf) return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setFamilyOf(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [familyOf]);
 
   const fitAll = useCallback(() => {
     setFlaggedId(null);
@@ -629,6 +640,14 @@ export default function App() {
         onOpenTour={() => setTourOpen(true)}
       />
 
+      {familyOf && graph.people.has(familyOf) && viewMode === 'tree' && (
+        <FamilyBanner
+          person={graph.people.get(familyOf)!}
+          count={layout.positions.size}
+          onClose={() => setFamilyOf(null)}
+        />
+      )}
+
       <ViewSwitch mode={viewMode} onChange={setViewMode} gapCount={gapCount} />
 
       <Suspense fallback={null}>
@@ -703,7 +722,7 @@ export default function App() {
         onClose={() => setSelectedId(null)}
         onCenter={() => {
           if (!selectedId) return;
-          setExpanded(new Set());
+          setFamilyOf(null);
           setFocusId(selectedId);
         }}
         onShowLineage={() =>

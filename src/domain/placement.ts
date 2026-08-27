@@ -114,8 +114,10 @@ function buildAncestry(
   generation: number,
   taken: Set<string>,
   depth: number,
+  limit: number,
+  withCollaterals: boolean,
 ): Ancestry | undefined {
-  if (depth > MAX_GENERATIONS) return undefined;
+  if (depth > limit) return undefined;
 
   const parents = byBirth(
     graph,
@@ -139,17 +141,19 @@ function buildAncestry(
 
   // Les frères et sœurs du membre de gauche se lisent de gauche à droite en
   // remontant vers lui : l'aîné le plus à l'extérieur, comme sur un acte.
-  const leftSiblings = claimSiblings(left);
-  const rightSiblings = claimSiblings(right);
+  // En vue « famille », on ne montre que les parents eux-mêmes : leurs frères
+  // et sœurs appartiennent à leur famille à eux, pas à celle qu'on regarde.
+  const leftSiblings = withCollaterals ? claimSiblings(left) : [];
+  const rightSiblings = withCollaterals ? claimSiblings(right) : [];
 
   const node: Ancestry = {
     left,
     right,
     leftSiblings,
     rightSiblings,
-    leftParents: buildAncestry(graph, left, generation - 1, taken, depth + 1),
+    leftParents: buildAncestry(graph, left, generation - 1, taken, depth + 1, limit, withCollaterals),
     rightParents: right
-      ? buildAncestry(graph, right, generation - 1, taken, depth + 1)
+      ? buildAncestry(graph, right, generation - 1, taken, depth + 1, limit, withCollaterals)
       : undefined,
     generation,
     ownWidth: 0,
@@ -282,64 +286,25 @@ function placeAncestry(
 }
 
 /**
- * Écarte ce qui se recouvre, rangée par rangée, sans séparer un couple.
- *
- * Déplier une famille insère des cartes au milieu d'une rangée déjà posée.
- * On repousse donc vers la droite ce qui empiète — mais par BLOCS : les
- * cartes déjà distantes d'un écart de couple (dix pixels) sont des conjoints,
- * et se déplacent ensemble. Les traiter une à une écarterait les époux à la
- * première bousculade.
- *
- * L'ordre est conservé, donc aucun trait ne peut se mettre à en croiser un
- * autre du fait de ce réajustement.
- */
-function separateRows(positions: Map<string, NodePosition>): void {
-  const rows = new Map<number, NodePosition[]>();
-  for (const node of positions.values()) {
-    const row = rows.get(node.generation) ?? [];
-    row.push(node);
-    rows.set(node.generation, row);
-  }
-
-  for (const row of rows.values()) {
-    row.sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
-
-    // Regrouper les voisins immédiats : ce sont des conjoints.
-    const blocks: NodePosition[][] = [];
-    for (const node of row) {
-      const last = blocks[blocks.length - 1];
-      const previous = last?.[last.length - 1];
-      /*
-       * Deux conjoints sont exactement à un pas de couple l'un de l'autre.
-       * Il faut aussi vérifier la borne BASSE : deux cartes plus proches que
-       * leur propre largeur ne sont pas un couple, elles se chevauchent — et
-       * les grouper revenait à décréter que le problème n'existait pas, ce qui
-       * laissait un recouvrement après chaque dépliage.
-       */
-      const gap = previous ? node.x - previous.x : Number.POSITIVE_INFINITY;
-      if (previous && gap >= CARD_WIDTH - 0.5 && gap <= COUPLE_STEP + 0.5) last.push(node);
-      else blocks.push([node]);
-    }
-
-    let edge = Number.NEGATIVE_INFINITY;
-    for (const block of blocks) {
-      const shift = Math.max(0, edge - block[0].x);
-      for (const node of block) node.x += shift;
-      edge = block[block.length - 1].x + CARD_WIDTH + SIBLING_GAP;
-    }
-  }
-}
-
-/**
  * Place l'ascendance de `focusId`, sa fratrie, son conjoint et ses enfants.
  *
  * `expanded` ajoute, pour les personnes qu'il nomme, leur conjoint et leurs
  * enfants — ce que l'ascendance seule ne montre pas.
  */
+export interface PlacementOptions {
+  /**
+   * Vue « famille » : on s'arrête aux parents, sans leurs frères et sœurs.
+   *
+   * C'est le mode qu'ouvre un clic sur quelqu'un dont l'ascendance cache une
+   * union — on veut voir SA famille, pas repartir dans une lignée entière.
+   */
+  familyOnly?: boolean;
+}
+
 export function computePlacement(
   graph: FamilyGraph,
   focusId?: string,
-  expanded?: ReadonlySet<string>,
+  options?: PlacementOptions,
 ): Placement {
   const positions = new Map<string, NodePosition>();
 
@@ -361,7 +326,16 @@ export function computePlacement(
    * Elle se construit et se mesure d'abord : c'est elle qui donne sa largeur
    * au dessin, et c'est sous elle que le reste vient se centrer.
    */
-  const ancestry = buildAncestry(graph, focus, generation - 1, taken, 1);
+  const familyOnly = options?.familyOnly ?? false;
+  const ancestry = buildAncestry(
+    graph,
+    focus,
+    generation - 1,
+    taken,
+    1,
+    familyOnly ? 1 : MAX_GENERATIONS,
+    !familyOnly,
+  );
   // `lo` est négatif dès que l'ascendance déborde à gauche de la rangée des
   // parents : on décale d'autant pour que rien ne sorte du cadre.
   if (ancestry) placeAncestry(ancestry, -ancestry.lo, positions);
@@ -402,23 +376,45 @@ export function computePlacement(
   );
   lay(sibship, sibshipLeft, generation, steps, positions);
 
-  // Le conjoint se pose juste après la personne, en décalant les cadets.
+  /*
+   * Les conjoints se posent contre la personne, en décalant la fratrie.
+   *
+   * Un seul conjoint va à droite. Plusieurs — un remariage, un veuvage —
+   * encadrent la personne, qui reste au milieu : tous posés du même côté, le
+   * trait vers le second devait enjamber le premier, et les deux cartes se
+   * retrouvaient à cent soixante-seize pixels l'une de l'autre.
+   */
   if (spouses.length > 0) {
     const focusIndex = sibship.indexOf(focus);
-    const younger = sibship.slice(focusIndex + 1);
-    const shift = spouses.length * COUPLE_STEP;
-    for (const id of younger) {
+    const before = spouses.length > 1 ? 1 : 0;
+    const leftRoom = before * COUPLE_STEP;
+    const rightRoom = (spouses.length - before) * COUPLE_STEP;
+
+    sibship.forEach((id, index) => {
       const node = positions.get(id);
-      if (node) node.x += shift;
-    }
+      if (!node || index < focusIndex) return;
+      // Le sujet ne glisse que de la place ouverte à sa gauche ; ses cadets,
+      // de celle ouverte des deux côtés.
+      node.x += index === focusIndex ? leftRoom : leftRoom + rightRoom;
+    });
+
     const focusNode = positions.get(focus)!;
-    lay(
-      spouses,
-      focusNode.x + COUPLE_STEP,
-      generation,
-      spouses.map(() => COUPLE_STEP),
-      positions,
-    );
+    if (before > 0) {
+      positions.set(spouses[0], {
+        id: spouses[0],
+        x: focusNode.x - COUPLE_STEP,
+        y: focusNode.y,
+        generation,
+      });
+    }
+    spouses.slice(before).forEach((id, index) => {
+      positions.set(id, {
+        id,
+        x: focusNode.x + (index + 1) * COUPLE_STEP,
+        y: focusNode.y,
+        generation,
+      });
+    });
   }
 
   /*
@@ -427,83 +423,51 @@ export function computePlacement(
    * Centrés sous le couple : le trait de descendance part du milieu du trait
    * d'alliance, pas de la seule personne regardée.
    */
+  /*
+   * ── Les enfants ─────────────────────────────────────────────────────────
+   *
+   * Groupés par union, chaque groupe sous SON couple.
+   *
+   * Tous centrés au même endroit — ce qu'on faisait d'abord —, les enfants
+   * d'un premier lit et ceux d'un second partaient du même point : leurs deux
+   * traits se croisaient forcément. Chaque fratrie se pose donc sous le couple
+   * dont elle est issue, et les groupes se suivent dans l'ordre des conjoints,
+   * ce qui interdit tout croisement.
+   */
   const children = byBirth(
     graph,
     (person.children ?? []).filter((id) => graph.people.has(id) && !taken.has(id)),
   );
   if (children.length > 0) {
     for (const id of children) taken.add(id);
-    const focusNode = positions.get(focus)!;
-    const last = spouses.length > 0 ? positions.get(spouses[spouses.length - 1])! : focusNode;
-    const middle = (focusNode.x + last.x + CARD_WIDTH) / 2;
-    lay(
-      children,
-      middle - run(children.length, SIBLING_GAP) / 2,
-      generation + 1,
-      children.map(() => SIBLING_STEP),
-      positions,
-    );
-  }
 
-  /*
-   * ── Ce qu'on demande à voir en plus ─────────────────────────────────────
-   *
-   * Un point sous une carte signale une union que cette vue ne montre pas.
-   * Cliquer la personne la DÉPLIE ici même — son conjoint à côté d'elle, ses
-   * enfants en dessous — plutôt que de redessiner l'arbre autour d'elle.
-   * Redessiner effacerait la famille qu'on avait sous les yeux ; déplier
-   * l'agrandit.
-   */
-  if (expanded) {
-    /*
-     * On fait la place AVANT d'insérer.
-     *
-     * Poser le conjoint à un pas de couple sans rien décaler le faisait
-     * atterrir sur la carte suivante ; le démêlage d'après séparait alors les
-     * deux époux au lieu du bon voisin. Écarter d'abord ce qui est à droite
-     * garantit que le couple reste soudé et que rien ne se chevauche.
-     */
-    const openGap = (generation: number, fromX: number, by: number): void => {
-      if (by <= 0) return;
-      for (const node of positions.values()) {
-        if (node.generation === generation && node.x > fromX + 0.5) node.x += by;
-      }
-    };
+    const focusX = positions.get(focus)!.x;
+    const groups: Array<{ anchor: number; kids: string[] }> = [];
+    const placed = new Set<string>();
 
-    for (const id of expanded) {
-      const base = positions.get(id);
-      const who = graph.people.get(id);
-      if (!base || !who) continue;
-
-      const spouses = who.spouseLinks
-        .map((link) => link.id)
-        .filter((sid) => graph.people.has(sid) && !positions.has(sid));
-
-      if (spouses.length > 0) {
-        openGap(base.generation, base.x, spouses.length * COUPLE_STEP);
-        spouses.forEach((sid, index) => {
-          positions.set(sid, {
-            id: sid,
-            x: base.x + (index + 1) * COUPLE_STEP,
-            y: base.y,
-            generation: base.generation,
-          });
-        });
-      }
-
-      const kids = byBirth(
-        graph,
-        (who.children ?? []).filter((kid) => graph.people.has(kid) && !positions.has(kid)),
+    for (const spouseId of spouses) {
+      const kids = children.filter(
+        (kid) => !placed.has(kid) && (graph.people.get(kid)?.parents ?? []).includes(spouseId),
       );
-      if (kids.length > 0) {
-        const right = base.x + spouses.length * COUPLE_STEP;
-        const width = run(kids.length, SIBLING_GAP);
-        const left = (base.x + right + CARD_WIDTH) / 2 - width / 2;
-        openGap(base.generation + 1, left - CARD_WIDTH, width + SIBLING_GAP);
-        lay(kids, left, base.generation + 1, kids.map(() => SIBLING_STEP), positions);
-      }
+      if (kids.length === 0) continue;
+      for (const kid of kids) placed.add(kid);
+      const spouseX = positions.get(spouseId)!.x;
+      groups.push({ anchor: (focusX + spouseX + CARD_WIDTH) / 2, kids });
     }
-    separateRows(positions);
+
+    // Les enfants dont l'autre parent n'est pas ici pendent du sujet seul.
+    const alone = children.filter((kid) => !placed.has(kid));
+    if (alone.length > 0) groups.push({ anchor: focusX + CARD_WIDTH / 2, kids: alone });
+
+    groups.sort((a, b) => a.anchor - b.anchor);
+
+    let edge = Number.NEGATIVE_INFINITY;
+    for (const group of groups) {
+      const width = run(group.kids.length, SIBLING_GAP);
+      const left = Math.max(group.anchor - width / 2, edge);
+      lay(group.kids, left, generation + 1, group.kids.map(() => SIBLING_STEP), positions);
+      edge = left + width + SIBLING_GAP;
+    }
   }
 
   // Tout ramener dans le quadrant positif : le cadre part de l'origine.

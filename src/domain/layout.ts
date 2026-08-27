@@ -1,5 +1,5 @@
 import type { FamilyGraph } from './graph';
-import { computePlacement } from './placement';
+import { computePlacement, type PlacementOptions } from './placement';
 import {
   CARD_HEIGHT,
   CARD_WIDTH,
@@ -75,13 +75,13 @@ const decadeLabel = (years: number[]): string => {
 export function computeLayout(
   graph: FamilyGraph,
   focusId?: string,
-  expanded?: ReadonlySet<string>,
+  options?: PlacementOptions,
 ): TreeLayout {
   // Le placement lui-même vit dans `placement.ts` : la fiche d'une seule
   // famille, celle de `focusId`. Tout ce qui suit ne fait qu'en déduire les
   // traits, les repères et le cadre — et ne voit jamais que les personnes
   // effectivement posées, les autres étant simplement absentes de `positions`.
-  const { positions } = computePlacement(graph, focusId, expanded);
+  const { positions } = computePlacement(graph, focusId, options);
 
   // Nombre de descendants par personne, calculé de bas en haut de l'ordre
   // topologique : les enfants sont toujours comptés avant leurs parents.

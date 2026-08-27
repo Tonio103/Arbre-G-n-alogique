@@ -1079,3 +1079,90 @@
 .tour-hub--under {
   animation: tour-pop 2.2s var(--ease-out) infinite 300ms;
 }
+
+/* ── Le bandeau de la vue « famille » ────────────────────────────────────── */
+
+/*
+ * Posé sous la barre du haut, au centre. Il ne masque rien : la vue famille
+ * tient en trois rangées serrées, et l'espace du haut est libre depuis que la
+ * barre des vues est descendue.
+ */
+.family-banner {
+  position: absolute;
+  top: calc(var(--topbar-height, 62px) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 18px;
+  border-radius: var(--radius-pill, 999px);
+  animation: family-banner-in 320ms var(--ease-spring) both;
+}
+
+@keyframes family-banner-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.family-banner-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.family-banner-label {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.family-banner-name {
+  color: var(--text-primary);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.family-banner-count {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+/* La croix : le seul chemin de retour, donc jamais discrète. */
+.family-banner-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--glass-fill-strong);
+  color: var(--text-primary);
+}
+
+.family-banner-close:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+@media (max-width: 720px) {
+  .family-banner {
+    top: calc(var(--topbar-height, 62px) + 14px);
+    max-width: calc(100vw - 24px);
+    padding-left: 14px;
+  }
+
+  .family-banner-text {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .family-banner-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

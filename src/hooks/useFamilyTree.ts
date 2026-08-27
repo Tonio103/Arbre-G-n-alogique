@@ -35,7 +35,7 @@ export interface FamilyTree {
 export function useFamilyTree(
   dataset: FamilyDataset,
   focusId?: string,
-  expanded?: ReadonlySet<string>,
+  familyOnly = false,
 ): FamilyTree {
   const { graph, searchIndex, anomalies } = useMemo(() => {
     const built = buildFamilyGraph(dataset);
@@ -48,9 +48,9 @@ export function useFamilyTree(
   }, [dataset]);
 
   const { layout, spatial } = useMemo(() => {
-    const placed = computeLayout(graph, focusId, expanded);
+    const placed = computeLayout(graph, focusId, { familyOnly });
     return { layout: placed, spatial: new SpatialIndex(placed) };
-  }, [graph, focusId, expanded]);
+  }, [graph, focusId, familyOnly]);
 
   return { graph, layout, spatial, searchIndex, anomalies };
 }
