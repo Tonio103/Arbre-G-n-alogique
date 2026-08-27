@@ -32,7 +32,11 @@ export interface FamilyTree {
  * branche aurait reconstruit l'intégralité du graphe et réindexé toute la
  * recherche pour redessiner quarante cartes.
  */
-export function useFamilyTree(dataset: FamilyDataset, focusId?: string): FamilyTree {
+export function useFamilyTree(
+  dataset: FamilyDataset,
+  focusId?: string,
+  expanded?: ReadonlySet<string>,
+): FamilyTree {
   const { graph, searchIndex, anomalies } = useMemo(() => {
     const built = buildFamilyGraph(dataset);
     // La relecture se fait ici, une fois, au même titre que la construction :
@@ -44,9 +48,9 @@ export function useFamilyTree(dataset: FamilyDataset, focusId?: string): FamilyT
   }, [dataset]);
 
   const { layout, spatial } = useMemo(() => {
-    const placed = computeLayout(graph, focusId);
+    const placed = computeLayout(graph, focusId, expanded);
     return { layout: placed, spatial: new SpatialIndex(placed) };
-  }, [graph, focusId]);
+  }, [graph, focusId, expanded]);
 
   return { graph, layout, spatial, searchIndex, anomalies };
 }

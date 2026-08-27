@@ -157,7 +157,7 @@ const SceneHub = () => (
     <text x="196" y="86" className="tour-caption-svg">dessous : union cachée</text>
 
     <text x="130" y="126" className="tour-caption-svg">
-      un point sous quelqu’un = il y a plus à voir
+      un point dessous : cliquez pour déplier
     </text>
   </svg>
 );
@@ -213,10 +213,10 @@ const STEPS: Step[] = [
     body: (
       <>
         Un point <strong>entre deux personnes</strong> marque leur union. Un point{' '}
-        <strong>sous une seule personne</strong> veut dire autre chose : elle a une union que{' '}
-        <em>cette vue ne montre pas</em> — son conjoint n’est pas affiché ici. Le plus souvent,
-        toute une descendance se cache derrière. Ouvrez sa fiche et{' '}
-        <strong>« Repartir d’ici »</strong> pour la déplier.
+        <strong>sous une seule personne</strong> veut dire autre chose : il y a là une union que{' '}
+        <em>cette vue ne montre pas</em> — un conjoint absent, et souvent toute une descendance
+        derrière. <strong>Cliquez cette personne</strong> : sa famille cachée se déplie sur
+        place, sans que le reste de l’arbre disparaisse.
       </>
     ),
     scene: <SceneHub />,

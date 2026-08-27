@@ -72,12 +72,16 @@ const decadeLabel = (years: number[]): string => {
   return `${Math.floor(median / 10) * 10}s`;
 };
 
-export function computeLayout(graph: FamilyGraph, focusId?: string): TreeLayout {
+export function computeLayout(
+  graph: FamilyGraph,
+  focusId?: string,
+  expanded?: ReadonlySet<string>,
+): TreeLayout {
   // Le placement lui-même vit dans `placement.ts` : la fiche d'une seule
   // famille, celle de `focusId`. Tout ce qui suit ne fait qu'en déduire les
   // traits, les repères et le cadre — et ne voit jamais que les personnes
   // effectivement posées, les autres étant simplement absentes de `positions`.
-  const { positions } = computePlacement(graph, focusId);
+  const { positions } = computePlacement(graph, focusId, expanded);
 
   // Nombre de descendants par personne, calculé de bas en haut de l'ordre
   // topologique : les enfants sont toujours comptés avant leurs parents.

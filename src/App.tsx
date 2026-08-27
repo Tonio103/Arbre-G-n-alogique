@@ -82,9 +82,19 @@ export default function App() {
    * disputent la même rangée.
    */
   const [focusId, setFocusId] = useState<string | null>(null);
+  /*
+   * Les personnes qu'on a demandé à déplier.
+   *
+   * Un point sous une carte signale une union que l'ascendance ne montre pas
+   * — un conjoint absent, souvent des enfants derrière. Cliquer la personne
+   * les fait apparaître ICI, sans redessiner l'arbre autour d'elle : on
+   * agrandit ce qu'on regarde au lieu de l'effacer.
+   */
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(
     datasetCtrl.dataset,
     focusId ?? undefined,
+    expanded,
   );
   const [theme, toggleTheme] = useTheme();
 
@@ -200,9 +210,20 @@ export default function App() {
 
   const panelOffset = compact ? 0 : PANEL_OFFSET;
 
+  /*
+   * Le placement, par référence.
+   *
+   * `focusOn` en a besoin, mais le lister en dépendance lui donnait une
+   * identité neuve à chaque recalcul — et avec lui à `selectPerson`, passé en
+   * `onSelect` à chaque médaillon. Le `memo` des cartes tombait alors à chaque
+   * dépliage : quarante médaillons redessinés pour en ajouter quatre.
+   */
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+
   const focusOn = useCallback(
     (id: string, options?: { scale?: number; duration?: number; withPanel?: boolean }) => {
-      const position = layout.positions.get(id);
+      const position = layoutRef.current.positions.get(id);
       if (!position) return;
       viewport.focusPoint(
         position.x + CARD_WIDTH / 2,
@@ -212,7 +233,7 @@ export default function App() {
         options?.duration ?? 720,
       );
     },
-    [layout, viewport, panelOffset],
+    [viewport, panelOffset],
   );
 
   /*
@@ -226,11 +247,26 @@ export default function App() {
    */
   const reveal = useCallback(
     (id: string) => {
-      // Déjà dessinée : on amène juste la vue sur elle, l'arbre ne bouge pas.
-      if (layout.positions.has(id)) focusOn(id);
-      else setFocusId(id);
+      const placed = layoutRef.current.positions;
+      if (!placed.has(id)) {
+        // Pas dessinée du tout : il faut bien repartir d'elle pour l'atteindre.
+        setFocusId(id);
+        return;
+      }
+      // Déjà dessinée : on l'amène au centre, et on déplie ce qu'elle cache —
+      // conjoint et enfants que l'ascendance seule ne montre pas.
+      focusOn(id);
+      const person = graph.people.get(id);
+      const hidden =
+        person &&
+        [...person.spouseLinks.map((link) => link.id), ...person.children].some(
+          (other) => graph.people.has(other) && !placed.has(other),
+        );
+      // Ne recréer l'ensemble que s'il change vraiment : une identité neuve
+      // relancerait le calcul du placement pour rien.
+      if (hidden) setExpanded((current) => (current.has(id) ? current : new Set(current).add(id)));
     },
-    [layout, focusOn],
+    [focusOn, graph],
   );
 
   const selectPerson = useCallback(
@@ -256,23 +292,23 @@ export default function App() {
   const goHome = useCallback(() => {
     setSelectedId(graph.rootId);
     setFlaggedId(graph.rootId);
+    setExpanded(new Set());
     setFocusId(graph.rootId);
   }, [graph.rootId]);
 
   /*
-   * Une fois la nouvelle fiche placée, on amène la vue sur la personne.
+   * Changer de personne racine amène la vue sur elle.
    *
-   * `layout` en dépendance : c'est son changement — donc le recalcul du
-   * placement — qui déclenche le recentrage, exactement quand les nouvelles
-   * positions existent.
+   * Seulement `focusId` en dépendance. Y ajouter le placement, comme on l'a
+   * d'abord fait, rejouait l'animation de caméra à CHAQUE recalcul — donc à
+   * chaque dépliage : on cliquait pour voir apparaître quatre cartes, et toute
+   * la vue se remettait en mouvement. Le placement est lu par référence, il
+   * est déjà à jour quand cet effet s'exécute.
    */
   useEffect(() => {
-    if (!focusId || !layout.positions.has(focusId)) return;
+    if (!focusId) return;
     focusOn(focusId, { scale: 1.05, duration: 620 });
-    // `focusOn` change à chaque rendu de `layout` : le lister ici relancerait
-    // l'animation en boucle. La dépendance utile est la fiche elle-même.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusId, layout]);
+  }, [focusId, focusOn]);
 
   const fitAll = useCallback(() => {
     setFlaggedId(null);
@@ -665,7 +701,11 @@ export default function App() {
         person={selectedPerson}
         onSelect={selectPerson}
         onClose={() => setSelectedId(null)}
-        onCenter={() => selectedId && setFocusId(selectedId)}
+        onCenter={() => {
+          if (!selectedId) return;
+          setExpanded(new Set());
+          setFocusId(selectedId);
+        }}
         onShowLineage={() =>
           setHighlightMode((mode) => (mode === 'close' ? 'lineage' : 'close'))
         }
