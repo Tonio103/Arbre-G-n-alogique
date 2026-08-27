@@ -45,6 +45,17 @@ interface Sub {
 }
 
 /**
+ * Une bande de parents rattachée à l'un des membres du couple qu'elle
+ * surplombe. `memberIndex` retient lequel, pour que le couple puisse se
+ * poser près de sa propre ascendance plutôt qu'au centre de l'ensemble —
+ * voir `placeBand`.
+ */
+interface AboveEntry {
+  memberIndex: number;
+  band: Band;
+}
+
+/**
  * Une bande d'échine : un couple d'ancêtres directs et tout ce qui en dépend.
  *
  * `above` porte les bandes des générations plus anciennes, dans l'ordre des
@@ -55,7 +66,7 @@ interface Sub {
  */
 interface Band {
   members: string[];
-  above: Band[];
+  above: AboveEntry[];
   below: Sub[];
   ownWidth: number;
   width: number;
@@ -132,7 +143,7 @@ function buildSub(graph: FamilyGraph, id: string, claimed: Set<string>): Sub {
 function measureBand(band: Band): void {
   band.width = Math.max(
     band.ownWidth,
-    spread(band.above.map((child) => child.width)),
+    spread(band.above.map((entry) => entry.band.width)),
     spread(band.below.map((sub) => sub.width)),
   );
 }
@@ -156,7 +167,8 @@ function buildBand(graph: FamilyGraph, members: string[], claimed: Set<string>):
   };
 
   const seen = new Set<string>();
-  for (const memberId of members) {
+  for (let memberIndex = 0; memberIndex < members.length; memberIndex++) {
+    const memberId = members[memberIndex];
     const parents = (graph.people.get(memberId)?.parents ?? []).filter((id) =>
       graph.people.has(id),
     );
@@ -202,7 +214,7 @@ function buildBand(graph: FamilyGraph, members: string[], claimed: Set<string>):
       buildSub(graph, childId, claimed),
     );
     measureBand(parentBand);
-    band.above.push(parentBand);
+    band.above.push({ memberIndex, band: parentBand });
   }
 
   measureBand(band);
@@ -248,10 +260,27 @@ function placeSub(
 /**
  * Pose une bande et tout ce qu'elle porte.
  *
- * Le couple se centre sur sa bande ; ses bandes d'ascendance se répartissent
- * au-dessus, dans leur ordre ; ses autres enfants se répartissent en dessous.
- * Rien ne sort de la bande, donc rien ne peut aller croiser ce qui se passe
- * dans la bande voisine.
+ * Chaque membre du couple se pose au plus près du milieu de ses propres
+ * parents — pas au milieu de la bande entière, et pas non plus au milieu de
+ * l'ensemble des deux ascendances mises bout à bout.
+ *
+ * Centrer sur la bande entière la faisait dériver vers le côté où pendait le
+ * plus de monde : une ascendance profonde d'un seul côté, ou des collatéraux
+ * nombreux en dessous, tiraient le couple loin de ses parents à lui.
+ * Centrer sur la largeur totale de `above` (les deux ascendances mises bout
+ * à bout) restait faux dès que l'une était bien plus large que l'autre :
+ * Manuel Albertini, dont les parents tenaient dans 434px, se retrouvait
+ * entraîné à 730px d'eux parce que sa femme comptait, de son côté, 1170px de
+ * cousinage — le milieu du total ne ressemble au milieu d'aucun des deux.
+ *
+ * On pose donc chaque membre à l'endroit qui l'approcherait le plus de SES
+ * parents si lui seul comptait, puis on fait la moyenne de ces endroits : la
+ * position qui minimise l'écart total est celle où chacun s'écarte autant
+ * que l'autre de sa propre ascendance — le meilleur compromis qu'un couple
+ * soudé puisse tenir entre deux ascendances de tailles différentes. Un
+ * membre sans parent connu ne contraint rien ; il suit simplement le reste
+ * du couple. Personne n'ayant de parent connu, faute de mieux, le couple
+ * garde le milieu de la bande entière.
  */
 function placeBand(
   graph: FamilyGraph,
@@ -260,17 +289,39 @@ function placeBand(
   positions: Map<string, NodePosition>,
   groups: string[][],
 ): void {
-  placeMembers(graph, band.members, left + (band.width - band.ownWidth) / 2, positions, groups);
+  const aboveWidth = spread(band.above.map((entry) => entry.band.width));
+  const belowWidth = spread(band.below.map((sub) => sub.width));
+  const aboveLeft = left + (band.width - aboveWidth) / 2;
 
-  const aboveWidth = spread(band.above.map((child) => child.width));
-  let aboveCursor = left + (band.width - aboveWidth) / 2;
-  for (const child of band.above) {
-    placeBand(graph, child, aboveCursor, positions, groups);
-    aboveCursor += child.width + SIBLING_GAP;
+  const aboveLefts: number[] = [];
+  {
+    let cursor = aboveLeft;
+    for (const entry of band.above) {
+      aboveLefts.push(cursor);
+      cursor += entry.band.width + SIBLING_GAP;
+    }
   }
 
-  const belowWidth = spread(band.below.map((sub) => sub.width));
-  let belowCursor = left + (band.width - belowWidth) / 2;
+  // Le centre qu'aurait le membre à cet index si on le posait juste sous sa
+  // propre ascendance, rapporté à `anchoredLeft` (le début du couple).
+  const memberCenter = (index: number): number =>
+    index * (CARD_WIDTH + COUPLE_GAP) + CARD_WIDTH / 2;
+
+  const anchoredLeft =
+    band.above.length > 0
+      ? band.above.reduce((sum, entry, i) => {
+          const aboveCenter = aboveLefts[i] + entry.band.width / 2;
+          return sum + (aboveCenter - memberCenter(entry.memberIndex));
+        }, 0) / band.above.length
+      : left + (band.width - band.ownWidth) / 2;
+
+  placeMembers(graph, band.members, anchoredLeft, positions, groups);
+
+  band.above.forEach((entry, i) => {
+    placeBand(graph, entry.band, aboveLefts[i], positions, groups);
+  });
+
+  let belowCursor = anchoredLeft + (band.ownWidth - belowWidth) / 2;
   for (const sub of band.below) {
     placeSub(graph, sub, belowCursor, positions, groups);
     belowCursor += sub.width + SIBLING_GAP;
