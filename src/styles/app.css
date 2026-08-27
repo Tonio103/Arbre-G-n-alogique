@@ -165,10 +165,23 @@
 }
 
 /*
- * Conteneur du monde : une seule transformation pour des centaines de cartes.
+ * Conteneur du monde : une seule transformation pour toutes les cartes.
  * Les cartes sont positionnées en coordonnées monde et ne bougent jamais ;
- * seul ce conteneur est transformé, ce qui garde le pan et le zoom à 60 images
- * par seconde quel que soit le nombre de personnes affichées.
+ * seul ce conteneur est transformé.
+ *
+ * Sans `will-change: transform`, délibérément.
+ *
+ * Il gardait le monde entier sur une seule couche GPU. Une couche est
+ * pixelisée UNE FOIS, à la résolution du moment, et le `scale()` du zoom
+ * l'agrandit ensuite comme on agrandit une photo — sans jamais la redessiner.
+ * Tout l'arbre devenait flou en zoomant, et le seul médaillon net était celui
+ * qu'on survolait : son animation de survol lui donnait sa propre couche,
+ * fraîchement tracée à la bonne échelle.
+ *
+ * Le gain de vitesse qu'il apportait ne se justifie plus : la vue ne montre
+ * qu'une ascendance à la fois — quelques dizaines de cartes, pas plusieurs
+ * centaines. Le navigateur promeut de lui-même pendant un geste, puis
+ * retrace net une fois le geste fini, ce qui est exactement ce qu'on veut.
  */
 .world {
   position: absolute;
@@ -177,7 +190,6 @@
   width: 0;
   height: 0;
   transform-origin: 0 0;
-  will-change: transform;
 }
 
 .empty-state {

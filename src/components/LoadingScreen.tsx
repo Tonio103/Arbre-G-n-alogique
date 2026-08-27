@@ -1,114 +1,183 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 export interface LoadingScreenProps {
   /** Passe à `true` dès que l'arbre est cadré et prêt à apparaître. */
   ready: boolean;
+  /** Nom de la famille, tel qu'il est saisi dans les données. */
+  title?: string;
+  /** Quelques noms réels, du plus ancien au plus récent. */
+  names?: string[];
+  /** Nombre de personnes dans l'arbre. */
+  people?: number;
+  /** Nombre de générations couvertes. */
+  generations?: number;
 }
 
 /**
- * Le rideau reste au moins cinq secondes à l'écran, même quand l'arbre est
- * prêt bien avant — un plancher voulu, pas seulement le temps de la
- * chorégraphie (~1,3 s). Si le chargement réel prenait plus longtemps que
- * ça, le rideau attendrait `ready` comme avant : ce n'est qu'une durée
- * minimale, choisie pour laisser la scène se dérouler en entier puis vivre
- * un moment avant de se refermer.
+ * Le rideau reste au moins le temps de sa chorégraphie, même quand l'arbre est
+ * prêt avant : c'est un plancher, pas une attente artificielle. Si le
+ * chargement réel dure plus longtemps, il attend `ready` comme toujours.
  */
-const MIN_VISIBLE_MS = 5000;
-const EXIT_MS = 720;
+const MIN_VISIBLE_MS = 5200;
+const EXIT_MS = 900;
 
-/** Un lien de filiation : sa forme (`d`) sert deux fois — au tracé du trait
- *  et au chemin que suit l'étincelle qui le parcourt ensuite en boucle. */
-interface LinkSpec {
+/* ── Géométrie de l'éventail ────────────────────────────────────────────────
+ *
+ * Une ascendance ne se dessine pas comme un buisson : elle DOUBLE à chaque
+ * génération — une personne, deux parents, quatre grands-parents, huit
+ * arrière-grands-parents. L'éventail est la seule forme qui rende cette
+ * progression évidente à l'œil, et c'est exactement ce que l'application
+ * dessine une fois chargée. Le rideau annonce donc l'arbre, il ne l'illustre
+ * pas vaguement.
+ */
+
+const VIEW_W = 560;
+const VIEW_H = 340;
+const CX = 280;
+const CY = 312;
+/** Ouverture de l'éventail, en degrés de part et d'autre de la verticale. */
+const SPREAD = 74;
+const RINGS = 5;
+const RADIUS = (gen: number): number => 34 + gen * 62;
+
+interface FanNode {
+  id: string;
+  gen: number;
+  index: number;
+  x: number;
+  y: number;
+  r: number;
+  /** Instant d'allumage, en millisecondes depuis l'ouverture. */
+  at: number;
+}
+
+interface FanLink {
   id: string;
   d: string;
-  delay: number;
-  duration: number;
+  at: number;
+  length: number;
 }
 
-const LINKS: LinkSpec[] = [
-  { id: 'l1', d: 'M100 168 L62 112', delay: 150, duration: 380 },
-  { id: 'l2', d: 'M100 168 L138 112', delay: 150, duration: 380 },
-  { id: 'l3', d: 'M62 112 L34 56', delay: 650, duration: 360 },
-  { id: 'l4', d: 'M62 112 L86 56', delay: 690, duration: 360 },
-  { id: 'l5', d: 'M138 112 L114 56', delay: 650, duration: 360 },
-  { id: 'l6', d: 'M138 112 L166 56', delay: 690, duration: 360 },
-];
+function buildFan(): { nodes: FanNode[]; links: FanLink[]; span: number } {
+  const nodes: FanNode[] = [];
+  const links: FanLink[] = [];
+  const byGen: FanNode[][] = [];
 
-interface NodeSpec {
-  id: string;
-  cx: number;
-  cy: number;
-  r: number;
-  delay: number;
-  gen: 0 | 1 | 2;
+  // Chaque génération s'allume après la précédente, et un peu plus vite :
+  // le rythme s'accélère à mesure que l'arbre s'élargit, comme une inspiration.
+  const genStart = (gen: number): number => gen * 620 - gen * gen * 22;
+
+  for (let gen = 0; gen < RINGS; gen += 1) {
+    const count = 2 ** gen;
+    const radius = RADIUS(gen);
+    const row: FanNode[] = [];
+
+    for (let index = 0; index < count; index += 1) {
+      // Réparti au centre de sa part d'arc : l'éventail reste symétrique
+      // quelle que soit la génération.
+      const t = count === 1 ? 0.5 : (index + 0.5) / count;
+      const angle = ((-SPREAD + t * SPREAD * 2) * Math.PI) / 180;
+      const node: FanNode = {
+        id: `n${gen}-${index}`,
+        gen,
+        index,
+        x: CX + radius * Math.sin(angle),
+        y: CY - radius * Math.cos(angle),
+        r: Math.max(3.2, 13 - gen * 2.1),
+        // Les nœuds d'une même génération s'allument du centre vers les bords.
+        at: genStart(gen) + Math.abs(t - 0.5) * 460,
+      };
+      row.push(node);
+      nodes.push(node);
+    }
+
+    if (gen > 0) {
+      const parents = byGen[gen - 1];
+      for (const node of row) {
+        const child = parents[node.index >> 1];
+        const dx = node.x - child.x;
+        const dy = node.y - child.y;
+        links.push({
+          id: `l${node.id}`,
+          // Une courbe douce plutôt qu'un segment : l'éventail respire, et le
+          // trait suit le mouvement du regard qui remonte une lignée.
+          d: `M${child.x.toFixed(1)},${child.y.toFixed(1)} Q${(child.x + dx * 0.5).toFixed(1)},${(
+            child.y +
+            dy * 0.62
+          ).toFixed(1)} ${node.x.toFixed(1)},${node.y.toFixed(1)}`,
+          at: node.at - 300,
+          length: Math.hypot(dx, dy) * 1.08,
+        });
+      }
+    }
+
+    byGen.push(row);
+  }
+
+  const span = Math.max(...nodes.map((node) => node.at)) + 900;
+  return { nodes, links, span };
 }
 
-/**
- * Trois générations qui remontent depuis la racine — pas juste trois points :
- * une personne, ses deux parents, leurs quatre parents. La forme dit d'elle-
- * même ce que l'écran annonce, avant même que le texte ne se lise.
- */
-const NODES: NodeSpec[] = [
-  { id: 'root', cx: 100, cy: 168, r: 13, delay: 0, gen: 0 },
-  { id: 'g1a', cx: 62, cy: 112, r: 11, delay: 500, gen: 1 },
-  { id: 'g1b', cx: 138, cy: 112, r: 11, delay: 520, gen: 1 },
-  { id: 'g2a', cx: 34, cy: 56, r: 8.5, delay: 990, gen: 2 },
-  { id: 'g2b', cx: 86, cy: 56, r: 8.5, delay: 1040, gen: 2 },
-  { id: 'g2c', cx: 114, cy: 56, r: 8.5, delay: 1090, gen: 2 },
-  { id: 'g2d', cx: 166, cy: 56, r: 8.5, delay: 1140, gen: 2 },
-];
+const FAN = buildFan();
 
-/** Poussière ambiante : quelques grains qui dérivent lentement autour de la
- *  scène, comme le ciel étoilé / l'atlas du décor principal (voir
- *  `--motif-dot` dans `tokens.css`) — le rideau annonce déjà le monde
- *  qu'il s'apprête à découvrir. */
-interface DustSpec {
-  x: string;
-  y: string;
-  dx: string;
-  dy: string;
-  size: number;
-  duration: number;
-  delay: number;
-}
-
-const DUST: DustSpec[] = [
-  { x: '18%', y: '30%', dx: '14px', dy: '-18px', size: 3, duration: 8200, delay: 0 },
-  { x: '82%', y: '24%', dx: '-16px', dy: '-12px', size: 2.5, duration: 7400, delay: 900 },
-  { x: '28%', y: '72%', dx: '10px', dy: '16px', size: 2, duration: 9000, delay: 1600 },
-  { x: '74%', y: '68%', dx: '-12px', dy: '14px', size: 3, duration: 8600, delay: 400 },
-  { x: '50%', y: '14%', dx: '8px', dy: '-14px', size: 2, duration: 7800, delay: 2000 },
-  { x: '12%', y: '55%', dx: '12px', dy: '10px', size: 2.5, duration: 8000, delay: 1200 },
-];
+/** Poussière ambiante, dans l'esprit du fond étoilé de l'application. */
+const DUST = Array.from({ length: 14 }, (_, index) => {
+  const seed = (index * 2654435761) % 1000;
+  return {
+    x: `${6 + ((seed * 7) % 88)}%`,
+    y: `${8 + ((seed * 13) % 80)}%`,
+    dx: `${((seed % 30) - 15).toFixed(0)}px`,
+    dy: `${-8 - (seed % 22)}px`,
+    size: 1.6 + (seed % 22) / 10,
+    duration: 7000 + (seed % 40) * 120,
+    delay: (seed % 30) * 90,
+  };
+});
 
 /**
  * Rideau d'ouverture.
  *
- * Entre le premier rendu et le cadrage initial de l'arbre (voir l'effet
- * d'ouverture dans `App`), l'écran serait sinon vide ou figé sur un plan
- * encore mal centré. Ce voile ne montre pas une roue de chargement
- * générique mais un arbre qui remonte trois générations et s'assemble sous
- * les yeux — racine, parents, grands-parents — pendant qu'un halo tourne
- * lentement derrière et que de petites étincelles parcourent les liens déjà
- * tracés, en boucle, jusqu'au départ.
+ * Un éventail d'ascendance s'allume de proche en proche : la personne, ses
+ * deux parents, leurs quatre parents, et ainsi de suite — chaque génération
+ * doublant la précédente. Les traits se tracent avant les médaillons, comme
+ * une lignée qu'on remonte, et une étincelle parcourt ensuite chaque lien.
  *
- * Reste monté un instant après le départ pour laisser le temps au rideau de
- * se refermer ; se démonte ensuite pour de bon.
+ * Les noms qui défilent sont ceux de la vraie famille chargée, pas un décor :
+ * l'écran d'attente montre déjà ce qu'on est venu voir.
  */
-export function LoadingScreen({ ready }: LoadingScreenProps) {
+export function LoadingScreen({
+  ready,
+  title,
+  names = [],
+  people = 0,
+  generations = 0,
+}: LoadingScreenProps) {
   const [mounted, setMounted] = useState(true);
   const [floorPassed, setFloorPassed] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  const [nameIndex, setNameIndex] = useState(0);
 
   useEffect(() => {
-    // Le mouvement décoratif n'a rien à faire retarder pour qui l'a désactivé.
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
+    const quiet = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setReduced(quiet);
+    // Le mouvement décoratif n'a rien à faire attendre qui l'a désactivé.
+    if (quiet) {
       setFloorPassed(true);
       return undefined;
     }
     const timer = window.setTimeout(() => setFloorPassed(true), MIN_VISIBLE_MS);
     return () => window.clearTimeout(timer);
   }, []);
+
+  // Les noms se relaient pendant que l'éventail se remplit.
+  useEffect(() => {
+    if (reduced || names.length < 2) return undefined;
+    const timer = window.setInterval(
+      () => setNameIndex((index) => (index + 1) % names.length),
+      1150,
+    );
+    return () => window.clearInterval(timer);
+  }, [reduced, names.length]);
 
   const leaving = ready && floorPassed;
 
@@ -118,17 +187,33 @@ export function LoadingScreen({ ready }: LoadingScreenProps) {
     return () => window.clearTimeout(timer);
   }, [leaving]);
 
+  const caption = useMemo(() => {
+    if (people === 0) return 'Assemblage de l’arbre';
+    const gen = generations > 0 ? `${generations} générations` : '';
+    return [`${people} personnes`, gen].filter(Boolean).join(' · ');
+  }, [people, generations]);
+
   if (!mounted) return null;
 
   return (
-    <div className="loading-screen" data-leaving={leaving || undefined} aria-hidden={leaving || undefined}>
-      <div className="loading-screen__halo" />
-      <div className="loading-screen__glow" />
+    <div
+      className="loading-screen"
+      data-leaving={leaving || undefined}
+      data-reduced={reduced || undefined}
+      aria-hidden={leaving || undefined}
+      role="status"
+      aria-live="polite"
+    >
+      {/* Le fond : une aurore lente, puis un halo qui pulse au rythme des
+          générations qui s'allument. */}
+      <div className="ls-aurora" />
+      <div className="ls-halo" />
+      <div className="ls-vignette" />
 
       {DUST.map((dust, index) => (
         <span
           key={index}
-          className="loading-screen__dust"
+          className="ls-dust"
           style={
             {
               left: dust.x,
@@ -143,85 +228,119 @@ export function LoadingScreen({ ready }: LoadingScreenProps) {
         />
       ))}
 
-      <svg
-        className="loading-screen__glyph"
-        viewBox="0 0 200 190"
-        role="img"
-        aria-label="Arbre généalogique"
-      >
-        <defs>
-          <linearGradient id="loading-screen-gradient" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stopColor="var(--accent)" />
-            <stop offset="1" stopColor="var(--accent-rose)" />
-          </linearGradient>
-          <radialGradient id="loading-screen-spark-gradient">
-            <stop offset="0" stopColor="var(--accent-strong)" />
-            <stop offset="1" stopColor="var(--accent-strong)" stopOpacity="0" />
-          </radialGradient>
-        </defs>
+      <div className="ls-stage">
+        <svg
+          className="ls-fan"
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          role="img"
+          aria-label="Un arbre d’ascendance qui s’assemble"
+        >
+          <defs>
+            <radialGradient id="ls-node" cx="35%" cy="30%">
+              <stop offset="0%" stopColor="var(--ls-node-hi)" />
+              <stop offset="100%" stopColor="var(--ls-node-lo)" />
+            </radialGradient>
+            <filter id="ls-soft" x="-70%" y="-70%" width="240%" height="240%">
+              <feGaussianBlur stdDeviation="5" />
+            </filter>
+          </defs>
 
-        <g className="loading-screen__links">
-          {LINKS.map((link) => (
-            <path
-              key={link.id}
-              className="loading-screen__link"
-              pathLength={1}
-              d={link.d}
-              style={
-                {
-                  animationDelay: `${link.delay}ms`,
-                  animationDuration: `${link.duration}ms`,
-                } as CSSProperties
-              }
-            />
+          {/* Les arcs de génération : un repère discret qui dit que chaque
+              rangée est un âge de la famille. */}
+          {Array.from({ length: RINGS }, (_, gen) => {
+            const radius = RADIUS(gen);
+            const a = (SPREAD * Math.PI) / 180;
+            const x1 = CX - radius * Math.sin(a);
+            const y1 = CY - radius * Math.cos(a);
+            const x2 = CX + radius * Math.sin(a);
+            return (
+              <path
+                key={`ring${gen}`}
+                className="ls-ring"
+                d={`M${x1.toFixed(1)},${y1.toFixed(1)} A${radius},${radius} 0 0 1 ${x2.toFixed(
+                  1,
+                )},${y1.toFixed(1)}`}
+                style={{ animationDelay: `${gen * 560}ms` }}
+              />
+            );
+          })}
+
+          {FAN.links.map((link) => (
+            <g key={link.id}>
+              <path
+                className="ls-link"
+                d={link.d}
+                style={
+                  {
+                    '--len': link.length,
+                    animationDelay: `${link.at}ms`,
+                  } as CSSProperties
+                }
+              />
+              {/* L'étincelle qui remonte le lien, une fois celui-ci tracé. */}
+              <circle className="ls-spark" r="2.1">
+                <animateMotion
+                  dur="1.9s"
+                  begin={`${(link.at + 420) / 1000}s`}
+                  repeatCount="indefinite"
+                  path={link.d}
+                  keyPoints="0;1"
+                  keyTimes="0;1"
+                  calcMode="spline"
+                  keySplines="0.4 0 0.2 1"
+                />
+              </circle>
+            </g>
           ))}
-        </g>
 
-        {/* Étincelles : mêmes tracés que les liens, parcourus en boucle une
-            fois le trait dessiné — voir `offset-path` dans le CSS. */}
-        <g className="loading-screen__sparks">
-          {LINKS.map((link) => (
-            <circle
-              key={link.id}
-              className="loading-screen__spark"
-              r="2.6"
-              style={
-                {
-                  offsetPath: `path("${link.d}")`,
-                  animationDelay: `${link.delay + link.duration + 120}ms`,
-                } as CSSProperties
-              }
-            />
-          ))}
-        </g>
-
-        <g className="loading-screen__nodes">
-          {NODES.map((node) => (
-            <circle
+          {FAN.nodes.map((node) => (
+            <g
               key={node.id}
-              className="loading-screen__node"
+              className="ls-node"
               data-gen={node.gen}
-              cx={node.cx}
-              cy={node.cy}
-              r={node.r}
-              style={
-                {
-                  animationDelay: `${node.delay}ms, ${node.delay + 700 + node.gen * 90}ms`,
-                } as CSSProperties
-              }
-            />
+              style={{ animationDelay: `${node.at}ms` }}
+            >
+              <circle
+                className="ls-node-glow"
+                cx={node.x}
+                cy={node.y}
+                r={node.r * 2.1}
+                filter="url(#ls-soft)"
+              />
+              <circle className="ls-node-ring" cx={node.x} cy={node.y} r={node.r + 3.5} />
+              <circle className="ls-node-dot" cx={node.x} cy={node.y} r={node.r} />
+            </g>
           ))}
-        </g>
-      </svg>
+        </svg>
 
-      <p className="loading-screen__label">
-        On rassemble la famille
-        <span className="loading-screen__dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-      </p>
+        <div className="ls-titles">
+          <h1 className="ls-title">{title || 'Arbre généalogique'}</h1>
+
+          <div className="ls-names" aria-hidden="true">
+            {names.length > 0 ? (
+              names.map((name, index) => (
+                <span
+                  key={name + index}
+                  className="ls-name"
+                  data-active={index === nameIndex || undefined}
+                >
+                  {name}
+                </span>
+              ))
+            ) : (
+              <span className="ls-name" data-active>
+                Une génération après l’autre
+              </span>
+            )}
+          </div>
+
+          <p className="ls-caption">{caption}</p>
+
+          <div className="ls-progress" aria-hidden="true">
+            <span className="ls-progress-fill" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

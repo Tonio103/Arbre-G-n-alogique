@@ -7,6 +7,7 @@ import {
   BranchIcon,
   FitIcon,
   HomeIcon,
+  HelpIcon,
   ImportIcon,
   MapIcon,
   MinusIcon,
@@ -33,6 +34,8 @@ export interface TopBarProps {
   showMiniMap: boolean;
   onToggleMiniMap: () => void;
   onOpenData: () => void;
+  /** Rouvre le guide de navigation. */
+  onOpenTour: () => void;
 }
 
 interface IconButtonProps {
@@ -75,6 +78,7 @@ export function TopBar({
   showMiniMap,
   onToggleMiniMap,
   onOpenData,
+  onOpenTour,
 }: TopBarProps) {
   return (
     <header className="topbar lg lg--thick lg--bar">
@@ -147,6 +151,9 @@ export function TopBar({
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
+          <IconButton label="Comment lire l’arbre" onClick={onOpenTour}>
+            <HelpIcon />
+          </IconButton>
           <IconButton className="hide-compact" label="Importer / exporter vos données" onClick={onOpenData}>
             <ImportIcon />
           </IconButton>

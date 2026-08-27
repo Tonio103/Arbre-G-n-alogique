@@ -41,6 +41,7 @@ import { ViewSwitch, type ViewMode } from '@/components/ViewSwitch';
 import { MapView } from '@/components/MapView';
 import { TimelineView } from '@/components/TimelineView';
 import { GapsView } from '@/components/GapsView';
+import { Tour, hasSeenTour } from '@/components/Tour';
 import { DEFAULT_SCOPE, peopleInScope, type Scope } from '@/domain/scope';
 import { findGaps } from '@/domain/gaps';
 import { GenerationRail } from '@/components/GenerationRail';
@@ -141,6 +142,12 @@ export default function App() {
    * réfèrent au même périmètre — d'où le `Scope` partagé plutôt qu'un filtre
    * par vue, qui laisserait chacune avec sa propre idée de la famille.
    */
+  /*
+   * Le guide s'ouvre tout seul à la première visite, et jamais ensuite. On
+   * attend que l'arbre soit cadré : s'expliquer par-dessus un écran encore
+   * vide ne veut rien dire.
+   */
+  const [tourOpen, setTourOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [scope, setScope] = useState<Scope>(DEFAULT_SCOPE);
 
@@ -201,29 +208,42 @@ export default function App() {
   );
 
   /*
-   * Cliquer quelqu'un ouvre SA famille.
+   * Cliquer quelqu'un ouvre sa fiche — sans toucher à l'arbre.
    *
-   * Le recentrage de la vue est demandé après le rendu : `focusOn` lit
-   * `layout`, et celui-ci ne connaîtra la nouvelle famille qu'au cycle
-   * suivant. Le viser tout de suite ramènerait à l'ancienne position de la
-   * personne — voire à rien du tout si elle n'était pas affichée jusque-là.
+   * Recentrer l'arbre sur la personne cliquée effaçait tout le reste : ouvrir
+   * une grand-mère ne laissait plus voir que SON ascendance à elle, et la
+   * famille qu'on avait sous les yeux disparaissait. On ne re-enracine donc
+   * que si la personne n'est pas déjà dessinée — cas d'un résultat de
+   * recherche ou d'un manque à compléter, où il faut bien aller la chercher.
    */
+  const reveal = useCallback(
+    (id: string) => {
+      // Déjà dessinée : on amène juste la vue sur elle, l'arbre ne bouge pas.
+      if (layout.positions.has(id)) focusOn(id);
+      else setFocusId(id);
+    },
+    [layout, focusOn],
+  );
+
   const selectPerson = useCallback(
     (id: string | null) => {
       setSelectedId(id);
       setHintVisible(false);
-      if (id) setFocusId(id);
+      if (id) reveal(id);
       else setFlaggedId(null);
     },
-    [],
+    [reveal],
   );
 
-  const pickFromSearch = useCallback((id: string) => {
-    setSelectedId(id);
-    setFlaggedId(id);
-    setHintVisible(false);
-    setFocusId(id);
-  }, []);
+  const pickFromSearch = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      setFlaggedId(id);
+      setHintVisible(false);
+      reveal(id);
+    },
+    [reveal],
+  );
 
   const goHome = useCallback(() => {
     setSelectedId(graph.rootId);
@@ -466,6 +486,33 @@ export default function App() {
     (window as unknown as Record<string, unknown>).__arbre = { graph, layout, viewport };
   }, [graph, layout, viewport]);
 
+  /*
+   * Les noms qui défilent sur le rideau d'ouverture.
+   *
+   * De vrais ancêtres, pris du plus ancien au plus récent : l'écran d'attente
+   * montre déjà ce qu'on est venu voir. `graph.order` est trié par génération,
+   * on en prélève donc quelques-uns régulièrement espacés plutôt que les
+   * premiers, qui seraient tous de la même rangée.
+   */
+  const openingNames = useMemo(() => {
+    const ids = graph.order;
+    if (ids.length === 0) return [];
+    const wanted = Math.min(6, ids.length);
+    const step = Math.max(1, Math.floor(ids.length / wanted));
+    const picked: string[] = [];
+    for (let i = 0; i < ids.length && picked.length < wanted; i += step) {
+      const person = graph.people.get(ids[i]);
+      if (person) picked.push(person.displayName);
+    }
+    return picked;
+  }, [graph]);
+
+  useEffect(() => {
+    if (!ready || hasSeenTour()) return undefined;
+    const timer = window.setTimeout(() => setTourOpen(true), 900);
+    return () => window.clearTimeout(timer);
+  }, [ready]);
+
   const currentFocus = focusId && graph.people.has(focusId) ? focusId : graph.rootId;
 
   /*
@@ -490,10 +537,10 @@ export default function App() {
     (id: string) => {
       setViewMode('tree');
       setSelectedId(id);
-      setFocusId(id);
       setHintVisible(false);
+      reveal(id);
     },
-    [],
+    [reveal],
   );
 
   const selectedPerson = selectedId ? (graph.people.get(selectedId) ?? null) : null;
@@ -507,11 +554,19 @@ export default function App() {
    */
   return (
     <div className="app" data-panel-open={selectedPerson ? true : undefined}>
-      <LoadingScreen ready={ready} />
+      <LoadingScreen
+        ready={ready}
+        title={graph.title}
+        names={openingNames}
+        people={graph.people.size}
+        generations={graph.generations.length}
+      />
       <GlassFilters />
       <Backdrop viewport={viewport} />
 
       <ViewSwitch mode={viewMode} onChange={setViewMode} gapCount={gapCount} />
+
+      <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
 
       {viewMode === 'map' && (
         <MapView
@@ -582,6 +637,7 @@ export default function App() {
         showMiniMap={showMiniMap}
         onToggleMiniMap={() => setShowMiniMap((value) => !value)}
         onOpenData={() => setShowDataPanel(true)}
+        onOpenTour={() => setTourOpen(true)}
       />
 
       <BranchLabels

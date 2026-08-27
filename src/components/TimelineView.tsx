@@ -15,8 +15,19 @@ export interface TimelineViewProps {
   onSelectPerson: (id: string) => void;
 }
 
-const LANE_HEIGHT = 26;
-const LEFT = 96;
+/*
+ * Une ligne par personne, son nom dans une colonne à gauche.
+ *
+ * Les barres étaient d'abord empilées par « voies » pour tenir en hauteur, le
+ * nom écrit à l'intérieur. Mais une vie courte donne une barre de trente
+ * pixels, et un nom en fait quatre-vingt-dix : les noms débordaient sur les
+ * barres voisines et la frise devenait illisible. Une ligne par personne coûte
+ * de la hauteur — qu'on peut faire défiler — et ne coûte rien à la lecture.
+ * Les chevauchements se voient toujours : les barres partagent le même axe.
+ */
+const ROW_H = 24;
+const LEFT = 168;
+const TOP = 30;
 
 /** Un pas de graduation lisible, quel que soit l'intervalle couvert. */
 function tickStep(years: number): number {
@@ -29,9 +40,10 @@ function tickStep(years: number): number {
 /**
  * La famille dans le temps.
  *
- * Une barre par vie, rangées de sorte que deux vies qui se chevauchent ne se
- * recouvrent jamais : c'est ce qui rend visible d'un coup d'œil que trois
- * générations vivaient en même temps.
+ * Une ligne par personne, dans l'ordre des naissances, toutes calées sur le
+ * même axe des années : les chevauchements se lisent verticalement, et l'on
+ * voit d'un coup d'œil que trois générations vivaient en même temps. Le
+ * curseur d'année le montre explicitement.
  *
  * Rien n'est inventé. Une personne sans aucune date n'a pas de barre — elle
  * est listée à part. Une vie sans date de décès s'arrête à la dernière année
@@ -76,7 +88,7 @@ export function TimelineView({
   const ticks: number[] = [];
   for (let value = from; value <= to; value += step) ticks.push(value);
 
-  const height = Math.max(120, timeline.lanes * LANE_HEIGHT + 48);
+  const height = Math.max(120, timeline.spans.length * ROW_H + TOP + 22);
   const alive = year !== null ? livingIn(timeline, year) : [];
 
   const barClass = (life: LifeSpan): string =>
@@ -121,19 +133,19 @@ export function TimelineView({
              aria-label={`${timeline.spans.length} vies de ${timeline.from} à ${timeline.to}`}>
           {ticks.map((value) => (
             <g key={value} className="timeline-tick">
-              <line x1={xOf(value)} y1={18} x2={xOf(value)} y2={height - 12} />
-              <text x={xOf(value)} y={12}>
+              <line x1={xOf(value)} y1={TOP - 8} x2={xOf(value)} y2={height - 10} />
+              <text x={xOf(value)} y={TOP - 14}>
                 {value}
               </text>
             </g>
           ))}
 
           {year !== null && (
-            <line className="timeline-cursor" x1={xOf(year)} y1={14} x2={xOf(year)} y2={height - 12} />
+            <line className="timeline-cursor" x1={xOf(year)} y1={TOP - 12} x2={xOf(year)} y2={height - 10} />
           )}
 
-          {timeline.spans.map((life) => {
-            const y = 28 + life.lane * LANE_HEIGHT;
+          {timeline.spans.map((life, row) => {
+            const y = TOP + row * ROW_H;
             const x1 = xOf(life.from);
             const x2 = Math.max(xOf(life.to), x1 + 3);
             return (
@@ -153,11 +165,15 @@ export function TimelineView({
                     life.deathYear ? String(life.deathYear) : undefined,
                   ) || 'dates partielles'}`}
                 </title>
-                <rect x={x1} y={y} width={x2 - x1} height={16} rx={8}
+                <text x={LEFT - 12} y={y + 12} className="timeline-name">
+                  {name(life.personId)}
+                </text>
+                <rect x={x1} y={y} width={x2 - x1} height={15} rx={7.5}
                       data-approximate={life.approximate || undefined}
                       data-open={life.open || undefined} />
-                <text x={x1 + 8} y={y + 12} className="timeline-name">
-                  {name(life.personId)}
+                <text x={x2 + 7} y={y + 12} className="timeline-years">
+                  {life.birthYear ?? '?'}
+                  {life.deathYear ? ` – ${life.deathYear}` : life.open ? ' –' : ''}
                 </text>
               </g>
             );
