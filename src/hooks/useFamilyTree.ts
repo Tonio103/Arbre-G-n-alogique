@@ -16,14 +16,18 @@ export interface FamilyTree {
 }
 
 /**
- * Prépare tout ce qui ne dépend que des données : graphe, placement, index
- * spatial et index de recherche. Ce travail est fait une seule fois, jamais
- * pendant une interaction.
+ * Prépare graphe, placement, index spatial et index de recherche.
+ *
+ * Le placement ne montre que la famille de `focusId` : changer de personne le
+ * recalcule donc, mais il ne s'agit jamais que d'une quinzaine de cartes. Le
+ * graphe, lui, est reconstruit à l'identique — c'est le seul travail
+ * réellement proportionnel à la taille des données, et il reste négligeable
+ * devant le rendu.
  */
-export function useFamilyTree(dataset: FamilyDataset): FamilyTree {
+export function useFamilyTree(dataset: FamilyDataset, focusId?: string): FamilyTree {
   return useMemo(() => {
     const graph = buildFamilyGraph(dataset);
-    const layout = computeLayout(graph);
+    const layout = computeLayout(graph, focusId);
     // La relecture se fait ici, une fois, au même titre que le placement : une
     // saisie fautive doit se voir au chargement, pas se découvrir six mois plus
     // tard en regardant l'arbre de travers.
@@ -36,5 +40,5 @@ export function useFamilyTree(dataset: FamilyDataset): FamilyTree {
       searchIndex: buildSearchIndex(graph),
       anomalies,
     };
-  }, [dataset]);
+  }, [dataset, focusId]);
 }

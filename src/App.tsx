@@ -57,7 +57,19 @@ const PANEL_OFFSET = 400;
 
 export default function App() {
   const datasetCtrl = useDataset();
-  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(datasetCtrl.dataset);
+  /**
+   * La personne dont on regarde la famille.
+   *
+   * L'arbre n'affiche qu'une fiche à la fois — grands-parents, parents,
+   * fratrie et enfants — et cliquer sur n'importe qui ouvre la sienne. C'est
+   * ce qui rend le dessin toujours lisible : jamais deux familles ne se
+   * disputent la même rangée.
+   */
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const { graph, layout, spatial, searchIndex, anomalies } = useFamilyTree(
+    datasetCtrl.dataset,
+    focusId ?? undefined,
+  );
   const [theme, toggleTheme] = useTheme();
 
   /**
@@ -169,31 +181,51 @@ export default function App() {
     [layout, viewport, panelOffset],
   );
 
+  /*
+   * Cliquer quelqu'un ouvre SA famille.
+   *
+   * Le recentrage de la vue est demandé après le rendu : `focusOn` lit
+   * `layout`, et celui-ci ne connaîtra la nouvelle famille qu'au cycle
+   * suivant. Le viser tout de suite ramènerait à l'ancienne position de la
+   * personne — voire à rien du tout si elle n'était pas affichée jusque-là.
+   */
   const selectPerson = useCallback(
     (id: string | null) => {
       setSelectedId(id);
       setHintVisible(false);
-      if (id) focusOn(id);
+      if (id) setFocusId(id);
       else setFlaggedId(null);
     },
-    [focusOn],
+    [],
   );
 
-  const pickFromSearch = useCallback(
-    (id: string) => {
-      setSelectedId(id);
-      setFlaggedId(id);
-      setHintVisible(false);
-      focusOn(id, { scale: Math.max(viewport.transform.scale, 1), duration: 900 });
-    },
-    [focusOn, viewport],
-  );
+  const pickFromSearch = useCallback((id: string) => {
+    setSelectedId(id);
+    setFlaggedId(id);
+    setHintVisible(false);
+    setFocusId(id);
+  }, []);
 
   const goHome = useCallback(() => {
     setSelectedId(graph.rootId);
     setFlaggedId(graph.rootId);
-    focusOn(graph.rootId, { scale: 1.05, duration: 820 });
-  }, [graph.rootId, focusOn]);
+    setFocusId(graph.rootId);
+  }, [graph.rootId]);
+
+  /*
+   * Une fois la nouvelle fiche placée, on amène la vue sur la personne.
+   *
+   * `layout` en dépendance : c'est son changement — donc le recalcul du
+   * placement — qui déclenche le recentrage, exactement quand les nouvelles
+   * positions existent.
+   */
+  useEffect(() => {
+    if (!focusId || !layout.positions.has(focusId)) return;
+    focusOn(focusId, { scale: 1.05, duration: 620 });
+    // `focusOn` change à chaque rendu de `layout` : le lister ici relancerait
+    // l'animation en boucle. La dépendance utile est la fiche elle-même.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId, layout]);
 
   const fitAll = useCallback(() => {
     setFlaggedId(null);
