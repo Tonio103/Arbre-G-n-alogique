@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { rememberTourSeen } from './tour-state';
 
 /*
  * ============================================================================
@@ -17,26 +18,6 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
  *  bouton « ? » de la barre du haut — jamais imposé deux fois.
  *
  * ==========================================================================*/
-
-const SEEN_KEY = 'arbre:guide-vu';
-
-export function hasSeenTour(): boolean {
-  try {
-    return localStorage.getItem(SEEN_KEY) === '1';
-  } catch {
-    // Navigation privée, stockage refusé : on considère le guide comme vu
-    // plutôt que de le réafficher à chaque ouverture.
-    return true;
-  }
-}
-
-function rememberSeen(): void {
-  try {
-    localStorage.setItem(SEEN_KEY, '1');
-  } catch {
-    /* voir `hasSeenTour` */
-  }
-}
 
 interface Step {
   title: string;
@@ -161,6 +142,26 @@ const SceneEdit = () => (
   </svg>
 );
 
+const SceneHub = () => (
+  <svg viewBox="0 0 260 150" className="tour-scene-svg" aria-hidden="true">
+    {/* Un couple affiché : le point se pose ENTRE les deux. */}
+    <circle className="tour-dot" cx="62" cy="52" r="14" />
+    <circle className="tour-dot" cx="112" cy="52" r="14" />
+    <line className="tour-link" x1="62" y1="52" x2="112" y2="52" />
+    <circle className="tour-hub" cx="87" cy="52" r="3.4" />
+    <text x="87" y="86" className="tour-caption-svg">entre deux : un couple</text>
+
+    {/* Un conjoint absent : le point passe SOUS la carte. */}
+    <circle className="tour-dot" cx="196" cy="52" r="14" />
+    <circle className="tour-hub tour-hub--under" cx="196" cy="72" r="3.4" />
+    <text x="196" y="86" className="tour-caption-svg">dessous : union cachée</text>
+
+    <text x="130" y="126" className="tour-caption-svg">
+      un point sous quelqu’un = il y a plus à voir
+    </text>
+  </svg>
+);
+
 const STEPS: Step[] = [
   {
     title: 'L’arbre se lit de bas en haut',
@@ -208,6 +209,19 @@ const STEPS: Step[] = [
     scene: <SceneViews />,
   },
   {
+    title: 'Les petits points sur les traits',
+    body: (
+      <>
+        Un point <strong>entre deux personnes</strong> marque leur union. Un point{' '}
+        <strong>sous une seule personne</strong> veut dire autre chose : elle a une union que{' '}
+        <em>cette vue ne montre pas</em> — son conjoint n’est pas affiché ici. Le plus souvent,
+        toute une descendance se cache derrière. Ouvrez sa fiche et{' '}
+        <strong>« Repartir d’ici »</strong> pour la déplier.
+      </>
+    ),
+    scene: <SceneHub />,
+  },
+  {
     title: 'Faire grandir l’arbre',
     body: (
       <>
@@ -227,9 +241,11 @@ export interface TourProps {
 
 export function Tour({ open, onClose }: TourProps) {
   const [step, setStep] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const returnTo = useRef<HTMLElement | null>(null);
 
   const finish = useCallback(() => {
-    rememberSeen();
+    rememberTourSeen();
     onClose();
   }, [onClose]);
 
@@ -239,16 +255,76 @@ export function Tour({ open, onClose }: TourProps) {
     if (open) setStep(0);
   }, [open]);
 
+  /*
+   * Retenir le focus dans le guide.
+   *
+   * Il s'annonçait `aria-modal="true"` sans l'être : vingt-cinq boutons
+   * restaient atteignables à la tabulation DERRIÈRE lui, et le focus ne
+   * quittait même pas le corps du document à l'ouverture. L'attribut mentait
+   * sur ce que faisait le code ; au clavier, on se retrouvait à piloter
+   * l'arbre caché sous la modale.
+   *
+   * Le focus revient ensuite d'où il venait — le bouton « ? » —, pour ne pas
+   * repartir du début de la page.
+   */
+  /*
+   * Retenir, puis rendre le focus. Deux effets, et pas un seul.
+   *
+   * Tout mettre dans l'effet clavier le faisait dépendre de `finish`, dont
+   * l'identité change à chaque rendu de `App` (le `onClose` y est une fonction
+   * créée à la volée). L'effet se démontait et se remontait sans arrêt : le
+   * focus était « rendu » des dizaines de fois, et `returnTo` finissait par
+   * pointer sur le guide lui-même plutôt que sur le bouton d'où l'on venait.
+   * Celui-ci ne dépend que de l'ouverture.
+   */
   useEffect(() => {
     if (!open) return undefined;
+    returnTo.current = document.activeElement as HTMLElement | null;
+    cardRef.current?.querySelector<HTMLElement>('.tour-next')?.focus();
+    return () => returnTo.current?.focus?.();
+  }, [open]);
+
+  // `finish` passe par une référence : le gestionnaire clavier n'a pas à être
+  // reposé chaque fois que `App` se redessine.
+  const finishRef = useRef(finish);
+  finishRef.current = finish;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') finish();
+      if (event.key === 'Escape') {
+        finishRef.current();
+        return;
+      }
       if (event.key === 'ArrowRight') setStep((s) => Math.min(s + 1, STEPS.length - 1));
       if (event.key === 'ArrowLeft') setStep((s) => Math.max(s - 1, 0));
+      if (event.key !== 'Tab') return;
+
+      const card = cardRef.current;
+      if (!card) return;
+      const stops = [
+        ...card.querySelectorAll<HTMLElement>('button, [href], input, [tabindex]:not([tabindex="-1"])'),
+      ].filter((el) => el.offsetParent !== null);
+      if (stops.length === 0) return;
+
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (!card.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, finish]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -259,7 +335,7 @@ export function Tour({ open, onClose }: TourProps) {
     <div className="tour" role="dialog" aria-modal="true" aria-label="Comment lire l’arbre">
       <div className="tour-veil" onClick={finish} />
 
-      <div className="tour-card lg lg--thick">
+      <div className="tour-card lg lg--thick" ref={cardRef}>
         <div className="tour-scene">{current.scene}</div>
 
         <div className="tour-body">

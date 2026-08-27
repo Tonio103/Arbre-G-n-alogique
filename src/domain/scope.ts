@@ -1,4 +1,5 @@
 import type { FamilyGraph } from './graph';
+import { ancestorsOf } from './relations';
 
 /*
  * ============================================================================
@@ -27,21 +28,6 @@ export interface Scope {
 }
 
 export const DEFAULT_SCOPE: Scope = { kind: 'view' };
-
-/** Remonte toute l'ascendance d'une personne, elle comprise. */
-function ancestorsWith(graph: FamilyGraph, startId: string): Set<string> {
-  const found = new Set<string>();
-  const queue = [startId];
-  while (queue.length > 0) {
-    const id = queue.pop()!;
-    if (found.has(id)) continue;
-    found.add(id);
-    for (const parentId of graph.people.get(id)?.parents ?? []) {
-      if (graph.people.has(parentId)) queue.push(parentId);
-    }
-  }
-  return found;
-}
 
 /**
  * Le parent d'un côté donné.
@@ -84,7 +70,9 @@ export function peopleInScope(
     case 'paternal':
     case 'maternal': {
       const parentId = parentOnSide(graph, focusId, scope.kind);
-      return parentId ? ancestorsWith(graph, parentId) : new Set<string>();
+      // `ancestorsOf` inclut la personne elle-même (distance 0) : c'est
+      // exactement ce qu'on veut ici, le parent faisant partie de son côté.
+      return parentId ? new Set(ancestorsOf(graph, parentId).keys()) : new Set<string>();
     }
 
     case 'person':

@@ -43,12 +43,21 @@ export function ScopeBar({ graph, focusId, scope, onChange, count }: ScopeBarPro
           </button>
         ))}
       </div>
-      <p className="scope-summary">
+      {/*
+        Le périmètre EST le titre de la vue.
+
+        Les vues Carte et Chronologie n'avaient aucun titre de niveau 2 : on
+        sautait du H1 de la barre du haut aux H3 des cartes. Un lecteur d'écran
+        navigue par titres et tombait sur « Lieux non situés » avant de savoir
+        de quelle famille on parlait. Ce libellé répond exactement à cette
+        question, autant qu'il en porte le rang.
+      */}
+      <h2 className="scope-summary">
         <strong>{scopeLabel(graph, focusId, scope)}</strong>
         <span>
           {count} personne{count > 1 ? 's' : ''}
         </span>
-      </p>
+      </h2>
     </div>
   );
 }

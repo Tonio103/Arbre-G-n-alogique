@@ -1043,3 +1043,12 @@
   font-size: 12px;
   color: var(--text-tertiary);
 }
+
+/* Le jalon d'union, tel qu'il apparaît sur l'arbre. */
+.tour-hub {
+  fill: var(--accent-warm);
+}
+
+.tour-hub--under {
+  animation: tour-pop 2.2s var(--ease-out) infinite 300ms;
+}

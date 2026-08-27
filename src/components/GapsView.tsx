@@ -92,11 +92,11 @@ export function GapsView({
       <ScopeBar graph={graph} focusId={focusId} scope={scope} onChange={onScopeChange} count={people.size} />
 
       <header className="gaps-head lg lg--thick">
-        <h2>
+        <h3>
           {shown.length === 0
             ? 'Rien à compléter dans ce périmètre'
             : `${shown.length} information${shown.length > 1 ? 's' : ''} à compléter`}
-        </h2>
+        </h3>
         <p className="view-note">
           Relevé uniquement à partir des champs vides des fiches. L’application ne cherche rien
           d’elle-même et ne peut pas savoir si l’information existe ailleurs.
@@ -119,9 +119,9 @@ export function GapsView({
         if (list.length === 0) return null;
         return (
           <div key={priority} className="gaps-group">
-            <h3 className="gaps-group-title" data-priority={priority}>
+            <h4 className="gaps-group-title" data-priority={priority}>
               {PRIORITY_LABELS[priority]} <em>{list.length}</em>
-            </h3>
+            </h4>
             <ul className="gaps-list">
               {list.map((gap) => {
                 const state = statusOf(gap);

@@ -13,13 +13,33 @@ export interface LoadingScreenProps {
   generations?: number;
 }
 
-/**
- * Le rideau reste au moins le temps de sa chorégraphie, même quand l'arbre est
- * prêt avant : c'est un plancher, pas une attente artificielle. Si le
- * chargement réel dure plus longtemps, il attend `ready` comme toujours.
+/*
+ * Combien de temps le rideau reste, au minimum.
+ *
+ * La première visite mérite la chorégraphie entière : on découvre l'arbre,
+ * l'éventail s'allume génération par génération, les noms défilent. Les
+ * suivantes, non — mesuré sur cette application, la page est prête en 179 ms
+ * et le plancher en imposait 5 200 : cinq secondes d'attente pure, à chaque
+ * ouverture. Grandiose la première fois, pénible la trentième.
+ *
+ * On garde donc la scène complète une seule fois, puis on se contente de
+ * couvrir le temps réel du chargement.
  */
-const MIN_VISIBLE_MS = 5200;
+const FIRST_VISIT_MS = 5200;
+const RETURNING_MS = 900;
 const EXIT_MS = 900;
+
+const SEEN_KEY = 'arbre:ouverture-vue';
+
+function isReturning(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === '1';
+  } catch {
+    // Stockage refusé : on traite comme un retour, pour ne pas infliger la
+    // scène longue à chaque fois sans pouvoir s'en souvenir.
+    return true;
+  }
+}
 
 /* ── Géométrie de l'éventail ────────────────────────────────────────────────
  *
@@ -165,7 +185,13 @@ export function LoadingScreen({
       setFloorPassed(true);
       return undefined;
     }
-    const timer = window.setTimeout(() => setFloorPassed(true), MIN_VISIBLE_MS);
+    const floor = isReturning() ? RETURNING_MS : FIRST_VISIT_MS;
+    try {
+      localStorage.setItem(SEEN_KEY, '1');
+    } catch {
+      /* voir `isReturning` */
+    }
+    const timer = window.setTimeout(() => setFloorPassed(true), floor);
     return () => window.clearTimeout(timer);
   }, []);
 

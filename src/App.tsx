@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { unionKey } from '@/domain/graph';
@@ -36,10 +36,21 @@ import { DataNotice } from '@/components/DataNotice';
 import { DataPanel } from '@/components/DataPanel';
 import { MiniMap } from '@/components/MiniMap';
 import { ViewSwitch, type ViewMode } from '@/components/ViewSwitch';
-import { MapView } from '@/components/MapView';
-import { TimelineView } from '@/components/TimelineView';
-import { GapsView } from '@/components/GapsView';
-import { Tour, hasSeenTour } from '@/components/Tour';
+/*
+ * Les trois autres vues et le guide ne sont chargés qu'à l'ouverture.
+ *
+ * L'arbre est la vue principale et la seule visible au démarrage ; faire
+ * télécharger la carte, la frise et la liste des manques avant de dessiner le
+ * premier médaillon retarde ce que l'on est venu voir. Le découpage est celui
+ * de l'usage : ce qui s'affiche tout de suite, et ce qui attend un clic.
+ */
+const MapView = lazy(() => import('@/components/MapView').then((m) => ({ default: m.MapView })));
+const TimelineView = lazy(() =>
+  import('@/components/TimelineView').then((m) => ({ default: m.TimelineView })),
+);
+const GapsView = lazy(() => import('@/components/GapsView').then((m) => ({ default: m.GapsView })));
+import { hasSeenTour } from '@/components/tour-state';
+const Tour = lazy(() => import('@/components/Tour').then((m) => ({ default: m.Tour })));
 import { DEFAULT_SCOPE, peopleInScope, type Scope } from '@/domain/scope';
 import { findGaps } from '@/domain/gaps';
 import { GenerationRail } from '@/components/GenerationRail';
@@ -561,61 +572,6 @@ export default function App() {
       <GlassFilters />
       <Backdrop viewport={viewport} />
 
-      <ViewSwitch mode={viewMode} onChange={setViewMode} gapCount={gapCount} />
-
-      <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
-
-      {viewMode === 'map' && (
-        <MapView
-          graph={graph}
-          focusId={currentFocus}
-          scope={scope}
-          onScopeChange={setScope}
-          people={scopePeople}
-          onSelectPerson={showInTree}
-        />
-      )}
-      {viewMode === 'timeline' && (
-        <TimelineView
-          graph={graph}
-          focusId={currentFocus}
-          scope={scope}
-          onScopeChange={setScope}
-          people={scopePeople}
-          selectedId={selectedId}
-          onSelectPerson={showInTree}
-        />
-      )}
-      {viewMode === 'gaps' && (
-        <GapsView
-          graph={graph}
-          focusId={currentFocus}
-          scope={scope}
-          onScopeChange={setScope}
-          people={scopePeople}
-          onShowInTree={showInTree}
-          onEdit={showInTree}
-        />
-      )}
-
-
-      <TreeCanvas
-        graph={graph}
-        layout={layout}
-        spatial={spatial}
-        viewport={viewport}
-        hoverStore={hoverStore}
-        highlight={highlight}
-        selectedId={selectedId}
-        flaggedId={flaggedId}
-        onSelect={selectPerson}
-        theme={theme}
-        pathPeople={relation?.people}
-        pathUnions={relation?.unions}
-        relation={relation}
-        growingUnionId={growingUnionId}
-      />
-
       <TopBar
         graph={graph}
         searchIndex={searchIndex}
@@ -635,6 +591,64 @@ export default function App() {
         onToggleMiniMap={() => setShowMiniMap((value) => !value)}
         onOpenData={() => setShowDataPanel(true)}
         onOpenTour={() => setTourOpen(true)}
+      />
+
+      <ViewSwitch mode={viewMode} onChange={setViewMode} gapCount={gapCount} />
+
+      <Suspense fallback={null}>
+        {tourOpen && <Tour open onClose={() => setTourOpen(false)} />}
+      </Suspense>
+
+      <Suspense fallback={null}>
+        {viewMode === 'map' && (
+          <MapView
+            graph={graph}
+            focusId={currentFocus}
+            scope={scope}
+            onScopeChange={setScope}
+            people={scopePeople}
+            onSelectPerson={showInTree}
+          />
+        )}
+        {viewMode === 'timeline' && (
+          <TimelineView
+            graph={graph}
+            focusId={currentFocus}
+            scope={scope}
+            onScopeChange={setScope}
+            people={scopePeople}
+            selectedId={selectedId}
+            onSelectPerson={showInTree}
+          />
+        )}
+        {viewMode === 'gaps' && (
+          <GapsView
+            graph={graph}
+            focusId={currentFocus}
+            scope={scope}
+            onScopeChange={setScope}
+            people={scopePeople}
+            onShowInTree={showInTree}
+            onEdit={showInTree}
+          />
+        )}
+      </Suspense>
+
+      <TreeCanvas
+        graph={graph}
+        layout={layout}
+        spatial={spatial}
+        viewport={viewport}
+        hoverStore={hoverStore}
+        highlight={highlight}
+        selectedId={selectedId}
+        flaggedId={flaggedId}
+        onSelect={selectPerson}
+        theme={theme}
+        pathPeople={relation?.people}
+        pathUnions={relation?.unions}
+        relation={relation}
+        growingUnionId={growingUnionId}
       />
 
       <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />
