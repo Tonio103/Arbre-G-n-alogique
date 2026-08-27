@@ -420,12 +420,6 @@ export function computePlacement(
   /*
    * ── Les enfants ─────────────────────────────────────────────────────────
    *
-   * Centrés sous le couple : le trait de descendance part du milieu du trait
-   * d'alliance, pas de la seule personne regardée.
-   */
-  /*
-   * ── Les enfants ─────────────────────────────────────────────────────────
-   *
    * Groupés par union, chaque groupe sous SON couple.
    *
    * Tous centrés au même endroit — ce qu'on faisait d'abord —, les enfants
@@ -470,6 +464,20 @@ export function computePlacement(
     }
   }
 
+  /*
+   * ── Les marges ──────────────────────────────────────────────────────────
+   *
+   * Un collatéral en bord de dessin — comme Florence Mailllet, seule à gauche
+   * de sa rangée — a souvent un conjoint et des enfants qu'on ne montre pas :
+   * c'est ce que signale son point. S'il y a de la place, on les montre
+   * directement plutôt que d'obliger à cliquer : rien ne les gênerait, la
+   * marge est vide par construction.
+   *
+   * On ne déplace jamais une carte déjà posée — seulement en ajouter dans un
+   * espace qui n'appartenait à personne.
+   */
+  expandEdges(graph, positions, taken);
+
   // Tout ramener dans le quadrant positif : le cadre part de l'origine.
   let minX = Number.POSITIVE_INFINITY;
   for (const node of positions.values()) minX = Math.min(minX, node.x);
@@ -478,4 +486,86 @@ export function computePlacement(
   }
 
   return { positions };
+}
+
+/**
+ * Complète, dans la marge, le bord gauche et le bord droit de chaque rangée.
+ *
+ * Seule la carte véritablement la plus à gauche (ou la plus à droite) du
+ * DESSIN ENTIER à sa rangée est concernée : c'est la seule dont on soit sûr
+ * que rien n'existe dans l'espace où l'on va poser du nouveau. Une carte
+ * simplement en bord de SA bande, plus loin vers le centre du dessin,
+ * pourrait avoir une autre branche juste à côté.
+ */
+function expandEdges(
+  graph: FamilyGraph,
+  positions: Map<string, NodePosition>,
+  taken: Set<string>,
+): void {
+  const rows = new Map<number, NodePosition[]>();
+  for (const node of positions.values()) {
+    const row = rows.get(node.generation) ?? [];
+    row.push(node);
+    rows.set(node.generation, row);
+  }
+
+  const hiddenSpouse = (id: string): string | undefined =>
+    graph.people
+      .get(id)
+      ?.spouseLinks.map((link) => link.id)
+      .find((spouseId) => graph.people.has(spouseId) && !taken.has(spouseId));
+
+  const hiddenChildren = (id: string): string[] =>
+    byBirth(
+      graph,
+      (graph.people.get(id)?.children ?? []).filter(
+        (kidId) => graph.people.has(kidId) && !taken.has(kidId),
+      ),
+    );
+
+  /** Le rectangle déjà occupé à une génération donnée, pour vérifier qu'on n'y entre pas. */
+  const spanOf = (generation: number): { lo: number; hi: number } | undefined => {
+    const row = rows.get(generation);
+    if (!row || row.length === 0) return undefined;
+    return {
+      lo: Math.min(...row.map((n) => n.x)),
+      hi: Math.max(...row.map((n) => n.x)) + CARD_WIDTH,
+    };
+  };
+
+  for (const [generation, row] of rows) {
+    row.sort((a, b) => a.x - b.x);
+    const leftEdge = row[0];
+    const rightEdge = row[row.length - 1];
+
+    const attach = (edge: NodePosition, side: 'left' | 'right'): void => {
+      const spouseId = hiddenSpouse(edge.id);
+      if (!spouseId) return;
+
+      const spouseX = side === 'left' ? edge.x - COUPLE_STEP : edge.x + COUPLE_STEP;
+      taken.add(spouseId);
+      positions.set(spouseId, { id: spouseId, x: spouseX, y: edge.y, generation });
+
+      const kids = hiddenChildren(edge.id);
+      if (kids.length === 0) return;
+
+      const pairLeft = Math.min(edge.x, spouseX);
+      const pairRight = Math.max(edge.x, spouseX) + CARD_WIDTH;
+      const width = run(kids.length, SIBLING_GAP);
+      const left = (pairLeft + pairRight) / 2 - width / 2;
+      const right = left + width;
+
+      // On refuse d'empiéter sur la rangée du dessous : elle peut porter une
+      // tout autre branche, posée là par un calcul qui ignore celui-ci.
+      const below = spanOf(generation + 1);
+      const clash = below && !(right + SIBLING_GAP <= below.lo || left - SIBLING_GAP >= below.hi);
+      if (clash) return;
+
+      for (const kid of kids) taken.add(kid);
+      lay(kids, left, generation + 1, kids.map(() => SIBLING_STEP), positions);
+    };
+
+    attach(leftEdge, 'left');
+    if (rightEdge !== leftEdge) attach(rightEdge, 'right');
+  }
 }
