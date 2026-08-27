@@ -1,4 +1,4 @@
-import type { CrossLink, GenerationRow, LayoutUnion } from '@/domain/layout';
+import type { GenerationRow, LayoutUnion } from '@/domain/layout';
 import {
   CARD_WIDTH,
   CARD_HEIGHT,
@@ -55,7 +55,6 @@ export interface DrawLinksParams {
   unions: LayoutUnion[];
   /** Rangées de générations, pour les bandes de fond. */
   rows: GenerationRow[];
-  crossLinks: CrossLink[];
   /**
    * La zone du monde couverte par ce canevas — pas le cadre visible à
    * l'instant du dessin, mais l'étendue, plus large, pré-rendue une fois pour
@@ -93,18 +92,6 @@ export interface DrawLinksParams {
  * nettement ce qui descend de ce qui distribue.
  */
 const BUS_LIFT = (ROW_HEIGHT - CARD_HEIGHT) * 0.5;
-
-/**
- * Écart entre deux étages de traits distributeurs (voir `assignBusLanes`).
- *
- * Assez pour qu'on distingue deux traits d'un coup d'œil, assez peu pour que
- * plusieurs tiennent entre deux rangées. Le dernier étage est ramené dans cet
- * espace plutôt que de déborder sur les cartes.
- */
-const BUS_LANE_STEP = 18;
-const BUS_LIFT_MIN = 22;
-const BUS_LIFT_MAX = ROW_HEIGHT - CARD_HEIGHT - 16;
-
 
 export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams): void {
   const { worldRect, dpr, palette, highlighted, hasSelection } = params;
@@ -290,41 +277,6 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-
-  // Alliances entre branches éloignées : en pointillé, pour qu'on ne les
-  // confonde jamais avec une filiation.
-  if (params.crossLinks.length > 0) {
-    ctx.beginPath();
-    for (const link of params.crossLinks) {
-      const ay = portraitCenterY(link.a.y);
-      const by = portraitCenterY(link.b.y);
-      ctx.moveTo(cardCenterX(link.a.x), ay);
-      ctx.lineTo(cardCenterX(link.b.x), by);
-
-      /*
-       * Cette union a des enfants, rattachés au sous-arbre du premier
-       * partenaire (voir `buildPlacementForest` dans `domain/layout.ts`) :
-       * le pointillé se prolonge jusqu'au point même où le trait plein de
-       * filiation commence. Sans ce prolongement, le mariage et la
-       * descendance se lisaient comme deux faits sans rapport — comme si
-       * les enfants n'avaient qu'un parent — alors que c'est le même geste,
-       * poursuivi.
-       */
-      const union = params.unions.find((candidate) => candidate.id === link.id);
-      if (union && union.children.length > 0) {
-        const hub = unionHub(union);
-        if (hub) {
-          ctx.moveTo(cardCenterX(link.a.x), ay);
-          ctx.lineTo(hub.x, hub.y);
-        }
-      }
-    }
-    ctx.setLineDash([6 / density, 6 / density]);
-    ctx.strokeStyle = hasSelection ? palette.dim : palette.cross;
-    ctx.lineWidth = 1.3 / density;
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
 }
 
 /** Le point où une union « se noue » : le milieu du trait d'alliance pour un
@@ -389,10 +341,16 @@ function unionSegments(union: LayoutUnion): Segment[] {
     rightMost = Math.max(rightMost, centre);
   }
 
-  // L'étage de cette famille : deux traits qui se recouvrent ne doivent pas
-  // se confondre en une seule ligne (voir `assignBusLanes` dans `layout.ts`).
-  const lift = Math.min(BUS_LIFT_MAX, Math.max(BUS_LIFT_MIN, BUS_LIFT + union.busLane * BUS_LANE_STEP));
-  const busY = childTop - lift;
+  /*
+   * Un seul étage de trait suffit.
+   *
+   * Les familles étaient autrefois réparties sur plusieurs hauteurs, pour que
+   * deux traits distributeurs qui se recouvrent ne se confondent pas en une
+   * seule ligne. Dans une ascendance, ce recouvrement ne peut plus se produire :
+   * chaque couple a sa propre part de la rangée. Mesuré sur la famille
+   * Albertini, un seul étage était utilisé sur les vingt-trois unions.
+   */
+  const busY = childTop - BUS_LIFT;
 
   // Enfant unique à l'aplomb du couple : un simple trait droit. Le bus n'aurait
   // rien à distribuer, et son coude se lirait comme un détour.

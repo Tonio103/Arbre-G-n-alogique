@@ -29,14 +29,12 @@ import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { GlassFilters } from '@/components/GlassFilters';
-import { BranchLabels } from '@/components/BranchLabels';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
 import { DataPanel } from '@/components/DataPanel';
 import { MiniMap } from '@/components/MiniMap';
-import { FamilyMap } from '@/components/FamilyMap';
 import { ViewSwitch, type ViewMode } from '@/components/ViewSwitch';
 import { MapView } from '@/components/MapView';
 import { TimelineView } from '@/components/TimelineView';
@@ -53,7 +51,6 @@ import '@/styles/avatar.css';
 import '@/styles/node.css';
 import '@/styles/chrome.css';
 import '@/styles/detail.css';
-import '@/styles/family-map.css';
 import '@/styles/data-panel.css';
 import '@/styles/loading-screen.css';
 import '@/styles/path-flow.css';
@@ -640,26 +637,6 @@ export default function App() {
         onOpenTour={() => setTourOpen(true)}
       />
 
-      <BranchLabels
-        regions={layout.regions}
-        viewport={viewport}
-        onFocusRegion={(region) => {
-          // Cadrer la branche entière : on passe de la vue d'ensemble au détail
-          // d'une lignée en un geste.
-          viewport.fit(
-            {
-              minX: region.minX,
-              maxX: region.maxX,
-              minY: region.y,
-              maxY: layout.bounds.maxY,
-            },
-            80,
-            0.75,
-            760,
-          );
-        }}
-      />
-
       <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />
 
       <DataNotice anomalies={anomalies} onSelect={selectPerson} />
@@ -668,17 +645,13 @@ export default function App() {
         <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />
       )}
 
-      {viewMode === 'tree' && !compact && (
-        <FamilyMap graph={graph} onSelectPlace={pickFromSearch} />
-      )}
-
       <DetailPanel
         relation={relation}
         graph={graph}
         person={selectedPerson}
         onSelect={selectPerson}
         onClose={() => setSelectedId(null)}
-        onCenter={() => selectedId && focusOn(selectedId, { scale: 1.15, duration: 640 })}
+        onCenter={() => selectedId && setFocusId(selectedId)}
         onShowLineage={() =>
           setHighlightMode((mode) => (mode === 'close' ? 'lineage' : 'close'))
         }

@@ -31,6 +31,17 @@ const PRIORITY_LABELS = {
 
 const STATUS_ORDER: GapStatus[] = ['todo', 'searching', 'done'];
 
+/*
+ * Combien de manques on montre d'emblée.
+ *
+ * Le périmètre par défaut en compte quatre-vingt-quatre, et « toute la
+ * famille » cent soixante-treize. Tout sortir d'un coup donnait près de douze
+ * mille pixels de haut : sur téléphone, la liste devenait un couloir sans fin
+ * où l'on ne retrouvait rien. On en montre une page, et l'on déplie à la
+ * demande — les plus importants étant de toute façon en tête.
+ */
+const PAGE = 12;
+
 /**
  * Ce qu'on ne sait pas encore.
  *
@@ -50,6 +61,11 @@ export function GapsView({
   const gaps = useMemo(() => findGaps(graph, people), [graph, people]);
   const [status, setStatus] = useState<Record<string, GapStatus>>(() => loadGapStatus());
   const [hideDone, setHideDone] = useState(true);
+  const [shownCount, setShownCount] = useState(PAGE);
+
+  // Changer de périmètre repart d'une page : on ne garde pas « tout déplié »
+  // d'une branche de quinze personnes à la famille entière.
+  useEffect(() => setShownCount(PAGE), [people]);
 
   useEffect(() => saveGapStatus(status), [status]);
 
@@ -62,10 +78,13 @@ export function GapsView({
   const shown = hideDone ? gaps.filter((gap) => statusOf(gap) !== 'done') : gaps;
   const doneCount = gaps.filter((gap) => statusOf(gap) === 'done').length;
 
+  const visible = shown.slice(0, shownCount);
+  const remaining = shown.length - visible.length;
+
   const byPriority = {
-    high: shown.filter((gap) => gap.priority === 'high'),
-    medium: shown.filter((gap) => gap.priority === 'medium'),
-    low: shown.filter((gap) => gap.priority === 'low'),
+    high: visible.filter((gap) => gap.priority === 'high'),
+    medium: visible.filter((gap) => gap.priority === 'medium'),
+    low: visible.filter((gap) => gap.priority === 'low'),
   };
 
   return (
@@ -141,6 +160,17 @@ export function GapsView({
           </div>
         );
       })}
+
+      {remaining > 0 && (
+        <button
+          type="button"
+          className="gaps-more lg lg--chip"
+          onClick={() => setShownCount((count) => count + PAGE * 2)}
+        >
+          Voir {Math.min(remaining, PAGE * 2)} de plus
+          <em>{remaining} restants</em>
+        </button>
+      )}
 
       <p className="view-note view-note--standalone">
         Le suivi 🔴 🟡 🟢 n’est qu’un pense-bête : il ne touche jamais aux données familiales.

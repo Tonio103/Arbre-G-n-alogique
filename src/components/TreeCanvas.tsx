@@ -367,6 +367,73 @@ export function TreeCanvas({
     onSelect(null);
   }, [onSelect]);
 
+  /*
+   * Circuler dans l'arbre aux flèches.
+   *
+   * Les médaillons sont des boutons, donc déjà atteignables à la tabulation —
+   * mais tabuler traverse quarante cartes dans l'ordre du DOM, qui n'est pas
+   * celui de la parenté. Les flèches suivent ce que l'œil suivrait : vers le
+   * haut on remonte aux parents, vers le bas on redescend, sur les côtés on
+   * longe la fratrie.
+   *
+   * On cherche le voisin le plus proche DANS la direction demandée, en pesant
+   * l'écart latéral plus lourd que l'écart dans l'axe : sans cela, une carte
+   * très loin sur le côté mais à peine plus haut l'emporterait sur le parent
+   * qui se trouve juste au-dessus.
+   */
+  const moveFocus = useCallback(
+    (from: string, dx: number, dy: number): void => {
+      const origin = layout.positions.get(from);
+      if (!origin) return;
+
+      let best: string | undefined;
+      let bestCost = Number.POSITIVE_INFINITY;
+
+      for (const candidate of layout.positions.values()) {
+        if (candidate.id === from) continue;
+        const ax = candidate.x - origin.x;
+        const ay = candidate.y - origin.y;
+        // Écarter tout ce qui n'est pas franchement dans la direction visée.
+        const along = dx !== 0 ? ax * dx : ay * dy;
+        const across = dx !== 0 ? Math.abs(ay) : Math.abs(ax);
+        if (along <= 0) continue;
+        const cost = along + across * 2.5;
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = candidate.id;
+        }
+      }
+
+      if (!best) return;
+      const target = document.querySelector<HTMLElement>(`.node[data-id="${CSS.escape(best)}"]`);
+      // Hors du cadre visible, la carte n'est pas montée : on la sélectionne,
+      // ce qui amène la vue sur elle, et le focus suivra au prochain rendu.
+      if (target) target.focus();
+      else onSelect(best);
+    },
+    [layout, onSelect],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>): void => {
+      const active = document.activeElement as HTMLElement | null;
+      const from = active?.dataset?.id;
+      if (!from || !active?.classList.contains('node')) return;
+
+      const moves: Record<string, [number, number]> = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+      };
+      const move = moves[event.key];
+      if (!move) return;
+      event.preventDefault();
+      moveFocus(from, move[0], move[1]);
+    },
+    [moveFocus],
+  );
+
 
   const hasSelection = highlight.people.size > 0;
 
@@ -377,8 +444,9 @@ export function TreeCanvas({
       ref={stageRef}
       className="stage"
       data-grabbing={grabbing || undefined}
-      aria-label="Arbre généalogique"
+      aria-label="Arbre généalogique — flèches pour circuler entre les personnes"
       onClick={handleBackgroundClick}
+      onKeyDown={handleKeyDown}
     >
       <div ref={worldRef} className="world">
         <LinkLayer
@@ -411,7 +479,6 @@ export function TreeCanvas({
                 dimmed={hasSelection && !role}
                 selected={selectedId === node.id}
                 flagged={flaggedId === node.id}
-                branch={layout.branchOf.get(node.id)}
                 onPath={pathPeople?.has(node.id) || undefined}
                 onSelect={handleSelect}
                 onHover={handleHover}

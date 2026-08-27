@@ -932,3 +932,114 @@
     opacity: 1;
   }
 }
+
+/* ── Sur petit écran ─────────────────────────────────────────────────────── */
+
+/*
+ * Mesuré sur 375 px de large : la chronologie débordait de 321 px (un
+ * `min-width: 640px` en dur), la carte de 63 px, et « À compléter » sortait
+ * quatre-vingt-quatre cartes d'affilée — près de douze mille pixels de haut,
+ * impraticable au doigt. Ce qui suit corrige ces trois points précis.
+ */
+@media (max-width: 720px) {
+  .view {
+    inset: calc(var(--topbar-height, 62px) + 56px) 0 0 0;
+    padding: 8px 12px 40px;
+    gap: 12px;
+  }
+
+  /* La barre de vues passe en bas : c'est là que le pouce arrive. */
+  .view-switch {
+    top: auto;
+    bottom: calc(12px + var(--safe-bottom, 0px));
+    width: calc(100vw - 24px);
+    justify-content: space-around;
+  }
+
+  .view-switch-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 6px;
+  }
+
+  /* Le périmètre tient sur deux lignes plutôt que de rogner les libellés. */
+  .scope-choices {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .scope-choices::-webkit-scrollbar {
+    display: none;
+  }
+
+  .map-layout {
+    gap: 12px;
+  }
+
+  .map-svg {
+    max-height: 46vh;
+  }
+
+  /*
+   * La frise gardait une largeur minimale de 640 px : sur 375 px d'écran,
+   * elle imposait un défilement horizontal permanent. On la laisse suivre la
+   * largeur disponible — les graduations s'espacent d'elles-mêmes, et le
+   * `viewBox` garde les proportions.
+   */
+  .timeline-svg {
+    min-width: 0;
+  }
+
+  .timeline-stage {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .timeline-tools {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .timeline-tools input[type='range'] {
+    width: 100%;
+  }
+
+  .gaps-list {
+    grid-template-columns: 1fr;
+  }
+
+  .journey li {
+    grid-template-columns: 54px 1fr;
+  }
+
+  .journey-kind {
+    grid-column: 2;
+    margin-top: -4px;
+  }
+}
+
+/* Déplier la suite des manques : la page suivante, pas la liste entière. */
+.gaps-more {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 550;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.gaps-more:hover {
+  background: var(--glass-fill-hover);
+}
+
+.gaps-more em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}

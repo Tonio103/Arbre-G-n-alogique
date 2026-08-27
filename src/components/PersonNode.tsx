@@ -27,7 +27,6 @@ export interface PersonNodeProps {
    * distinctes quel que soit leur nombre — là où un pas régulier finit par
    * rapprocher les dernières.
    */
-  branch?: number;
   /** Cette personne fait partie du chemin de parenté affiché. */
   onPath?: boolean;
   onSelect: (id: string) => void;
@@ -43,7 +42,7 @@ function buildAriaLabel(person: Person): string {
 }
 
 /**
- * Médaillon d'une personne, accroché à sa branche.
+ * Médaillon d'une personne.
  *
  * Un portrait rond et un nom, sans cadre : sur un arbre, une grille de
  * rectangles écraserait la ramure qu'elle est censée habiter. Le verre
@@ -62,7 +61,6 @@ export const PersonNode = memo(function PersonNode({
   dimmed,
   selected,
   flagged,
-  branch,
   onPath,
   onSelect,
   onHover,
@@ -80,10 +78,9 @@ export const PersonNode = memo(function PersonNode({
           top: y,
           width: CARD_WIDTH,
           height: CARD_HEIGHT,
-          '--branch-hue': branch === undefined ? undefined : `${(branch * 137.508) % 360}`,
         } as React.CSSProperties
       }
-      data-branch={branch === undefined ? undefined : ''}
+      data-id={person.id}
       data-path={onPath || undefined}
       data-detail={detail}
       data-role={role ?? undefined}

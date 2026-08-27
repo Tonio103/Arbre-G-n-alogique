@@ -5,7 +5,6 @@ import {
   CARD_WIDTH,
   COUPLE_GAP,
   ROW_HEIGHT,
-  SIBLING_GAP,
   cardBottom,
   cardCenterX,
   cardTop,
@@ -36,16 +35,6 @@ export interface LayoutUnion {
   /** Vrai quand les deux conjoints sont côte à côte (cas courant). */
   adjacent: boolean;
   status: string;
-  /** Étage du trait distributeur — voir `assignBusLanes`. */
-  busLane: number;
-}
-
-/** Mariage reliant deux branches éloignées : dessiné en courbe pointillée. */
-export interface CrossLink {
-  id: string;
-  a: LayoutPartner;
-  b: LayoutPartner;
-  status: string;
 }
 
 export interface Bounds {
@@ -63,88 +52,18 @@ export interface GenerationRow {
   label: string;
 }
 
-/** Étendue occupée par une branche nommée, pour l'étiqueter en vue éloignée. */
-export interface LayoutRegion {
-  label: string;
-  anchorId: string;
-  minX: number;
-  maxX: number;
-  centerX: number;
-  /** Haut de la région : la génération de l'ancêtre qui lui donne son nom. */
-  y: number;
-  count: number;
-}
-
 export interface TreeLayout {
   positions: Map<string, NodePosition>;
-  regions: LayoutRegion[];
   /** Nombre de descendants de chaque personne. */
   weights: Map<string, number>;
   unions: LayoutUnion[];
-  crossLinks: CrossLink[];
   bounds: Bounds;
   rows: GenerationRow[];
   /** Ordre de dessin des liens : les unions d'abord, indexées par personne. */
   unionsByPerson: Map<string, string[]>;
   unionById: Map<string, LayoutUnion>;
-  /**
-   * Lignée fondatrice de chaque personne, par son rang dans `graph.branches`.
-   *
-   * C'est ce qui donne sa couleur à une carte. Un diagramme monochrome de cinq
-   * cents personnes ne laisse voir aucune structure : on ne distingue une
-   * famille d'une autre qu'en suivant les traits un par un. Une teinte par
-   * lignée rend cette structure lisible d'un seul regard, sans rien ajouter au
-   * dessin.
-   */
-  branchOf: Map<string, number>;
 }
 
-
-/**
- * Donne à chaque famille son propre étage de trait.
- *
- * Le trait qui distribue une fratrie court à mi-chemin entre la rangée des
- * parents et celle des enfants. À la même hauteur pour toutes, deux traits
- * dont les portées se croisent se rejoignent en une seule ligne continue — et
- * le dessin se met à mentir : les enfants de l'une paraissent pendre du trait
- * de l'autre, donc être frères et sœurs de gens qui ne le sont pas. C'est ce
- * qui donnait à deux conjoints l'air d'être frère et sœur.
- *
- * Les familles dont les portées se recouvrent sont donc réparties sur des
- * étages distincts, au plus près les unes des autres — le rangement d'un
- * agenda qui empile les rendez-vous qui se chevauchent. Une famille dont la
- * portée est libre garde la hauteur naturelle.
- */
-function assignBusLanes(unions: LayoutUnion[]): void {
-  const byChildRow = new Map<number, LayoutUnion[]>();
-  for (const union of unions) {
-    if (union.children.length === 0) continue;
-    const childTop = Math.min(...union.children.map((child) => child.y));
-    const group = byChildRow.get(childTop) ?? [];
-    group.push(union);
-    byChildRow.set(childTop, group);
-  }
-
-  for (const group of byChildRow.values()) {
-    const spans = group
-      .map((union) => ({
-        union,
-        min: Math.min(union.anchorX, ...union.children.map((child) => cardCenterX(child.x))),
-        max: Math.max(union.anchorX, ...union.children.map((child) => cardCenterX(child.x))),
-      }))
-      .sort((a, b) => a.min - b.min || a.max - b.max);
-
-    // Dernière abscisse occupée par chaque étage : un trait reprend le premier
-    // étage libéré avant lui, et n'en ouvre un nouveau qu'à défaut.
-    const laneEnds: number[] = [];
-    for (const span of spans) {
-      let lane = 0;
-      while (lane < laneEnds.length && laneEnds[lane] > span.min - SIBLING_GAP) lane += 1;
-      laneEnds[lane] = span.max;
-      span.union.busLane = lane;
-    }
-  }
-}
 
 const decadeLabel = (years: number[]): string => {
   if (years.length === 0) return '';
@@ -174,7 +93,6 @@ export function computeLayout(graph: FamilyGraph, focusId?: string): TreeLayout 
 
   // --- Liens ---
   const layoutUnions: LayoutUnion[] = [];
-  const crossLinks: CrossLink[] = [];
   const unionsByPerson = new Map<string, string[]>();
   const unionById = new Map<string, LayoutUnion>();
 
@@ -205,14 +123,12 @@ export function computeLayout(graph: FamilyGraph, focusId?: string): TreeLayout 
     const adjacent = sameRow && span <= CARD_WIDTH + COUPLE_GAP + 1;
 
     /*
-     * Le point d'où part la descendance : le milieu du couple quand les deux
-     * cartes sont voisines — mais seulement alors. Un mariage entre deux
-     * branches (`adjacent` faux) n'a pas de bloc commun : `buildPlacementForest`
-     * rattache les enfants au sous-arbre d'un seul des deux parents, celui qui
-     * les a rencontrés en premier (voir plus haut, « la première visite emporte
-     * les enfants »). Centrer entre les deux cartes déplacerait le départ de la
-     * descente loin de l'endroit où les enfants sont réellement placés — un
-     * détour qui n'existe que sur le papier, pas dans la disposition.
+     * Le point d'où part la descendance : le milieu du couple.
+     *
+     * Dans une ascendance, deux conjoints sont toujours accolés — c'est une
+     * propriété du placement, pas une chance. Le repli sur la carte du premier
+     * partenaire ne sert donc qu'aux données douteuses, où deux époux se
+     * retrouveraient sur des générations différentes.
      */
     const anchorX =
       partners.length > 1 && adjacent
@@ -233,7 +149,6 @@ export function computeLayout(graph: FamilyGraph, focusId?: string): TreeLayout 
       anchorY,
       adjacent,
       status: union.status,
-      busLane: 0,
     };
     layoutUnions.push(layoutUnion);
     unionById.set(union.id, layoutUnion);
@@ -248,24 +163,8 @@ export function computeLayout(graph: FamilyGraph, focusId?: string): TreeLayout 
       list.push(union.id);
       unionsByPerson.set(child.id, list);
     }
-
-    if (partners.length > 1 && !adjacent) {
-      crossLinks.push({
-        id: union.id,
-        a: partners[0],
-        b: partners[partners.length - 1],
-        status: union.status,
-      });
-    }
   }
 
-
-
-  // Chaque famille sur son propre étage, pour que deux traits de filiation
-  // ne se confondent jamais — voir `assignBusLanes`.
-  assignBusLanes(layoutUnions);
-
-  const branchOf = new Map<string, number>();
 
   // --- Cadre et frise des générations ---
   let minX = Number.POSITIVE_INFINITY;
@@ -308,90 +207,11 @@ export function computeLayout(graph: FamilyGraph, focusId?: string): TreeLayout 
 
   return {
     positions,
-    regions: computeRegions(graph, positions, branchOf),
-    branchOf,
     weights,
     unions: layoutUnions,
-    crossLinks,
     bounds: { minX, minY, maxX, maxY },
     rows,
     unionsByPerson,
     unionById,
   };
-}
-
-/**
- * Étendue horizontale de chaque branche nommée : son ancêtre, ses conjoints et
- * toute sa descendance. Les branches dont les membres sont dispersés (cas d'un
- * mariage entre lignées) sont écartées, car une étiquette couvrant la moitié de
- * l'arbre n'apprendrait rien.
- */
-function computeRegions(
-  graph: FamilyGraph,
-  positions: Map<string, NodePosition>,
-  branchOf: Map<string, number>,
-): LayoutRegion[] {
-  const regions: LayoutRegion[] = [];
-
-  /*
-   * La lignée la plus étroite l'emporte.
-   *
-   * Les branches s'emboîtent : la souche d'origine contient tout le monde, une
-   * sous-branche n'en contient qu'une part. À attribuer la couleur au premier
-   * venu, la souche prend cinq cents personnes sur cinq cent vingt-huit et le
-   * diagramme redevient monochrome. On attribue donc de la plus large à la
-   * plus étroite, si bien que c'est la dernière — la plus précise, celle qui
-   * distingue vraiment une famille de sa voisine — qui reste.
-   */
-  const claimed: Array<{ index: number; members: Set<string> }> = [];
-
-  graph.branches.forEach((branch, index) => {
-    const anchor = graph.people.get(branch.anchorId);
-    const anchorPosition = positions.get(branch.anchorId);
-    if (!anchor || !anchorPosition) return;
-
-    const seen = new Set<string>([branch.anchorId]);
-    const queue = [branch.anchorId];
-    let minX = anchorPosition.x;
-    let maxX = anchorPosition.x + CARD_WIDTH;
-
-    while (queue.length > 0) {
-      const id = queue.pop()!;
-      const person = graph.people.get(id);
-      if (!person) continue;
-      const position = positions.get(id);
-      if (position) {
-        minX = Math.min(minX, position.x);
-        maxX = Math.max(maxX, position.x + CARD_WIDTH);
-      }
-      for (const nextId of [...person.children, ...person.spouseLinks.map((l) => l.id)]) {
-        if (seen.has(nextId)) continue;
-        // Un conjoint venu d'ailleurs n'entraîne pas sa propre lignée.
-        if (person.spouseLinks.some((l) => l.id === nextId) && graph.people.get(nextId)?.parents.length) {
-          continue;
-        }
-        seen.add(nextId);
-        queue.push(nextId);
-      }
-    }
-
-    claimed.push({ index, members: seen });
-
-    regions.push({
-      label: branch.label,
-      anchorId: branch.anchorId,
-      minX,
-      maxX,
-      centerX: (minX + maxX) / 2,
-      y: anchorPosition.y,
-      count: seen.size,
-    });
-  });
-
-  claimed.sort((a, b) => b.members.size - a.members.size);
-  for (const entry of claimed) {
-    for (const id of entry.members) branchOf.set(id, entry.index);
-  }
-
-  return regions.sort((a, b) => a.minX - b.minX);
 }

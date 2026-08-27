@@ -241,9 +241,18 @@ export function DetailPanel({
       </div>
 
       <div className="detail-actions">
+        {/*
+          Repartir d'ici : l'arbre se redessine autour de cette personne.
+
+          Un simple clic sur quelqu'un n'y touche plus — sinon ouvrir une
+          grand-mère effaçait la famille qu'on avait sous les yeux. Mais il
+          faut bien un moyen de changer de branche : sans lui, les descendants
+          des collatéraux (37 personnes sur 80 dans la famille Albertini)
+          n'étaient plus atteignables que par la recherche.
+        */}
         <button type="button" className="action-button" onClick={onCenter}>
           <HomeIcon />
-          Centrer
+          Repartir d’ici
         </button>
         <button
           type="button"

@@ -141,7 +141,6 @@ export function LinkLayer({
       drawLinks(context, {
         unions: spatial.visibleUnions(rect),
         rows: layout.rows,
-        crossLinks: layout.crossLinks,
         worldRect: rect,
         density: transform.scale,
         dpr,
