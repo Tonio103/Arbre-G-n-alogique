@@ -37,6 +37,12 @@ import { DataNotice } from '@/components/DataNotice';
 import { DataPanel } from '@/components/DataPanel';
 import { MiniMap } from '@/components/MiniMap';
 import { FamilyMap } from '@/components/FamilyMap';
+import { ViewSwitch, type ViewMode } from '@/components/ViewSwitch';
+import { MapView } from '@/components/MapView';
+import { TimelineView } from '@/components/TimelineView';
+import { GapsView } from '@/components/GapsView';
+import { DEFAULT_SCOPE, peopleInScope, type Scope } from '@/domain/scope';
+import { findGaps } from '@/domain/gaps';
 import { GenerationRail } from '@/components/GenerationRail';
 
 import '@/styles/base.css';
@@ -50,6 +56,7 @@ import '@/styles/family-map.css';
 import '@/styles/data-panel.css';
 import '@/styles/loading-screen.css';
 import '@/styles/path-flow.css';
+import '@/styles/views.css';
 import '@/styles/theme-transition.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
@@ -125,6 +132,18 @@ export default function App() {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showDataPanel, setShowDataPanel] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
+
+  /**
+   * La vue courante et son périmètre.
+   *
+   * L'arbre reste la vue principale : c'est lui qui décide de QUI l'on parle.
+   * Les trois autres n'en changent pas, elles le regardent autrement, et se
+   * réfèrent au même périmètre — d'où le `Scope` partagé plutôt qu'un filtre
+   * par vue, qui laisserait chacune avec sa propre idée de la famille.
+   */
+  const [viewMode, setViewMode] = useState<ViewMode>('tree');
+  const [scope, setScope] = useState<Scope>(DEFAULT_SCOPE);
+
 
   /**
    * Le point de repère.
@@ -447,6 +466,36 @@ export default function App() {
     (window as unknown as Record<string, unknown>).__arbre = { graph, layout, viewport };
   }, [graph, layout, viewport]);
 
+  const currentFocus = focusId && graph.people.has(focusId) ? focusId : graph.rootId;
+
+  /*
+   * Qui les trois autres vues regardent.
+   *
+   * Par défaut, exactement les personnes que l'arbre dessine à l'instant :
+   * ouvrir la famille du père puis passer à la Carte ne montre donc que ses
+   * lieux à lui. C'est la règle que demande l'application — une vue ne parle
+   * jamais d'un périmètre plus large que celui qu'on a sous les yeux, sauf à
+   * le demander explicitement.
+   */
+  const scopePeople = useMemo(
+    () => peopleInScope(graph, currentFocus, scope, layout.positions.keys()),
+    [graph, currentFocus, scope, layout],
+  );
+
+  // Le décompte de la pastille suit le périmètre courant, comme la liste.
+  const gapCount = useMemo(() => findGaps(graph, scopePeople).length, [graph, scopePeople]);
+
+  /** Ouvre une personne dans l'arbre : on y revient, puis on la sélectionne. */
+  const showInTree = useCallback(
+    (id: string) => {
+      setViewMode('tree');
+      setSelectedId(id);
+      setFocusId(id);
+      setHintVisible(false);
+    },
+    [],
+  );
+
   const selectedPerson = selectedId ? (graph.people.get(selectedId) ?? null) : null;
 
   /*
@@ -461,6 +510,42 @@ export default function App() {
       <LoadingScreen ready={ready} />
       <GlassFilters />
       <Backdrop viewport={viewport} />
+
+      <ViewSwitch mode={viewMode} onChange={setViewMode} gapCount={gapCount} />
+
+      {viewMode === 'map' && (
+        <MapView
+          graph={graph}
+          focusId={currentFocus}
+          scope={scope}
+          onScopeChange={setScope}
+          people={scopePeople}
+          onSelectPerson={showInTree}
+        />
+      )}
+      {viewMode === 'timeline' && (
+        <TimelineView
+          graph={graph}
+          focusId={currentFocus}
+          scope={scope}
+          onScopeChange={setScope}
+          people={scopePeople}
+          selectedId={selectedId}
+          onSelectPerson={showInTree}
+        />
+      )}
+      {viewMode === 'gaps' && (
+        <GapsView
+          graph={graph}
+          focusId={currentFocus}
+          scope={scope}
+          onScopeChange={setScope}
+          people={scopePeople}
+          onShowInTree={showInTree}
+          onEdit={showInTree}
+        />
+      )}
+
 
       <TreeCanvas
         graph={graph}
@@ -523,11 +608,13 @@ export default function App() {
 
       <DataNotice anomalies={anomalies} onSelect={selectPerson} />
 
-      {showMiniMap && !compact && (
+      {viewMode === 'tree' && showMiniMap && !compact && (
         <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />
       )}
 
-      {!compact && <FamilyMap graph={graph} onSelectPlace={pickFromSearch} />}
+      {viewMode === 'tree' && !compact && (
+        <FamilyMap graph={graph} onSelectPlace={pickFromSearch} />
+      )}
 
       <DetailPanel
         relation={relation}
