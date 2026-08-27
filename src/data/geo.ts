@@ -144,6 +144,23 @@ export const PLACE_COORDS: Record<string, [lat: number, lon: number]> = {
   Dunkerque: [51.034, 2.377],
   Cherbourg: [49.639, -1.616],
   'Saint-Nazaire': [47.274, -2.214],
+
+  // Relevés dans les fiches, ajoutés à la demande
+  Longjumeau: [48.694, 2.295],
+  'Sainte-Geneviève-des-Bois': [48.643, 2.34],
+  'Piedicorte-di-Gaggio': [42.256, 9.336],
+};
+
+/**
+ * Graphies rencontrées dans les fiches qui désignent un lieu déjà répertorié.
+ *
+ * Uniquement des variantes d'écriture — une lettre en moins, une abréviation.
+ * Jamais un rapprochement géographique : « Montpelier » est « Montpellier »
+ * mal orthographié, ce n'est pas une déduction sur l'endroit.
+ */
+const ALIASES: Record<string, string> = {
+  'saint-gille-le-bois': 'Saint-Gilles-les-Bois',
+  montpelier: 'Montpellier',
 };
 
 /**
@@ -190,8 +207,10 @@ for (const [label, [lat, lon]] of Object.entries(PLACE_COORDS)) {
   if (held && !/\d/.test(held.label)) continue;
   BY_KEY.set(key, { label, lat, lon });
 }
-// Graphies fautives rencontrées dans les données, rattachées à leur commune.
-BY_KEY.set('saint-gille-le-bois', BY_KEY.get('saint-gilles-les-bois')!);
+for (const [key, target] of Object.entries(ALIASES)) {
+  const entry = BY_KEY.get(placeKey(target));
+  if (entry) BY_KEY.set(key, entry);
+}
 
 /**
  * Les coordonnées d'un lieu, ou `undefined` s'il n'est pas répertorié.

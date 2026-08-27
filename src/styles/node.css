@@ -36,7 +36,20 @@
     transform var(--dur-base) var(--ease-out),
     opacity var(--dur-base) var(--ease-out),
     filter var(--dur-base) var(--ease-out);
-  will-change: transform;
+  /*
+   * Surtout pas de `will-change: transform` ici.
+   *
+   * Il mettait chaque médaillon sur sa propre couche GPU. Une couche est
+   * pixelisée UNE FOIS, à la résolution du moment, puis le `transform:
+   * scale()` de `.world` l'agrandit sans jamais la redessiner : en zoomant,
+   * les portraits et leurs initiales devenaient flous, et le seul qui restait
+   * net était celui qu'on survolait — parce que sa transformation de survol
+   * invalidait sa couche et forçait un nouveau tracé.
+   *
+   * Les cartes ne bougent pas individuellement pendant le zoom ou le
+   * déplacement : seul `.world` est transformé (voir `app.css`). Les promouvoir
+   * ne gagnait donc rien, et coûtait une couche par personne affichée.
+   */
   /*
    * Matérialisation.
    *
