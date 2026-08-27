@@ -81,15 +81,24 @@ function byBirth(graph: FamilyGraph, ids: string[]): string[] {
   });
 }
 
-/** Une personne et ses conjoints encore libres, de gauche à droite. */
+/**
+ * Une personne et ses conjoints encore libres, de gauche à droite.
+ *
+ * Un seul conjoint se pose à droite. Plusieurs — un remariage, un veuvage —
+ * encadrent la personne, qui reste au milieu : posée en tête, elle serait
+ * voisine du premier conjoint seulement, et le trait vers le second devrait
+ * enjamber le premier.
+ */
 function withSpouses(graph: FamilyGraph, id: string, claimed: Set<string>): string[] {
-  const members = [id];
+  const spouses: string[] = [];
   for (const link of graph.people.get(id)?.spouseLinks ?? []) {
     if (claimed.has(link.id) || !graph.people.has(link.id)) continue;
     claimed.add(link.id);
-    members.push(link.id);
+    spouses.push(link.id);
   }
-  return members;
+  if (spouses.length === 0) return [id];
+  if (spouses.length === 1) return [id, spouses[0]];
+  return [spouses[0], id, ...spouses.slice(1)];
 }
 
 /** Les enfants encore libres d'un groupe de personnes, par ordre de naissance. */
@@ -160,7 +169,33 @@ function buildBand(graph: FamilyGraph, members: string[], claimed: Set<string>):
     if (free.length === 0) continue;
     for (const id of free) claimed.add(id);
 
-    const parentBand = buildBand(graph, byBirth(graph, free), claimed);
+    /*
+     * Les autres conjoints des parents rejoignent la rangée.
+     *
+     * Un ancêtre remarié n'est le parent de la lignée qu'avec l'un de ses
+     * conjoints ; l'autre n'appartient donc pas au couple, mais doit rester à
+     * côté de lui. Laissé de côté, il se retrouvait cinq cents pixels plus
+     * loin, et le trait de son mariage traversait la moitié de la rangée. On
+     * le pose donc de l'autre bord, l'ancêtre restant au milieu de ses deux
+     * unions.
+     */
+    const ordered = byBirth(graph, free);
+    const otherSpouses = (id: string): string[] => {
+      const found: string[] = [];
+      for (const link of graph.people.get(id)?.spouseLinks ?? []) {
+        if (claimed.has(link.id) || !graph.people.has(link.id)) continue;
+        claimed.add(link.id);
+        found.push(link.id);
+      }
+      return found;
+    };
+    const bandMembers = [
+      ...otherSpouses(ordered[0]),
+      ...ordered,
+      ...(ordered.length > 1 ? otherSpouses(ordered[ordered.length - 1]) : []),
+    ];
+
+    const parentBand = buildBand(graph, bandMembers, claimed);
     // La fratrie du membre : elle descend de ce couple-ci, donc c'est lui qui
     // la range — au même titre que ses propres neveux, dans la même bande.
     parentBand.below = freeChildren(graph, parentBand.members, claimed).map((childId) =>
@@ -182,6 +217,7 @@ function placeMembers(
   ids: string[],
   left: number,
   positions: Map<string, NodePosition>,
+  groups: string[][],
 ): void {
   let cursor = left;
   for (const id of ids) {
@@ -189,6 +225,8 @@ function placeMembers(
     positions.set(id, { id, x: cursor, y: generation * ROW_HEIGHT, generation });
     cursor += CARD_WIDTH + COUPLE_GAP;
   }
+  // Un couple posé ensemble ne doit plus jamais être séparé — voir `separateRows`.
+  groups.push(ids);
 }
 
 function placeSub(
@@ -196,12 +234,13 @@ function placeSub(
   sub: Sub,
   left: number,
   positions: Map<string, NodePosition>,
+  groups: string[][],
 ): void {
-  placeMembers(graph, sub.members, left + (sub.width - sub.ownWidth) / 2, positions);
+  placeMembers(graph, sub.members, left + (sub.width - sub.ownWidth) / 2, positions, groups);
   const childrenWidth = spread(sub.children.map((child) => child.width));
   let cursor = left + (sub.width - childrenWidth) / 2;
   for (const child of sub.children) {
-    placeSub(graph, child, cursor, positions);
+    placeSub(graph, child, cursor, positions, groups);
     cursor += child.width + SIBLING_GAP;
   }
 }
@@ -219,45 +258,69 @@ function placeBand(
   band: Band,
   left: number,
   positions: Map<string, NodePosition>,
+  groups: string[][],
 ): void {
-  placeMembers(graph, band.members, left + (band.width - band.ownWidth) / 2, positions);
+  placeMembers(graph, band.members, left + (band.width - band.ownWidth) / 2, positions, groups);
 
   const aboveWidth = spread(band.above.map((child) => child.width));
   let aboveCursor = left + (band.width - aboveWidth) / 2;
   for (const child of band.above) {
-    placeBand(graph, child, aboveCursor, positions);
+    placeBand(graph, child, aboveCursor, positions, groups);
     aboveCursor += child.width + SIBLING_GAP;
   }
 
   const belowWidth = spread(band.below.map((sub) => sub.width));
   let belowCursor = left + (band.width - belowWidth) / 2;
   for (const sub of band.below) {
-    placeSub(graph, sub, belowCursor, positions);
+    placeSub(graph, sub, belowCursor, positions, groups);
     belowCursor += sub.width + SIBLING_GAP;
   }
 }
 
 /**
- * Écarte ce qui se touche, rangée par rangée, sans jamais changer l'ordre.
+ * Écarte ce qui se touche, rangée par rangée, sans jamais séparer un couple.
  *
  * Les bandes sont disjointes, mais une descendance collatérale peut venir
  * buter contre l'échine deux générations plus bas. Pousser vers la droite ce
  * qui empiète suffit alors, et ne peut rien croiser puisque l'ordre est
- * conservé — c'est la seule retouche après coup, et elle ne peut que séparer.
+ * conservé.
+ *
+ * Le déplacement porte sur des groupes entiers, jamais sur des cartes isolées.
+ * Traiter les cartes une à une laissait un tiers s'intercaler entre deux
+ * époux dont les bandes se recouvraient : Hugette Cheneaud et François Mattei
+ * se retrouvaient séparés par Marie-Catherine, et le trait de leur mariage
+ * enjambait quelqu'un qui n'avait rien à y faire. Un couple posé ensemble
+ * reste ensemble.
  */
-function separateRows(positions: Map<string, NodePosition>): void {
-  const rows = new Map<number, NodePosition[]>();
-  for (const position of positions.values()) {
-    const row = rows.get(position.generation) ?? [];
-    row.push(position);
-    rows.set(position.generation, row);
+function separateRows(positions: Map<string, NodePosition>, groups: string[][]): void {
+  const rows = new Map<number, string[][]>();
+  for (const members of groups) {
+    const first = positions.get(members[0]);
+    if (!first) continue;
+    const row = rows.get(first.generation) ?? [];
+    row.push(members);
+    rows.set(first.generation, row);
   }
 
+  const leftOf = (members: string[]): number => positions.get(members[0])?.x ?? 0;
+
   for (const row of rows.values()) {
-    row.sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
-    for (let i = 1; i < row.length; i += 1) {
-      const minimum = row[i - 1].x + CARD_WIDTH + COUPLE_GAP;
-      if (row[i].x < minimum) row[i].x = minimum;
+    row.sort((a, b) => leftOf(a) - leftOf(b) || a[0].localeCompare(b[0]));
+
+    let previous: number | undefined;
+    for (const members of row) {
+      const width = members.length * CARD_WIDTH + (members.length - 1) * COUPLE_GAP;
+      const minimum = previous === undefined ? leftOf(members) : previous + SIBLING_GAP;
+      const x = Math.max(leftOf(members), minimum);
+
+      let cursor = x;
+      for (const id of members) {
+        const position = positions.get(id);
+        if (!position) continue;
+        position.x = cursor;
+        cursor += CARD_WIDTH + COUPLE_GAP;
+      }
+      previous = x + width;
     }
   }
 }
@@ -290,7 +353,8 @@ export function computePlacement(graph: FamilyGraph): Placement {
   );
   measureBand(root);
 
-  placeBand(graph, root, 0, positions);
+  const groups: string[][] = [];
+  placeBand(graph, root, 0, positions, groups);
   let cursor = root.width + FAMILY_GAP;
 
   /*
@@ -309,10 +373,10 @@ export function computePlacement(graph: FamilyGraph): Placement {
     );
     measureBand(band);
 
-    placeBand(graph, band, cursor, positions);
+    placeBand(graph, band, cursor, positions, groups);
     cursor += band.width + FAMILY_GAP;
   }
 
-  separateRows(positions);
+  separateRows(positions, groups);
   return { positions };
 }
