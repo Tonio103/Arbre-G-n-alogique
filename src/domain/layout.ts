@@ -36,10 +36,7 @@ export interface LayoutUnion {
   /** Vrai quand les deux conjoints sont côte à côte (cas courant). */
   adjacent: boolean;
   status: string;
-  /**
-   * Étage du trait distributeur, pour ne pas se confondre avec celui d'une
-   * autre famille — voir `assignBusLanes`.
-   */
+  /** Étage du trait distributeur — voir `assignBusLanes`. */
   busLane: number;
 }
 
@@ -102,23 +99,21 @@ export interface TreeLayout {
   branchOf: Map<string, number>;
 }
 
+
 /**
  * Donne à chaque famille son propre étage de trait.
  *
  * Le trait qui distribue une fratrie court à mi-chemin entre la rangée des
- * parents et celle des enfants. À la même hauteur pour toutes les familles
- * d'une même rangée, deux traits dont les portées se croisent se rejoignent
- * en une seule ligne continue — et le dessin se met à mentir : les enfants de
- * l'une paraissent pendre du trait de l'autre, donc être frères et sœurs de
- * gens qui ne le sont pas. Sur l'arbre qui a servi de référence, quatorze
- * traits sur trente se confondaient ainsi, dont ceux des parents de deux
- * conjoints — qui semblaient du coup frère et sœur.
+ * parents et celle des enfants. À la même hauteur pour toutes, deux traits
+ * dont les portées se croisent se rejoignent en une seule ligne continue — et
+ * le dessin se met à mentir : les enfants de l'une paraissent pendre du trait
+ * de l'autre, donc être frères et sœurs de gens qui ne le sont pas. C'est ce
+ * qui donnait à deux conjoints l'air d'être frère et sœur.
  *
  * Les familles dont les portées se recouvrent sont donc réparties sur des
- * étages distincts, au plus près les unes des autres : c'est le rangement
- * classique par intervalles, celui d'un agenda qui empile les rendez-vous qui
- * se chevauchent. Une famille dont la portée est libre reste à l'étage zéro,
- * la hauteur naturelle.
+ * étages distincts, au plus près les unes des autres — le rangement d'un
+ * agenda qui empile les rendez-vous qui se chevauchent. Une famille dont la
+ * portée est libre garde la hauteur naturelle.
  */
 function assignBusLanes(unions: LayoutUnion[]): void {
   const byChildRow = new Map<number, LayoutUnion[]>();
@@ -162,7 +157,7 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
   // Le placement lui-même vit dans `placement.ts` : une bande horizontale par
   // famille, où nulle autre n'entre. Tout ce qui suit ne fait qu'en déduire
   // les traits, les repères et le cadre.
-  const { positions, secondaryLinks, detachedFiliations } = computePlacement(graph);
+  const { positions } = computePlacement(graph);
 
   // Nombre de descendants par personne, calculé de bas en haut de l'ordre
   // topologique : les enfants sont toujours comptés avant leurs parents.
@@ -192,16 +187,7 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
       .map(partnerOf)
       .filter((p): p is LayoutPartner => Boolean(p))
       .sort((a, b) => a.x - b.x);
-    /*
-     * Les enfants que cette union dessine réellement.
-     *
-     * Un enfant dont la place est portée par l'autre famille est écarté ici :
-     * il est relié par un renvoi (voir `detachedFiliations`). Le garder ferait
-     * tracer en plus un trait plein d'un bout à l'autre de l'arbre — le renvoi
-     * s'ajouterait au trait au lieu de le remplacer.
-     */
     const children = union.children
-      .filter((childId) => !union.partners.some((p) => detachedFiliations.has(`${p}>${childId}`)))
       .map(partnerOf)
       .filter((c): c is LayoutPartner => Boolean(c))
       .sort((a, b) => a.x - b.x);
@@ -272,23 +258,7 @@ export function computeLayout(graph: FamilyGraph): TreeLayout {
     }
   }
 
-  /*
-   * Les filiations que la bande ne peut pas porter ne sont pas dessinées.
-   *
-   * Une personne n'occupe qu'une place, mais ses deux parents peuvent vivre
-   * dans deux familles différentes — c'est le cas dès que les deux conjoints
-   * d'un couple ont eux-mêmes des parents connus. Une version précédente les
-   * traçait en pointillé, d'un parent à l'enfant : six traits en diagonale
-   * qui traversaient tout l'arbre de part en part, bien plus nuisibles à la
-   * lecture que le lien qu'ils rendaient. Un arbre imprimé ne fait pas
-   * autrement : il répète le nom ailleurs, il ne tire pas un fil à travers la
-   * page.
-   *
-   * Le lien n'est pas perdu pour autant : la fiche de la personne montre ses
-   * deux parents, cliquables, et le bandeau d'anomalies signale ce que le
-   * dessin ne peut pas porter.
-   */
-  void secondaryLinks;
+
 
   // Chaque famille sur son propre étage, pour que deux traits de filiation
   // ne se confondent jamais — voir `assignBusLanes`.

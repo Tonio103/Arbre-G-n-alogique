@@ -5,420 +5,314 @@ import { CARD_WIDTH, COUPLE_GAP, FAMILY_GAP, ROW_HEIGHT, SIBLING_GAP } from '@/v
 /*
  * ============================================================================
  *
- *  LE PLACEMENT
+ *  L'ARBRE D'ASCENDANCE
  *
- *  Une seule règle, tenue de bout en bout : chaque famille possède une bande
- *  horizontale qui n'appartient qu'à elle, et où nulle autre n'entre.
+ *  Un arbre centré sur quelqu'un — ici Antoine et Stella — se lit de bas en
+ *  haut : le sujet en bas, ses parents au-dessus, leurs parents au-dessus
+ *  d'eux, en éventail. Deux règles suffisent à le dessiner.
  *
- *  Tout en découle. Deux cartes ne peuvent pas se recouvrir, puisqu'elles sont
- *  dans des bandes disjointes. Une fratrie tombe exactement sous ses parents,
- *  puisque les parents se centrent sur la bande de leurs enfants. Deux traits
- *  de filiation ne peuvent pas se croiser, puisque les bandes qu'ils relient
- *  ne se chevauchent jamais.
+ *    · L'ÉCHINE, ce sont les ancêtres directs. Chaque couple occupe une bande
+ *      qui n'appartient qu'à lui ; les ancêtres du conjoint de gauche tiennent
+ *      dans la moitié gauche de cette bande, ceux du conjoint de droite dans
+ *      la moitié droite. Aucun trait ne peut passer de l'une à l'autre : c'est
+ *      un arbre binaire, et un arbre binaire ne se croise pas.
  *
- *  Ces propriétés sont acquises *par construction*. Une version précédente les
- *  poursuivait à l'inverse, en corrigeant après coup un placement approximatif
- *  — écarter ce qui se recouvre, réordonner pour décroiser, recentrer les
- *  familles — et chaque correction défaisait un peu la précédente. Le prix à
- *  payer ici est un arbre plus large : une bande réservée n'est pas toujours
- *  remplie. C'est un prix qu'on peut payer, l'espace horizontal ne coûtant
- *  qu'un peu de défilement.
+ *    · LES COLLATÉRAUX — frères, sœurs, oncles, cousins — se rangent sous
+ *      leurs propres parents, dans la bande de ceux-ci, jamais dans celle de
+ *      la génération d'en dessous. Une tante et le grand-père qu'elle a pour
+ *      frère relèvent ainsi d'une seule et même bande, celle de leurs parents
+ *      communs, qui les ordonne l'un par rapport à l'autre.
+ *
+ *  Cette seconde règle est ce qui distingue cette version de la précédente.
+ *  Y rattacher les collatéraux à la bande de leur frère, une génération plus
+ *  bas, les faisait ranger par une bande et leur descendance par une autre :
+ *  deux mécanismes se disputaient la même rangée, et leurs traits se
+ *  croisaient faute d'un ordre commun.
  *
  * ==========================================================================*/
 
-/** Un bloc : un couple côte à côte, ou une personne seule. */
-interface Block {
-  /** Personnes du bloc, de gauche à droite. */
+/**
+ * Un rameau : une personne, ses conjoints, et sa descendance.
+ *
+ * Il ne remonte jamais vers les ancêtres — c'est ce qui le distingue d'une
+ * bande d'échine, et ce qui garantit qu'il tient dans une largeur bornée.
+ */
+interface Sub {
   members: string[];
-  /** Blocs des enfants, dans l'ordre des naissances. */
-  children: Block[];
-  /** Largeur du bloc lui-même, sans sa descendance. */
+  children: Sub[];
   ownWidth: number;
-  /** Largeur de toute la bande réservée : le bloc et tout ce qui pend dessous. */
+  width: number;
+}
+
+/**
+ * Une bande d'échine : un couple d'ancêtres directs et tout ce qui en dépend.
+ *
+ * `above` porte les bandes des générations plus anciennes, dans l'ordre des
+ * membres : celle des parents du membre de gauche d'abord. C'est cet ordre qui
+ * interdit les croisements. `below` porte les autres enfants du couple — les
+ * collatéraux — rangés par cette bande-ci puisque c'est d'elle qu'ils
+ * descendent.
+ */
+interface Band {
+  members: string[];
+  above: Band[];
+  below: Sub[];
+  ownWidth: number;
   width: number;
 }
 
 export interface Placement {
   positions: Map<string, NodePosition>;
-  /**
-   * Les renvois à tracer : un par famille d'origine restée ailleurs.
-   *
-   * Une personne n'a qu'une place, mais peut avoir deux parents placés dans
-   * deux familles différentes — c'est le cas dès que les deux conjoints d'un
-   * couple ont eux-mêmes des parents connus. Le lien vers la seconde est
-   * alors tracé à part, comme sur un arbre imprimé.
-   */
-  secondaryLinks: Array<{ parentId: string; childId: string }>;
-  /**
-   * Toutes les filiations concernées, `parent>enfant`.
-   *
-   * Distinct de `secondaryLinks`, qui n'en garde qu'une par famille pour le
-   * tracé : celle-ci les liste toutes, afin que la descente normale les
-   * ignore. Sans quoi la famille détachée dessinerait malgré tout son trait
-   * plein jusqu'à l'enfant — le renvoi s'ajouterait au trait au lieu de le
-   * remplacer, et on aurait les deux.
-   */
-  detachedFiliations: Set<string>;
+}
+
+const widthOf = (count: number): number =>
+  count * CARD_WIDTH + Math.max(0, count - 1) * COUPLE_GAP;
+
+const spread = (widths: number[]): number =>
+  widths.reduce((total, width) => total + width, 0) +
+  Math.max(0, widths.length - 1) * SIBLING_GAP;
+
+/** Ordonne une fratrie par année de naissance : l'ordre où on la récite. */
+function byBirth(graph: FamilyGraph, ids: string[]): string[] {
+  return [...ids].sort((a, b) => {
+    const ya = graph.people.get(a)?.birthYear ?? Number.MAX_SAFE_INTEGER;
+    const yb = graph.people.get(b)?.birthYear ?? Number.MAX_SAFE_INTEGER;
+    return ya - yb || a.localeCompare(b);
+  });
+}
+
+/** Une personne et ses conjoints encore libres, de gauche à droite. */
+function withSpouses(graph: FamilyGraph, id: string, claimed: Set<string>): string[] {
+  const members = [id];
+  for (const link of graph.people.get(id)?.spouseLinks ?? []) {
+    if (claimed.has(link.id) || !graph.people.has(link.id)) continue;
+    claimed.add(link.id);
+    members.push(link.id);
+  }
+  return members;
+}
+
+/** Les enfants encore libres d'un groupe de personnes, par ordre de naissance. */
+function freeChildren(graph: FamilyGraph, members: string[], claimed: Set<string>): string[] {
+  const found: string[] = [];
+  for (const memberId of members) {
+    for (const childId of graph.people.get(memberId)?.children ?? []) {
+      if (claimed.has(childId) || found.includes(childId)) continue;
+      found.push(childId);
+    }
+  }
+  return byBirth(graph, found);
+}
+
+/** Construit un rameau : la personne, ses conjoints, sa descendance. */
+function buildSub(graph: FamilyGraph, id: string, claimed: Set<string>): Sub {
+  claimed.add(id);
+  const members = withSpouses(graph, id, claimed);
+  const children = freeChildren(graph, members, claimed).map((childId) =>
+    buildSub(graph, childId, claimed),
+  );
+  const ownWidth = widthOf(members.length);
+  return {
+    members,
+    children,
+    ownWidth,
+    width: Math.max(ownWidth, spread(children.map((child) => child.width))),
+  };
+}
+
+function measureBand(band: Band): void {
+  band.width = Math.max(
+    band.ownWidth,
+    spread(band.above.map((child) => child.width)),
+    spread(band.below.map((sub) => sub.width)),
+  );
 }
 
 /**
- * Regroupe les personnes en blocs.
+ * Construit une bande d'échine et, de proche en proche, tout ce qui la
+ * surplombe.
  *
- * Un conjoint rejoint le bloc de son époux dès qu'il est encore libre : c'est
- * ce qui met les couples côte à côte. Qui est « l'époux » dépend de l'ordre de
- * parcours, stable d'un chargement à l'autre — l'arbre ne se réorganise donc
- * pas tout seul entre deux visites.
+ * Chaque couple de parents distinct donne une bande, dans l'ordre des membres,
+ * ce qui aligne la génération du dessus sur celle du dessous. Les autres
+ * enfants de ce couple — la fratrie du membre — sont rangés par cette
+ * bande-là, sous elle, et non par la bande d'en dessous.
  */
-function buildBlocks(graph: FamilyGraph): { blocks: Block[]; blockOf: Map<string, Block> } {
-  const blockOf = new Map<string, Block>();
-  const blocks: Block[] = [];
+function buildBand(graph: FamilyGraph, members: string[], claimed: Set<string>): Band {
+  const band: Band = {
+    members,
+    above: [],
+    below: [],
+    ownWidth: widthOf(members.length),
+    width: 0,
+  };
 
-  for (const id of graph.order) {
-    if (blockOf.has(id)) continue;
-    const person = graph.people.get(id);
-    if (!person) continue;
+  const seen = new Set<string>();
+  for (const memberId of members) {
+    const parents = (graph.people.get(memberId)?.parents ?? []).filter((id) =>
+      graph.people.has(id),
+    );
+    if (parents.length === 0) continue;
+    const key = [...parents].sort().join('+');
+    if (seen.has(key)) continue;
+    seen.add(key);
 
-    const spouses: string[] = [];
-    for (const link of person.spouseLinks) {
-      if (blockOf.has(link.id) || !graph.people.has(link.id)) continue;
-      spouses.push(link.id);
-    }
+    const free = parents.filter((id) => !claimed.has(id));
+    if (free.length === 0) continue;
+    for (const id of free) claimed.add(id);
 
-    // Un seul conjoint : à droite. Plusieurs : ils encadrent la personne, pour
-    // qu'aucun trait d'union n'ait à en enjamber un autre.
-    const members =
-      spouses.length === 0
-        ? [id]
-        : spouses.length === 1
-          ? [id, spouses[0]]
-          : [spouses[0], id, ...spouses.slice(1)];
-
-    const block: Block = {
-      members,
-      children: [],
-      ownWidth: members.length * CARD_WIDTH + (members.length - 1) * COUPLE_GAP,
-      width: 0,
-    };
-    for (const memberId of members) blockOf.set(memberId, block);
-    blocks.push(block);
+    const parentBand = buildBand(graph, byBirth(graph, free), claimed);
+    // La fratrie du membre : elle descend de ce couple-ci, donc c'est lui qui
+    // la range — au même titre que ses propres neveux, dans la même bande.
+    parentBand.below = freeChildren(graph, parentBand.members, claimed).map((childId) =>
+      buildSub(graph, childId, claimed),
+    );
+    measureBand(parentBand);
+    band.above.push(parentBand);
   }
 
-  return { blocks, blockOf };
+  measureBand(band);
+  return band;
 }
 
-/**
- * Réunit en un seul bloc les familles d'origine d'un même couple.
- *
- * Quand les deux conjoints ont chacun leurs parents, deux familles se
- * disputent la place au-dessus d'eux. Le modèle en bandes n'en laisse gagner
- * qu'une : l'autre se retrouvait rejetée à l'autre bout de l'arbre, et le
- * lien vers elle ne pouvait plus être tracé — Manuel Albertini paraissait
- * ainsi n'avoir aucun parent, alors que les siens figuraient bien dans
- * l'arbre, à cinquante cartes de là.
- *
- * Elles sont donc réunies : les quatre grands-parents forment une seule
- * rangée au-dessus du couple, chacun sur sa moitié. C'est exactement la
- * disposition d'un arbre d'ascendance imprimé, et elle supprime le problème
- * plutôt qu'elle ne l'arbitre — après cette réunion, plus aucun bloc n'a deux
- * familles d'origine, donc plus aucune filiation ne reste sans trait.
- *
- * La réunion se propage : le bloc réuni a lui-même plusieurs familles
- * d'origine, qui se réunissent à leur tour, génération après génération.
- */
-function mergeParentBlocks(
+const generationOf = (graph: FamilyGraph, id: string): number =>
+  graph.people.get(id)?.generation ?? 0;
+
+function placeMembers(
   graph: FamilyGraph,
-  blocks: Block[],
-  blockOf: Map<string, Block>,
-): Block[] {
-  let alive = blocks;
-
-  for (let pass = 0; pass < 40; pass += 1) {
-    const dropped = new Set<Block>();
-
-    for (const block of alive) {
-      if (dropped.has(block)) continue;
-
-      // Les familles d'origine de ce bloc, dans l'ordre de ses membres : la
-      // lignée du conjoint de gauche reste à gauche.
-      const origins: Block[] = [];
-      for (const memberId of block.members) {
-        for (const parentId of graph.people.get(memberId)?.parents ?? []) {
-          const parentBlock = blockOf.get(parentId);
-          if (!parentBlock || parentBlock === block || origins.includes(parentBlock)) continue;
-          origins.push(parentBlock);
-        }
-      }
-      if (origins.length < 2) continue;
-
-      const [keep, ...rest] = origins;
-      for (const other of rest) {
-        if (other === keep || dropped.has(other)) continue;
-        keep.members.push(...other.members);
-        for (const memberId of other.members) blockOf.set(memberId, keep);
-        dropped.add(other);
-      }
-      keep.ownWidth =
-        keep.members.length * CARD_WIDTH + (keep.members.length - 1) * COUPLE_GAP;
-    }
-
-    if (dropped.size === 0) break;
-    alive = alive.filter((block) => !dropped.has(block));
-  }
-
-  return alive;
-}
-
-/**
- * Range les frères et sœurs à côté des leurs, du côté opposé au conjoint.
- *
- * Réunir les familles d'origine (voir `mergeParentBlocks`) laisse dehors les
- * frères et sœurs de chaque membre réuni : ils forment leur propre bloc,
- * posé avant ou après la rangée selon le hasard du parcours. Isabelle Maillet
- * se retrouvait ainsi à l'extrême droite alors que son frère François ouvrait
- * la rangée à gauche — et le trait qui la reliait à leurs parents traversait
- * tout ce qui se trouvait entre les deux.
- *
- * Chacun rejoint donc la rangée, immédiatement à côté de son frère ou de sa
- * sœur, du côté où il n'y a pas le conjoint : une personne mariée a son époux
- * d'un côté et sa fratrie de l'autre, exactement comme on l'écrit sur un
- * arbre. Les enfants d'une même fratrie se retrouvent alors contigus, sous
- * leurs parents eux-mêmes contigus — et les traits cessent de se croiser.
- */
-function absorbSiblings(
-  graph: FamilyGraph,
-  blocks: Block[],
-  blockOf: Map<string, Block>,
-): Block[] {
-  const dropped = new Set<Block>();
-
-  /*
-   * Les grandes rangées absorbent, les isolés sont absorbés — jamais
-   * l'inverse. Dans l'ordre naturel du tableau, le bloc d'une personne seule
-   * pouvait happer la rangée réunie de sa sœur et se retrouver en tête,
-   * plaçant sa fratrie à l'envers de ses parents.
-   */
-  for (const block of [...blocks].sort((a, b) => b.members.length - a.members.length)) {
-    if (dropped.has(block)) continue;
-
-    let index = 0;
-    while (index < block.members.length) {
-      const memberId = block.members[index];
-      const person = graph.people.get(memberId);
-      if (!person) {
-        index += 1;
-        continue;
-      }
-
-      // De quel côté est le conjoint ? La fratrie ira de l'autre.
-      const spousePositions = person.spouseLinks
-        .map((link) => block.members.indexOf(link.id))
-        .filter((position) => position >= 0);
-      const spouseOnRight = spousePositions.some((position) => position > index);
-
-      for (const siblingId of person.siblings) {
-        const siblingBlock = blockOf.get(siblingId);
-        if (!siblingBlock || siblingBlock === block || dropped.has(siblingBlock)) continue;
-
-        const at = spouseOnRight ? index : index + 1;
-        block.members.splice(at, 0, ...siblingBlock.members);
-        for (const id of siblingBlock.members) blockOf.set(id, block);
-        dropped.add(siblingBlock);
-        if (spouseOnRight) index += siblingBlock.members.length;
-      }
-
-      index += 1;
-    }
-
-    block.ownWidth = block.members.length * CARD_WIDTH + (block.members.length - 1) * COUPLE_GAP;
-  }
-
-  return blocks.filter((block) => !dropped.has(block));
-}
-
-/**
- * Relie les blocs entre eux : qui descend de qui.
- *
- * Un bloc n'a qu'un seul bloc parent — celui qui le porte dans la bande. Le
- * premier qui le réclame l'emporte, et les autres filiations deviennent des
- * liens secondaires : une personne ne peut occuper qu'une place, et prétendre
- * la placer sous deux familles à la fois est précisément ce qui étirait des
- * traits en travers de tout l'arbre.
- */
-function linkBlocks(
-  graph: FamilyGraph,
-  blocks: Block[],
-  blockOf: Map<string, Block>,
-): { roots: Block[]; secondaryLinks: Placement['secondaryLinks']; detachedFiliations: Set<string> } {
-  const claimed = new Set<Block>();
-  const secondaryLinks: Placement['secondaryLinks'] = [];
-  const detachedFiliations = new Set<string>();
-
-  for (const block of blocks) {
-    /*
-     * Qui porte ce bloc ?
-     *
-     * Le premier membre — celui autour de qui le bloc s'est formé — passe en
-     * premier : c'est sa lignée qui descend, son conjoint étant entré dans la
-     * famille par le mariage. Laisser le hasard de l'ordre de parcours en
-     * décider rattachait un couple tantôt d'un côté tantôt de l'autre, sans
-     * qu'aucune raison ne le justifie.
-     */
-    let carrier: Block | undefined;
-    for (const memberId of block.members) {
-      const person = graph.people.get(memberId);
-      if (!person) continue;
-      for (const parentId of person.parents) {
-        const parentBlock = blockOf.get(parentId);
-        if (!parentBlock || parentBlock === block || claimed.has(block)) continue;
-        carrier = parentBlock;
-        parentBlock.children.push(block);
-        claimed.add(block);
-        break;
-      }
-      if (carrier) break;
-    }
-
-    /*
-     * Ce que la bande ne peut pas porter.
-     *
-     * Un bloc n'a qu'une place ; les parents restés ailleurs se relient donc
-     * par un renvoi. Un seul par famille d'origine, et non un par parent :
-     * deux parents mariés vivent dans le même bloc, et tirer deux traits vers
-     * le même endroit ne dirait rien de plus tout en doublant ce qui traverse
-     * l'arbre.
-     */
-    const drawn = new Set<Block>();
-    if (carrier) drawn.add(carrier);
-    for (const memberId of block.members) {
-      const person = graph.people.get(memberId);
-      if (!person) continue;
-      for (const parentId of person.parents) {
-        const parentBlock = blockOf.get(parentId);
-        if (!parentBlock || parentBlock === block || parentBlock === carrier) continue;
-        // Toutes sont écartées de la descente normale…
-        detachedFiliations.add(`${parentId}>${memberId}`);
-        // …mais une seule est tracée par famille d'origine.
-        if (drawn.has(parentBlock)) continue;
-        drawn.add(parentBlock);
-        secondaryLinks.push({ parentId, childId: memberId });
-      }
-    }
-  }
-
-  return { roots: blocks.filter((block) => !claimed.has(block)), secondaryLinks, detachedFiliations };
-}
-
-/** Largeur de la bande d'un bloc : la sienne, ou celle de sa descendance. */
-function measure(block: Block): number {
-  if (block.children.length === 0) {
-    block.width = block.ownWidth;
-    return block.width;
-  }
-  let total = 0;
-  for (const child of block.children) {
-    total += measure(child) + SIBLING_GAP;
-  }
-  total -= SIBLING_GAP;
-  block.width = Math.max(block.ownWidth, total);
-  return block.width;
-}
-
-/**
- * Pose le bloc et sa descendance dans la bande `[left, left + width]`.
- *
- * Le bloc se centre sur sa bande, la fratrie se répartit dessous en occupant
- * chacune la sienne. Rien n'est laissé à un ajustement ultérieur : les
- * coordonnées sorties d'ici sont définitives.
- */
-function place(
-  block: Block,
+  ids: string[],
   left: number,
-  graph: FamilyGraph,
   positions: Map<string, NodePosition>,
 ): void {
-  let cursor = left + (block.width - block.ownWidth) / 2;
-  for (const memberId of block.members) {
-    const generation = graph.people.get(memberId)?.generation ?? 0;
-    positions.set(memberId, {
-      id: memberId,
-      x: cursor,
-      y: generation * ROW_HEIGHT,
-      generation,
-    });
+  let cursor = left;
+  for (const id of ids) {
+    const generation = generationOf(graph, id);
+    positions.set(id, { id, x: cursor, y: generation * ROW_HEIGHT, generation });
     cursor += CARD_WIDTH + COUPLE_GAP;
   }
+}
 
-  // La descendance occupe toute la bande, centrée sous le bloc.
-  let childrenWidth = 0;
-  for (const child of block.children) childrenWidth += child.width + SIBLING_GAP;
-  if (block.children.length > 0) childrenWidth -= SIBLING_GAP;
-
-  let childCursor = left + (block.width - childrenWidth) / 2;
-  for (const child of block.children) {
-    place(child, childCursor, graph, positions);
-    childCursor += child.width + SIBLING_GAP;
+function placeSub(
+  graph: FamilyGraph,
+  sub: Sub,
+  left: number,
+  positions: Map<string, NodePosition>,
+): void {
+  placeMembers(graph, sub.members, left + (sub.width - sub.ownWidth) / 2, positions);
+  const childrenWidth = spread(sub.children.map((child) => child.width));
+  let cursor = left + (sub.width - childrenWidth) / 2;
+  for (const child of sub.children) {
+    placeSub(graph, child, cursor, positions);
+    cursor += child.width + SIBLING_GAP;
   }
 }
 
 /**
- * Place tout l'arbre.
+ * Pose une bande et tout ce qu'elle porte.
  *
- * Les racines — les blocs que personne ne porte — sont posées les unes après
- * les autres, chacune dans sa bande. L'ordre est celui du graphe, stable d'une
- * visite à l'autre.
+ * Le couple se centre sur sa bande ; ses bandes d'ascendance se répartissent
+ * au-dessus, dans leur ordre ; ses autres enfants se répartissent en dessous.
+ * Rien ne sort de la bande, donc rien ne peut aller croiser ce qui se passe
+ * dans la bande voisine.
+ */
+function placeBand(
+  graph: FamilyGraph,
+  band: Band,
+  left: number,
+  positions: Map<string, NodePosition>,
+): void {
+  placeMembers(graph, band.members, left + (band.width - band.ownWidth) / 2, positions);
+
+  const aboveWidth = spread(band.above.map((child) => child.width));
+  let aboveCursor = left + (band.width - aboveWidth) / 2;
+  for (const child of band.above) {
+    placeBand(graph, child, aboveCursor, positions);
+    aboveCursor += child.width + SIBLING_GAP;
+  }
+
+  const belowWidth = spread(band.below.map((sub) => sub.width));
+  let belowCursor = left + (band.width - belowWidth) / 2;
+  for (const sub of band.below) {
+    placeSub(graph, sub, belowCursor, positions);
+    belowCursor += sub.width + SIBLING_GAP;
+  }
+}
+
+/**
+ * Écarte ce qui se touche, rangée par rangée, sans jamais changer l'ordre.
+ *
+ * Les bandes sont disjointes, mais une descendance collatérale peut venir
+ * buter contre l'échine deux générations plus bas. Pousser vers la droite ce
+ * qui empiète suffit alors, et ne peut rien croiser puisque l'ordre est
+ * conservé — c'est la seule retouche après coup, et elle ne peut que séparer.
+ */
+function separateRows(positions: Map<string, NodePosition>): void {
+  const rows = new Map<number, NodePosition[]>();
+  for (const position of positions.values()) {
+    const row = rows.get(position.generation) ?? [];
+    row.push(position);
+    rows.set(position.generation, row);
+  }
+
+  for (const row of rows.values()) {
+    row.sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
+    for (let i = 1; i < row.length; i += 1) {
+      const minimum = row[i - 1].x + CARD_WIDTH + COUPLE_GAP;
+      if (row[i].x < minimum) row[i].x = minimum;
+    }
+  }
+}
+
+/**
+ * Place tout l'arbre, à partir du sujet.
+ *
+ * Le sujet et sa fratrie forment la rangée du bas ; leur ascendance s'élève
+ * au-dessus. Ce que ce parcours n'atteint pas — une branche importée sans
+ * lien, une famille isolée — est posé à la suite, avec sa propre échine.
  */
 export function computePlacement(graph: FamilyGraph): Placement {
-  const { blocks, blockOf } = buildBlocks(graph);
-  // Les quatre grands-parents d'un couple sur une même rangée, pour qu'aucune
-  // filiation ne se retrouve sans trait — voir `mergeParentBlocks`.
-  const merged = mergeParentBlocks(graph, blocks, blockOf);
-  // Chaque fratrie contiguë, du côté opposé au conjoint — voir `absorbSiblings`.
-  const rows = absorbSiblings(graph, merged, blockOf);
-  const { roots, secondaryLinks, detachedFiliations } = linkBlocks(graph, rows, blockOf);
+  const positions = new Map<string, NodePosition>();
+  const claimed = new Set<string>();
+
+  const rootId = graph.people.has(graph.rootId) ? graph.rootId : graph.order[0];
+  if (!rootId) return { positions };
+
+  const subjectIds = byBirth(graph, [rootId, ...(graph.people.get(rootId)?.siblings ?? [])]);
+  const subjectRow: string[] = [];
+  for (const id of subjectIds) {
+    if (claimed.has(id)) continue;
+    claimed.add(id);
+    subjectRow.push(...withSpouses(graph, id, claimed));
+  }
+
+  const root = buildBand(graph, subjectRow, claimed);
+  root.below = freeChildren(graph, subjectRow, claimed).map((childId) =>
+    buildSub(graph, childId, claimed),
+  );
+  measureBand(root);
+
+  placeBand(graph, root, 0, positions);
+  let cursor = root.width + FAMILY_GAP;
 
   /*
-   * Chaque groupe d'enfants sous ses propres parents.
+   * Ce qui n'est relié à rien.
    *
-   * Une rangée réunie compte plusieurs couples ; ses enfants sont autant de
-   * groupes distincts. Les poser dans l'ordre où on les a rencontrés place le
-   * groupe de gauche à droite une fois sur deux, et son trait traverse alors
-   * toute la rangée. Les ranger selon la position moyenne de leurs parents
-   * suffit à ce que l'ordre des enfants suive celui des parents.
+   * Une branche dont le lien de filiation manque forme sa propre famille : on
+   * lui donne sa propre échine et on la pose à la suite. Le bandeau
+   * d'anomalies signale par ailleurs qu'elle est détachée.
    */
-  for (const block of rows) {
-    if (block.children.length < 2) continue;
-    const rank = new Map<Block, number>();
-    for (const child of block.children) {
-      const positions: number[] = [];
-      for (const memberId of child.members) {
-        for (const parentId of graph.people.get(memberId)?.parents ?? []) {
-          const at = block.members.indexOf(parentId);
-          if (at >= 0) positions.push(at);
-        }
-      }
-      rank.set(
-        child,
-        positions.length > 0 ? positions.reduce((s, v) => s + v, 0) / positions.length : Number.MAX_SAFE_INTEGER,
-      );
-    }
-    block.children.sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
-  }
-
-  const positions = new Map<string, NodePosition>();
-  let cursor = 0;
-  for (const root of roots) {
-    measure(root);
-    place(root, cursor, graph, positions);
-    cursor += root.width + FAMILY_GAP;
-  }
-
-  // Filet de sécurité : personne ne doit rester sans coordonnées.
   for (const id of graph.order) {
-    if (positions.has(id)) continue;
-    const generation = graph.people.get(id)?.generation ?? 0;
-    positions.set(id, { id, x: cursor, y: generation * ROW_HEIGHT, generation });
-    cursor += CARD_WIDTH + SIBLING_GAP;
+    if (claimed.has(id)) continue;
+    claimed.add(id);
+    const band = buildBand(graph, withSpouses(graph, id, claimed), claimed);
+    band.below = freeChildren(graph, band.members, claimed).map((childId) =>
+      buildSub(graph, childId, claimed),
+    );
+    measureBand(band);
+
+    placeBand(graph, band, cursor, positions);
+    cursor += band.width + FAMILY_GAP;
   }
 
-  return { positions, secondaryLinks, detachedFiliations };
+  separateRows(positions);
+  return { positions };
 }

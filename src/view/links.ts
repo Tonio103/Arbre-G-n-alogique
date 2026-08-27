@@ -98,13 +98,13 @@ const BUS_LIFT = (ROW_HEIGHT - CARD_HEIGHT) * 0.5;
  * Écart entre deux étages de traits distributeurs (voir `assignBusLanes`).
  *
  * Assez pour qu'on distingue deux traits d'un coup d'œil, assez peu pour que
- * plusieurs tiennent dans l'espace disponible entre deux rangées. Le dernier
- * étage est ramené dans cet espace plutôt que de déborder sur les cartes.
+ * plusieurs tiennent entre deux rangées. Le dernier étage est ramené dans cet
+ * espace plutôt que de déborder sur les cartes.
  */
 const BUS_LANE_STEP = 18;
-/** Le trait ne doit ni toucher les enfants ni remonter sur les parents. */
 const BUS_LIFT_MIN = 22;
 const BUS_LIFT_MAX = ROW_HEIGHT - CARD_HEIGHT - 16;
+
 
 export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams): void {
   const { worldRect, dpr, palette, highlighted, hasSelection } = params;
