@@ -205,7 +205,8 @@
 .hint-bar {
   position: absolute;
   left: 50%;
-  bottom: calc(22px + var(--safe-bottom));
+  /* Au-dessus de la barre de vues, qui occupe désormais le bas du cadre. */
+  bottom: calc(76px + var(--safe-bottom));
   transform: translateX(-50%);
   display: flex;
   align-items: center;
