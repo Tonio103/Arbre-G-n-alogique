@@ -19,8 +19,14 @@ export interface LoadingScreenProps {
  * La première visite laisse le temps de lire l'emblème et le nom qui
  * défilent ; les suivantes se contentent du temps réel du chargement —
  * mesuré sur cette application, la page est prête en moins de 200 ms.
+ *
+ * 1400 ms, essayé d'abord, ne laissait voir ni le titre finir son
+ * apparition ni un seul relais de nom (l'intervalle entre deux noms était
+ * même plus long que tout le plancher) : le rideau donnait l'impression de
+ * clignoter plutôt que de se montrer. 2800 ms laisse le temps de deux
+ * relais.
  */
-const FIRST_VISIT_MS = 1400;
+const FIRST_VISIT_MS = 2800;
 const RETURNING_MS = 500;
 const EXIT_MS = 620;
 
@@ -97,7 +103,7 @@ export function LoadingScreen({
     if (reduced || names.length < 2) return undefined;
     const timer = window.setInterval(
       () => setNameIndex((index) => (index + 1) % names.length),
-      1800,
+      1300,
     );
     return () => window.clearInterval(timer);
   }, [reduced, names.length]);

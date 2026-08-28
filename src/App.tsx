@@ -19,6 +19,7 @@ import {
   linkChild,
   linkParent,
   linkSpouse,
+  updateUnion,
   upsertPerson,
   type NewPersonInput,
 } from '@/domain/edit';
@@ -526,6 +527,13 @@ export default function App() {
     [datasetCtrl],
   );
 
+  const updatePersonUnion = useCallback(
+    (personId: string, spouseId: string, union: { status: UnionStatus; since?: string; place?: string }) => {
+      datasetCtrl.mutate((people) => updateUnion(people, personId, spouseId, union));
+    },
+    [datasetCtrl],
+  );
+
   const detachPersonChild = useCallback(
     (parentId: string, childId: string) => {
       datasetCtrl.mutate((people) => detachChild(people, parentId, childId));
@@ -743,6 +751,7 @@ export default function App() {
         onLinkChild={(childId, otherParentId) => selectedId && linkPersonChild(selectedId, childId, otherParentId)}
         onDetachParent={(parentId) => selectedId && detachPersonParent(selectedId, parentId)}
         onDetachSpouse={(spouseId) => selectedId && detachPersonSpouse(selectedId, spouseId)}
+        onUpdateUnion={(spouseId, union) => selectedId && updatePersonUnion(selectedId, spouseId, union)}
         onDetachChild={(childId) => selectedId && detachPersonChild(selectedId, childId)}
       />
 

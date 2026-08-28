@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import type { UnionStatus } from '@/data/schema';
 import type { NewPersonInput } from '@/domain/edit';
 import { normalizeText } from '@/domain/text';
+import { UnionFields } from './UnionFields';
 
 export type RelativeKind = 'parent' | 'spouse' | 'child';
 
@@ -178,29 +179,14 @@ export function AddRelativeForm({ kind, spouseOptions, candidates, onSubmit, onL
       )}
 
       {kind === 'spouse' && (
-        <div className="edit-form-row edit-form-row--split">
-          <label className="edit-field">
-            <span>Statut</span>
-            <select value={unionStatus} onChange={(e) => setUnionStatus(e.target.value as UnionStatus)}>
-              <option value="married">Marié·es</option>
-              <option value="partner">En couple</option>
-              <option value="engaged">Fiancé·es</option>
-              <option value="divorced">Divorcé·es</option>
-              <option value="widowed">Veuf·ve</option>
-              <option value="unknown">Non précisé</option>
-            </select>
-          </label>
-          <label className="edit-field">
-            <span>Depuis</span>
-            <input value={unionSince} onChange={(e) => setUnionSince(e.target.value)} placeholder="1925…" />
-          </label>
-        </div>
-      )}
-      {kind === 'spouse' && (
-        <label className="edit-field">
-          <span>Lieu d’union</span>
-          <input value={unionPlace} onChange={(e) => setUnionPlace(e.target.value)} />
-        </label>
+        <UnionFields
+          value={{ status: unionStatus, since: unionSince, place: unionPlace }}
+          onChange={(next) => {
+            setUnionStatus(next.status);
+            setUnionSince(next.since);
+            setUnionPlace(next.place);
+          }}
+        />
       )}
 
       <div className="edit-form-actions">

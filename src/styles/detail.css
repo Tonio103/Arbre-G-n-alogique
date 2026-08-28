@@ -1010,14 +1010,30 @@
   list-style: none;
 }
 
+/*
+ * Une carte de proche, colonne verticale : la ligne principale (nom, actions)
+ * et, pour une union qu'on est en train de corriger, le petit formulaire de
+ * statut/date/lieu juste en dessous — dans la même carte plutôt que dans un
+ * panneau à part, pour qu'on garde sous les yeux DE QUI on parle.
+ */
 .relation-editor-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
   padding: 7px 8px 7px 11px;
   border-radius: 12px;
   background: var(--glass-fill);
   border: 1px solid var(--glass-border);
+}
+
+.relation-editor-item[data-expanded] {
+  background: var(--glass-fill-strong);
+  padding-bottom: 12px;
+}
+
+.relation-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .relation-editor-name {
@@ -1036,7 +1052,18 @@
   white-space: nowrap;
 }
 
-.relation-editor-remove {
+/* Les deux actions d'un lien (modifier l'union, le retirer) restent groupées
+   pour que la carte ne s'étire pas d'un lien à l'autre selon lesquelles s'y
+   trouvent. */
+.relation-editor-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.relation-editor-remove,
+.relation-editor-edit {
   flex: none;
   display: grid;
   place-items: center;
@@ -1051,9 +1078,30 @@
     color var(--dur-fast) var(--ease-out);
 }
 
+.relation-editor-edit svg {
+  width: 13px;
+  height: 13px;
+}
+
 .relation-editor-remove:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.relation-editor-edit:hover,
+.relation-editor-edit[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+/* Le petit formulaire d'union, sous la ligne du conjoint concerné. */
+.relation-editor-union {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--glass-border);
 }
 
 /* Retirer un lien se confirme : le geste est discret mais change l'arbre. */

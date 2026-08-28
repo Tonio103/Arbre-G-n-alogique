@@ -40,6 +40,7 @@ export interface DetailPanelProps {
   onDetachParent: (parentId: string) => void;
   onDetachSpouse: (spouseId: string) => void;
   onDetachChild: (childId: string) => void;
+  onUpdateUnion: (spouseId: string, union: { status: UnionStatus; since?: string; place?: string }) => void;
 }
 
 function Section({
@@ -127,6 +128,7 @@ export function DetailPanel({
   onDetachParent,
   onDetachSpouse,
   onDetachChild,
+  onUpdateUnion,
 }: DetailPanelProps) {
   const [editing, setEditing] = useState(false);
   const [addingRelative, setAddingRelative] = useState<RelativeKind | null>(null);
@@ -320,6 +322,7 @@ export function DetailPanel({
                 onDetachParent={onDetachParent}
                 onDetachSpouse={onDetachSpouse}
                 onDetachChild={onDetachChild}
+                onUpdateUnion={onUpdateUnion}
               />
             }
           />

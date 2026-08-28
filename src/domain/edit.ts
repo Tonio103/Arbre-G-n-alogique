@@ -250,6 +250,41 @@ export function detachSpouse(people: PersonRecord[], personId: string, spouseId:
   });
 }
 
+/**
+ * Corrige une union déjà posée — son statut, sa date, son lieu — des deux
+ * côtés à la fois. Jusqu'ici ces trois champs ne se saisissaient qu'à la
+ * création du lien : une date de mariage mal notée, ou découverte après
+ * coup, obligeait à défaire l'union pour la reposer avec la bonne date,
+ * perdant au passage tout ce que la fiche portait par ailleurs.
+ *
+ * Remplace l'entrée entière plutôt que de fusionner champ à champ : un
+ * conjoint saisi comme simple identifiant (sans statut ni date) devient ainsi
+ * un lien complet dès la première modification.
+ */
+export function updateUnion(
+  people: PersonRecord[],
+  personId: string,
+  spouseId: string,
+  patch: { status: UnionStatus; since?: string; place?: string },
+): PersonRecord[] {
+  const apply = (p: PersonRecord, otherId: string): PersonRecord => ({
+    ...p,
+    // Seule l'entrée visée est réécrite ; les autres unions de la personne,
+    // qu'elles soient déjà détaillées ou encore un simple identifiant,
+    // restent telles quelles.
+    spouses: (p.spouses ?? []).map((s) =>
+      spouseIdOf(s) === otherId
+        ? ({ id: otherId, status: patch.status, since: patch.since, place: patch.place } satisfies SpouseLink)
+        : s,
+    ),
+  });
+  return people.map((p) => {
+    if (p.id === personId) return apply(p, spouseId);
+    if (p.id === spouseId) return apply(p, personId);
+    return p;
+  });
+}
+
 /** Détache un enfant de ce parent-ci, en lui laissant ses autres parents. */
 export function detachChild(people: PersonRecord[], parentId: string, childId: string): PersonRecord[] {
   return detachParent(people, childId, parentId);

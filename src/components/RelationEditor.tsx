@@ -4,6 +4,8 @@ import type { Person, UnionStatus } from '@/data/schema';
 import type { NewPersonInput } from '@/domain/edit';
 import { ancestorsOf, descendantsOf } from '@/domain/relations';
 import { AddRelativeForm, type RelativeKind } from './AddRelativeForm';
+import { UnionFields, type UnionValue } from './UnionFields';
+import { EditIcon } from './icons';
 
 export interface RelationEditorProps {
   graph: FamilyGraph;
@@ -17,6 +19,7 @@ export interface RelationEditorProps {
   onDetachParent: (parentId: string) => void;
   onDetachSpouse: (spouseId: string) => void;
   onDetachChild: (childId: string) => void;
+  onUpdateUnion: (spouseId: string, union: { status: UnionStatus; since?: string; place?: string }) => void;
 }
 
 const SECTION_TITLE: Record<RelativeKind, string> = {
@@ -62,9 +65,12 @@ export function RelationEditor({
   onDetachParent,
   onDetachSpouse,
   onDetachChild,
+  onUpdateUnion,
 }: RelationEditorProps) {
   const [adding, setAdding] = useState<RelativeKind | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  // Le conjoint dont on corrige l'union — statut, date, lieu — en ce moment.
+  const [editingUnion, setEditingUnion] = useState<string | null>(null);
 
   const spouseIds = person.spouseLinks.map((link) => link.id);
 
@@ -97,6 +103,22 @@ export function RelationEditor({
     { kind: 'child', ids: person.children, detach: onDetachChild },
   ];
 
+  const [unionDraft, setUnionDraft] = useState<UnionValue>({
+    status: 'married',
+    since: '',
+    place: '',
+  });
+
+  const startEditingUnion = (id: string): void => {
+    const link = person.spouseLinks.find((l) => l.id === id);
+    setUnionDraft({
+      status: link?.status ?? 'married',
+      since: link?.since ? String(link.since) : '',
+      place: link?.place ?? '',
+    });
+    setEditingUnion(id);
+  };
+
   return (
     <div className="relation-editor">
       {rows.map(({ kind, ids, detach }) => (
@@ -115,44 +137,92 @@ export function RelationEditor({
                 if (!other) return null;
                 const token = `${kind}:${id}`;
                 const link = kind === 'spouse' ? person.spouseLinks.find((l) => l.id === id) : undefined;
+                const isEditingUnion = kind === 'spouse' && editingUnion === id;
                 return (
-                  <li key={id} className="relation-editor-item">
-                    <span className="relation-editor-name">
-                      {other.displayName}
-                      {link?.since && (
-                        <span className="relation-editor-note">depuis {String(link.since).slice(0, 4)}</span>
-                      )}
-                    </span>
-                    {confirming === token ? (
-                      <span className="relation-editor-confirm">
-                        <button
-                          type="button"
-                          className="relation-editor-danger"
-                          onClick={() => {
-                            detach(id);
-                            setConfirming(null);
-                          }}
-                        >
-                          Retirer le lien
-                        </button>
-                        <button
-                          type="button"
-                          className="relation-editor-cancel"
-                          onClick={() => setConfirming(null)}
-                        >
-                          Annuler
-                        </button>
+                  <li key={id} className="relation-editor-item" data-expanded={isEditingUnion || undefined}>
+                    <div className="relation-editor-row">
+                      <span className="relation-editor-name">
+                        {other.displayName}
+                        {link?.since && (
+                          <span className="relation-editor-note">depuis {String(link.since).slice(0, 4)}</span>
+                        )}
                       </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="relation-editor-remove"
-                        aria-label={`Retirer le lien avec ${other.displayName}`}
-                        title="Retirer ce lien — les deux fiches sont conservées"
-                        onClick={() => setConfirming(token)}
-                      >
-                        ×
-                      </button>
+                      {confirming === token ? (
+                        <span className="relation-editor-confirm">
+                          <button
+                            type="button"
+                            className="relation-editor-danger"
+                            onClick={() => {
+                              detach(id);
+                              setConfirming(null);
+                            }}
+                          >
+                            Retirer le lien
+                          </button>
+                          <button
+                            type="button"
+                            className="relation-editor-cancel"
+                            onClick={() => setConfirming(null)}
+                          >
+                            Annuler
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="relation-editor-actions">
+                          {kind === 'spouse' && (
+                            <button
+                              type="button"
+                              className="relation-editor-edit"
+                              aria-label={`Modifier l’union avec ${other.displayName}`}
+                              title="Statut, date, lieu de l’union"
+                              aria-pressed={isEditingUnion}
+                              onClick={() =>
+                                isEditingUnion ? setEditingUnion(null) : startEditingUnion(id)
+                              }
+                            >
+                              <EditIcon />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="relation-editor-remove"
+                            aria-label={`Retirer le lien avec ${other.displayName}`}
+                            title="Retirer ce lien — les deux fiches sont conservées"
+                            onClick={() => setConfirming(token)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
+                    </div>
+
+                    {isEditingUnion && (
+                      <div className="relation-editor-union">
+                        <UnionFields value={unionDraft} onChange={setUnionDraft} />
+                        <div className="edit-form-actions">
+                          <button
+                            type="button"
+                            className="action-button data-panel-confirm"
+                            onClick={() => {
+                              onUpdateUnion(id, {
+                                status: unionDraft.status,
+                                since: unionDraft.since.trim() || undefined,
+                                place: unionDraft.place.trim() || undefined,
+                              });
+                              setEditingUnion(null);
+                            }}
+                          >
+                            Enregistrer
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button"
+                            onClick={() => setEditingUnion(null)}
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </li>
                 );
