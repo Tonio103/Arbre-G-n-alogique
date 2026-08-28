@@ -14,33 +14,20 @@ export interface LoadingScreenProps {
 }
 
 /*
- * Combien de temps le rideau reste, au minimum.
+ * Combien de temps le rideau reste, au minimum — toujours le même, à chaque
+ * ouverture.
  *
- * La première visite laisse le temps de lire l'emblème et le nom qui
- * défilent ; les suivantes se contentent du temps réel du chargement —
- * mesuré sur cette application, la page est prête en moins de 200 ms.
- *
- * 1400 ms, essayé d'abord, ne laissait voir ni le titre finir son
- * apparition ni un seul relais de nom (l'intervalle entre deux noms était
- * même plus long que tout le plancher) : le rideau donnait l'impression de
- * clignoter plutôt que de se montrer. 2800 ms laisse le temps de deux
- * relais.
+ * Une version distinguait « première visite » (le temps de lire) et
+ * « retour » (500 ms, presque rien) grâce à un drapeau posé dans le
+ * navigateur. Mais cette application se rouvre sans cesse, par la même
+ * personne, sur le même poste : le drapeau se pose dès la toute première
+ * ouverture et reste ensuite posé pour de bon — TOUTES les visites qui
+ * suivent, à vie, tombaient donc sur les 500 ms, un simple flash. Un rideau
+ * qu'on ne voit jamais ne sert à rien : autant qu'il dure pareil pour tout le
+ * monde, assez longtemps pour se lire.
  */
-const FIRST_VISIT_MS = 2800;
-const RETURNING_MS = 500;
+const DISPLAY_MS = 2800;
 const EXIT_MS = 620;
-
-const SEEN_KEY = 'arbre:ouverture-vue';
-
-function isReturning(): boolean {
-  try {
-    return localStorage.getItem(SEEN_KEY) === '1';
-  } catch {
-    // Stockage refusé : on traite comme un retour, pour ne pas infliger la
-    // scène longue à chaque fois sans pouvoir s'en souvenir.
-    return true;
-  }
-}
 
 /**
  * Rideau d'ouverture.
@@ -66,37 +53,16 @@ export function LoadingScreen({
   const [reduced, setReduced] = useState(false);
   const [nameIndex, setNameIndex] = useState(0);
 
-  /*
-   * A-t-on déjà vu le rideau ? Lu une seule fois, à l'instant du montage —
-   * jamais recalculé dans l'effet ci-dessous.
-   *
-   * L'ancienne version lisait ET écrivait `SEEN_KEY` dans le même effet. En
-   * développement, StrictMode monte chaque composant deux fois de suite pour
-   * détecter les effets mal nettoyés : la première invocation écrivait déjà
-   * « vu » avant que la seconde ne relise la valeur — qui se retrouvait donc
-   * toujours à « vu », même au tout premier chargement. Un initialiseur de
-   * state ne fait QUE lire, sans jamais écrire : les deux passages de
-   * StrictMode y lisent la même chose, avant qu'aucune écriture n'ait eu
-   * lieu.
-   */
-  const [wasReturning] = useState(isReturning);
-
   useEffect(() => {
     const quiet = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setReduced(quiet);
-    try {
-      localStorage.setItem(SEEN_KEY, '1');
-    } catch {
-      /* voir `isReturning` */
-    }
     if (quiet) {
       setFloorPassed(true);
       return undefined;
     }
-    const floor = wasReturning ? RETURNING_MS : FIRST_VISIT_MS;
-    const timer = window.setTimeout(() => setFloorPassed(true), floor);
+    const timer = window.setTimeout(() => setFloorPassed(true), DISPLAY_MS);
     return () => window.clearTimeout(timer);
-  }, [wasReturning]);
+  }, []);
 
   // Un seul nom à la fois, qui cède doucement la place au suivant.
   useEffect(() => {
