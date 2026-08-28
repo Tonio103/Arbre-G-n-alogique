@@ -575,19 +575,13 @@ function expandEdges(
 
     /**
      * Pose le conjoint caché de `edge` au bord `side` de sa carte, s'il tient
-     * dans `[gapLo, gapHi]`, puis ses enfants — CEUX DU CONJOINT, ou à défaut
-     * ceux d'`edge` lui-même, si la place le permet.
-     *
-     * Les deux sont indépendants : Paul Albertini n'avait ni conjoint cousu à
-     * ses côtés ni demi-frère à révéler, seulement des enfants directs que
-     * rien d'autre ne montrait. Poser des enfants ne suppose plus d'avoir
-     * d'abord posé un conjoint.
+     * dans `[gapLo, gapHi]`, puis les enfants DU COUPLE qu'il forme avec lui.
      *
      * Rend la nouvelle borne du creux du côté où l'on vient de poser — pour
      * que, si les DEUX bords d'un même creux ont chacun un conjoint caché, le
      * second n'aille pas se superposer à ce que le premier vient d'y mettre.
      */
-    const attach = (
+    const attachSpouse = (
       edge: NodePosition,
       side: 'left' | 'right',
       gapLo: number,
@@ -596,28 +590,23 @@ function expandEdges(
       const spouseId = hiddenSpouse(edge.id);
       const spouseX = side === 'left' ? edge.x - COUPLE_STEP : edge.x + COUPLE_STEP;
       const spouseFits = spouseId && spouseX >= gapLo && spouseX + CARD_WIDTH <= gapHi;
+      if (!spouseFits) return side === 'left' ? gapHi : gapLo;
 
-      if (spouseFits) {
-        taken.add(spouseId);
-        positions.set(spouseId, { id: spouseId, x: spouseX, y: edge.y, generation });
+      taken.add(spouseId);
+      positions.set(spouseId, { id: spouseId, x: spouseX, y: edge.y, generation });
 
-        const kids = hiddenChildren(edge.id);
-        if (kids.length > 0) {
-          attachChildren(kids, Math.min(edge.x, spouseX), Math.max(edge.x, spouseX) + CARD_WIDTH);
-        }
-        return side === 'left' ? spouseX - SIBLING_GAP : spouseX + CARD_WIDTH + SIBLING_GAP;
-      }
-
-      // Pas de conjoint à poser ici — mais peut-être des enfants tout de
-      // même, directement sous cette seule carte.
       const kids = hiddenChildren(edge.id);
-      if (kids.length > 0) attachChildren(kids, edge.x, edge.x + CARD_WIDTH);
-
-      return side === 'left' ? gapHi : gapLo;
+      if (kids.length > 0) {
+        attachChildren(kids, Math.min(edge.x, spouseX), Math.max(edge.x, spouseX) + CARD_WIDTH);
+      }
+      return side === 'left' ? spouseX - SIBLING_GAP : spouseX + CARD_WIDTH + SIBLING_GAP;
     };
 
     // Chaque creux de la rangée, marge extérieure comprise : entre `row[i-1]`
     // (ou rien, à gauche de tout) et `row[i]` (ou rien, à droite de tout).
+    // On garde la borne de chacun : la seconde passe, ci-dessous, en a besoin
+    // pour les enfants qui n'ont pas de conjoint à côté d'eux.
+    const gaps: Array<{ lo: number; hi: number }> = [];
     for (let i = 0; i <= row.length; i += 1) {
       const before = row[i - 1];
       const after = row[i];
@@ -625,8 +614,43 @@ function expandEdges(
       let gapLo = before ? before.x + CARD_WIDTH : Number.NEGATIVE_INFINITY;
       let gapHi = after ? after.x : Number.POSITIVE_INFINITY;
 
-      if (before) gapLo = attach(before, 'right', gapLo, gapHi);
-      if (after) gapHi = attach(after, 'left', gapLo, gapHi);
+      if (before) gapLo = attachSpouse(before, 'right', gapLo, gapHi);
+      if (after) gapHi = attachSpouse(after, 'left', gapLo, gapHi);
+      gaps.push({ lo: gapLo, hi: gapHi });
     }
+
+    /*
+     * Les enfants de qui n'a PAS de conjoint à révéler — Paul Albertini,
+     * enfant direct de « a-1 » sans belle-mère à côté de lui.
+     *
+     * Chaque carte a deux creux voisins, celui à sa gauche (`gaps[i]`) et
+     * celui à sa droite (`gaps[i+1]`). Un premier essai les traitait l'un
+     * après l'autre dans une seule passe, gauche d'abord : le creux étroit
+     * entre « a » et « a-1 » gagnait alors la carte, avant même que le vide
+     * grand ouvert de l'autre côté n'ait sa chance — et la repliait sur le
+     * centrage par défaut, collée à François. On regarde maintenant les DEUX
+     * creux avant de choisir, et on prend celui qui permet l'écart complet.
+     */
+    row.forEach((edge, i) => {
+      const kids = hiddenChildren(edge.id);
+      if (kids.length === 0) return;
+
+      const width = run(kids.length, SIBLING_GAP);
+      const leftGap = gaps[i];
+      const rightGap = gaps[i + 1];
+
+      const rightBiased = edge.x + CARD_WIDTH + FAMILY_GAP;
+      const leftBiased = edge.x - FAMILY_GAP - width;
+
+      let left: number;
+      if (rightBiased + width <= rightGap.hi) left = rightBiased;
+      else if (leftBiased >= leftGap.lo) left = leftBiased;
+      // Aucun des deux creux n'a la place pour un vrai écart : repli sûr,
+      // centré sous la carte seule — jamais hors de ses propres bords à
+      // elle, donc jamais de quoi croiser une branche voisine.
+      else left = edge.x + (CARD_WIDTH - width) / 2;
+
+      attachChildren(kids, left, left + width);
+    });
   }
 }
