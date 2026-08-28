@@ -1,12 +1,9 @@
 /*
  * Le rideau d'ouverture.
  *
- * Un éventail d'ascendance qui s'allume de proche en proche. Tout y est
- * calculé en fonction du temps : les traits se tracent avant les médaillons,
- * les médaillons éclosent du centre vers les bords, et le halo respire au
- * rythme des générations. Rien n'est en boucle infinie sauf les étincelles et
- * la poussière — le reste raconte une progression, et une progression a une
- * fin.
+ * Une seule chose bouge : l'emblème, qui respire. Tout le reste est immobile
+ * ou n'apparaît qu'une fois — un rideau ne doit pas rivaliser d'attention
+ * avec l'arbre qu'il précède.
  */
 
 .loading-screen {
@@ -15,281 +12,123 @@
   z-index: 120;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  gap: 28px;
   background:
-    radial-gradient(120% 90% at 50% 108%, var(--ls-floor) 0%, transparent 62%),
-    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 58%, var(--bg-base) 100%);
+    radial-gradient(60% 50% at 50% 42%, var(--ls-glow-field) 0%, transparent 70%),
+    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 58%, var(--bg-deep) 100%);
   transition:
-    opacity var(--dur-slow, 620ms) var(--ease-out),
-    transform var(--dur-slow, 620ms) var(--ease-out),
-    filter var(--dur-slow, 620ms) var(--ease-out);
+    opacity var(--dur-slow) var(--ease-out),
+    filter var(--dur-slow) var(--ease-out);
 
-  /* Teintes propres au rideau, dérivées des jetons du thème. */
-  --ls-floor: rgba(127, 176, 255, 0.14);
-  --ls-node-hi: rgba(233, 241, 255, 0.98);
-  --ls-node-lo: var(--accent);
-  --ls-line: rgba(160, 196, 255, 0.5);
+  --ls-glow-field: rgba(127, 176, 255, 0.1);
 }
 
-/*
- * Le départ : le rideau ne disparaît pas, il s'ouvre. Un léger agrandissement
- * accompagne le fondu, comme si l'on entrait dans l'arbre plutôt que l'écran
- * ne s'effaçait devant lui.
- */
 .loading-screen[data-leaving] {
   opacity: 0;
-  transform: scale(1.08);
-  filter: blur(6px);
+  filter: blur(4px);
   pointer-events: none;
 }
 
-/* ------------------------------- Le fond -------------------------------- */
+/* ------------------------------- L'emblème ------------------------------- */
 
-.ls-aurora,
-.ls-halo,
-.ls-vignette {
+.ls-emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+}
+
+/* Le halo : une seule respiration, lente, derrière l'emblème. */
+.ls-emblem-glow {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* Une aurore très lente : elle donne au fond une profondeur qui bouge sans
-   jamais attirer l'œil, qui doit rester sur l'éventail. */
-.ls-aurora {
-  background:
-    radial-gradient(48% 38% at 22% 28%, var(--motif-nebula-a) 0%, transparent 70%),
-    radial-gradient(52% 42% at 78% 22%, var(--motif-nebula-b) 0%, transparent 72%),
-    radial-gradient(60% 44% at 50% 88%, var(--accent-soft) 0%, transparent 76%);
-  filter: blur(14px);
-  animation: ls-drift 22s ease-in-out infinite alternate;
-}
-
-@keyframes ls-drift {
-  from {
-    transform: translate3d(-2%, 1%, 0) scale(1.02);
-    opacity: 0.85;
-  }
-  to {
-    transform: translate3d(2%, -1.5%, 0) scale(1.08);
-    opacity: 1;
-  }
-}
-
-/* Le halo respire au rythme d'une génération : chaque battement correspond à
-   une rangée qui s'allume. */
-.ls-halo {
-  background: radial-gradient(38% 34% at 50% 78%, var(--accent-soft) 0%, transparent 68%);
-  animation: ls-breathe 2.6s var(--ease-out) infinite;
+  inset: -30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 72%);
+  animation: ls-breathe 3.2s var(--ease-inout) infinite;
 }
 
 @keyframes ls-breathe {
   0%,
   100% {
-    opacity: 0.45;
-    transform: scale(1);
-  }
-  46% {
-    opacity: 1;
-    transform: scale(1.09);
-  }
-}
-
-/* Assombrit les bords : l'éventail se détache sans qu'on ait à le cadrer. */
-.ls-vignette {
-  background: radial-gradient(78% 62% at 50% 62%, transparent 40%, var(--bg-veil) 100%);
-}
-
-.ls-dust {
-  position: absolute;
-  width: var(--size);
-  height: var(--size);
-  border-radius: 50%;
-  background: var(--motif-dot-dim);
-  box-shadow: 0 0 8px var(--star-glow);
-  opacity: 0;
-  animation: ls-float linear infinite;
-}
-
-@keyframes ls-float {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0);
-  }
-  22%,
-  74% {
-    opacity: 0.75;
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--dx), var(--dy), 0);
-  }
-}
-
-/* ----------------------------- L'éventail ------------------------------- */
-
-.ls-stage {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: min(92vw, 620px);
-  padding: 0 16px;
-}
-
-.ls-fan {
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-
-/* Les arcs de génération : ils s'installent d'abord, très discrets, pour que
-   l'éventail ait un cadre avant de se remplir. */
-.ls-ring {
-  fill: none;
-  stroke: var(--glass-border);
-  stroke-width: 1;
-  stroke-dasharray: 2 7;
-  opacity: 0;
-  animation: ls-ring-in 900ms var(--ease-out) forwards;
-}
-
-@keyframes ls-ring-in {
-  from {
-    opacity: 0;
-  }
-  to {
     opacity: 0.55;
-  }
-}
-
-/*
- * Les liens se tracent d'un bout à l'autre.
- *
- * `--len` porte la longueur réelle de la courbe, calculée à la construction :
- * un `stroke-dasharray` fixe ferait avancer les traits courts et les longs à
- * des vitesses différentes, et l'éventail se remplirait de travers.
- */
-.ls-link {
-  fill: none;
-  stroke: var(--ls-line);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-dasharray: var(--len);
-  stroke-dashoffset: var(--len);
-  filter: drop-shadow(0 0 5px var(--accent-soft));
-  animation: ls-draw 620ms var(--ease-out) forwards;
-}
-
-@keyframes ls-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* L'étincelle qui remonte la lignée, une fois le trait posé. */
-.ls-spark {
-  fill: var(--accent-strong);
-  filter: drop-shadow(0 0 6px var(--accent));
-  opacity: 0.9;
-}
-
-/*
- * Les médaillons éclosent : ils ne se contentent pas d'apparaître, ils
- * dépassent légèrement leur taille avant de s'y poser — le geste d'un nom
- * qu'on retrouve.
- */
-.ls-node {
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: ls-bloom 760ms var(--ease-spring) forwards;
-}
-
-@keyframes ls-bloom {
-  0% {
-    opacity: 0;
-    transform: scale(0.2);
-  }
-  62% {
-    opacity: 1;
-    transform: scale(1.16);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.ls-node-dot {
-  fill: url(#ls-node);
-}
-
-.ls-node-ring {
-  fill: none;
-  stroke: var(--glass-border-strong);
-  stroke-width: 1.2;
-}
-
-.ls-node-glow {
-  fill: var(--accent);
-  opacity: 0.34;
-}
-
-/* La racine — la personne dont on remonte la lignée — garde une pulsation
-   propre : c'est d'elle que tout part, et elle reste le point de repère. */
-.ls-node[data-gen='0'] .ls-node-glow {
-  opacity: 0.5;
-  animation: ls-root-pulse 2.4s var(--ease-out) infinite 900ms;
-}
-
-@keyframes ls-root-pulse {
-  0%,
-  100% {
-    opacity: 0.36;
-    transform: scale(1);
+    transform: scale(0.92);
   }
   50% {
-    opacity: 0.62;
-    transform: scale(1.14);
+    opacity: 1;
+    transform: scale(1.08);
   }
 }
 
-/* Les générations lointaines s'estompent : l'œil comprend la profondeur sans
-   qu'on ait à l'écrire. */
-.ls-node[data-gen='3'] {
-  opacity: 0.92;
+/*
+ * Le même losange à trois points que la barre du haut (`.topbar-mark`),
+ * agrandi. Reprendre l'emblème déjà en place plutôt qu'en inventer un nouveau
+ * fait reconnaître, dès le rideau, l'application qu'on s'apprête à ouvrir.
+ */
+.ls-emblem-mark {
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  background: linear-gradient(148deg, var(--accent), var(--accent-rose));
+  box-shadow:
+    0 0 0 1px var(--glass-border-strong),
+    0 10px 28px rgba(0, 0, 0, 0.32);
+  animation: ls-breathe 3.2s var(--ease-inout) infinite;
 }
 
-.ls-node[data-gen='4'] {
-  opacity: 0.78;
+.ls-emblem-mark i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  font-style: normal;
 }
 
-/* ------------------------------- Le texte ------------------------------- */
+.ls-emblem-mark i:nth-child(1) {
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ls-emblem-mark i:nth-child(2) {
+  top: 66%;
+  left: 32%;
+  transform: translate(-50%, -50%);
+}
+
+.ls-emblem-mark i:nth-child(3) {
+  top: 66%;
+  left: 68%;
+  transform: translate(-50%, -50%);
+}
+
+/* ------------------------------- Le texte -------------------------------- */
 
 .ls-titles {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-align: center;
-  margin-top: -6px;
 }
 
 .ls-title {
   margin: 0;
-  font-size: clamp(20px, 3.4vw, 30px);
+  font-size: clamp(19px, 3vw, 26px);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-primary);
   opacity: 0;
-  animation: ls-rise 900ms var(--ease-out) 260ms forwards;
+  animation: ls-rise 620ms var(--ease-out) 120ms forwards;
 }
 
 @keyframes ls-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -298,121 +137,94 @@
 }
 
 /*
- * Les noms se relaient au même endroit.
- *
- * Ils sont tous montés et superposés : les faire entrer et sortir du DOM
- * couperait la transition au milieu, et le nom suivant apparaîtrait sans que
- * le précédent ait fini de partir.
+ * Les noms — ou à défaut le compte de personnes — se relaient au même
+ * endroit. Tous montés et superposés : les faire entrer et sortir du DOM
+ * couperait la transition au milieu.
  */
 .ls-names {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 22px;
+  min-height: 20px;
   width: 100%;
+  opacity: 0;
+  animation: ls-rise 620ms var(--ease-out) 260ms forwards;
 }
 
 .ls-name {
   grid-area: 1 / 1;
-  font-size: 14.5px;
+  font-size: 13.5px;
   color: var(--accent-strong);
   letter-spacing: 0.02em;
   opacity: 0;
-  transform: translateY(6px);
-  transition:
-    opacity 520ms var(--ease-out),
-    transform 520ms var(--ease-out);
+  transition: opacity 640ms var(--ease-out);
 }
 
 .ls-name[data-active] {
   opacity: 1;
-  transform: translateY(0);
-}
-
-.ls-caption {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--text-tertiary);
-  opacity: 0;
-  animation: ls-rise 900ms var(--ease-out) 520ms forwards;
 }
 
 /*
- * La barre de progression.
+ * Un simple trait de progression.
  *
- * Elle ne prétend pas mesurer un chargement : elle accompagne la
- * chorégraphie, dont la durée est connue d'avance. Afficher un pourcentage
- * inventé serait mentir sur ce qui se passe.
+ * Il n'annonce pas un pourcentage — l'application ne sait pas combien de
+ * temps il reste — juste qu'il se passe quelque chose. Une seule lueur, pas
+ * de balayage agressif.
  */
 .ls-progress {
-  width: min(220px, 60%);
+  width: 120px;
   height: 2px;
-  margin-top: 4px;
+  margin-top: 2px;
   border-radius: 2px;
   background: var(--glass-fill);
   overflow: hidden;
+  opacity: 0;
+  animation: ls-rise 620ms var(--ease-out) 380ms forwards;
 }
 
 .ls-progress-fill {
   display: block;
-  width: 100%;
+  width: 40%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  transform: translateX(-100%);
-  animation: ls-sweep 1.8s var(--ease-out) infinite;
+  animation: ls-drift 2.4s var(--ease-inout) infinite;
 }
 
-@keyframes ls-sweep {
-  to {
-    transform: translateX(100%);
+@keyframes ls-drift {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(340%);
   }
 }
 
 /* --------------------------- Mouvement réduit ---------------------------- */
 
-/*
- * Qui a demandé moins de mouvement voit la scène FINIE, pas une scène qui
- * s'anime plus doucement : tout est en place d'emblée, et seul le fondu de
- * sortie subsiste.
- */
-.loading-screen[data-reduced] .ls-aurora,
-.loading-screen[data-reduced] .ls-halo,
-.loading-screen[data-reduced] .ls-dust,
-.loading-screen[data-reduced] .ls-spark,
-.loading-screen[data-reduced] .ls-progress-fill,
-.loading-screen[data-reduced] .ls-node[data-gen='0'] .ls-node-glow {
+.loading-screen[data-reduced] .ls-emblem-glow,
+.loading-screen[data-reduced] .ls-emblem-mark,
+.loading-screen[data-reduced] .ls-progress-fill {
   animation: none;
 }
 
-.loading-screen[data-reduced] .ls-dust,
-.loading-screen[data-reduced] .ls-spark {
-  opacity: 0;
-}
-
-.loading-screen[data-reduced] .ls-link {
-  stroke-dashoffset: 0;
-  animation: none;
-}
-
-.loading-screen[data-reduced] .ls-node,
-.loading-screen[data-reduced] .ls-ring,
 .loading-screen[data-reduced] .ls-title,
-.loading-screen[data-reduced] .ls-caption {
+.loading-screen[data-reduced] .ls-names,
+.loading-screen[data-reduced] .ls-progress,
+.loading-screen[data-reduced] .ls-name {
   opacity: 1;
   transform: none;
   animation: none;
+  transition: none;
 }
 
 .loading-screen[data-reduced][data-leaving] {
-  transform: none;
   filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ls-aurora,
-  .ls-halo,
-  .ls-dust,
+  .ls-emblem-glow,
+  .ls-emblem-mark,
   .ls-progress-fill {
     animation: none;
   }
