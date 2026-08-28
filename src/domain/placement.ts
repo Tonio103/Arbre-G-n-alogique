@@ -529,22 +529,59 @@ function expandEdges(
       ),
     );
 
-  /** Le rectangle déjà occupé à une génération donnée, pour vérifier qu'on n'y entre pas. */
-  const spanOf = (generation: number): { lo: number; hi: number } | undefined => {
+  /**
+   * Une carte, déjà posée à cette génération, chevauche-t-elle `[lo, hi]` ?
+   *
+   * Comparait d'abord `[lo, hi]` au seul rectangle englobant du minimum au
+   * maximum de toute la rangée — traitant donc tout le VIDE entre les cartes
+   * comme s'il était plein. Sur une rangée large de tout le dessin (le cas
+   * courant à partir de quelques générations), pratiquement toute case s'y
+   * trouvait comprise, et plus aucun enfant ne pouvait jamais être révélé :
+   * Paul Albertini restait cacher quel que soit l'espace réellement libre à
+   * côté de lui. On regarde maintenant chaque carte une à une.
+   */
+  const rangeFree = (generation: number, lo: number, hi: number): boolean => {
     const row = rows.get(generation);
-    if (!row || row.length === 0) return undefined;
-    return {
-      lo: Math.min(...row.map((n) => n.x)),
-      hi: Math.max(...row.map((n) => n.x)) + CARD_WIDTH,
-    };
+    if (!row) return true;
+    return row.every((n) => n.x + CARD_WIDTH <= lo || n.x >= hi);
   };
 
   for (const [generation, row] of rows) {
     row.sort((a, b) => a.x - b.x);
 
+    /** Pose des enfants sous `[pairLeft, pairRight]`, sauf s'ils buteraient
+     *  sur la rangée du dessous — une tout autre branche, posée là par un
+     *  calcul qui ignore celui-ci. */
+    const attachChildren = (kids: string[], pairLeft: number, pairRight: number): void => {
+      const width = run(kids.length, SIBLING_GAP);
+      const left = (pairLeft + pairRight) / 2 - width / 2;
+      const right = left + width;
+
+      if (!rangeFree(generation + 1, left - SIBLING_GAP, right + SIBLING_GAP)) return;
+
+      for (const kid of kids) taken.add(kid);
+      lay(kids, left, generation + 1, kids.map(() => SIBLING_STEP), positions);
+
+      // Deux creux de CETTE rangée peuvent chacun révéler des enfants dans
+      // la même rangée du dessous : sans mise à jour, le second ne verrait
+      // pas ce que le premier vient d'y poser, et pourrait s'y superposer.
+      const below = rows.get(generation + 1) ?? [];
+      for (const kid of kids) {
+        const position = positions.get(kid);
+        if (position) below.push(position);
+      }
+      rows.set(generation + 1, below);
+    };
+
     /**
      * Pose le conjoint caché de `edge` au bord `side` de sa carte, s'il tient
-     * dans `[gapLo, gapHi]`, puis ses enfants si la place le permet.
+     * dans `[gapLo, gapHi]`, puis ses enfants — CEUX DU CONJOINT, ou à défaut
+     * ceux d'`edge` lui-même, si la place le permet.
+     *
+     * Les deux sont indépendants : Paul Albertini n'avait ni conjoint cousu à
+     * ses côtés ni demi-frère à révéler, seulement des enfants directs que
+     * rien d'autre ne montrait. Poser des enfants ne suppose plus d'avoir
+     * d'abord posé un conjoint.
      *
      * Rend la nouvelle borne du creux du côté où l'on vient de poser — pour
      * que, si les DEUX bords d'un même creux ont chacun un conjoint caché, le
@@ -557,36 +594,26 @@ function expandEdges(
       gapHi: number,
     ): number => {
       const spouseId = hiddenSpouse(edge.id);
-      if (!spouseId) return side === 'left' ? gapHi : gapLo;
-
       const spouseX = side === 'left' ? edge.x - COUPLE_STEP : edge.x + COUPLE_STEP;
-      if (spouseX < gapLo || spouseX + CARD_WIDTH > gapHi) {
-        return side === 'left' ? gapHi : gapLo;
-      }
+      const spouseFits = spouseId && spouseX >= gapLo && spouseX + CARD_WIDTH <= gapHi;
 
-      taken.add(spouseId);
-      positions.set(spouseId, { id: spouseId, x: spouseX, y: edge.y, generation });
+      if (spouseFits) {
+        taken.add(spouseId);
+        positions.set(spouseId, { id: spouseId, x: spouseX, y: edge.y, generation });
 
-      const kids = hiddenChildren(edge.id);
-      if (kids.length > 0) {
-        const pairLeft = Math.min(edge.x, spouseX);
-        const pairRight = Math.max(edge.x, spouseX) + CARD_WIDTH;
-        const width = run(kids.length, SIBLING_GAP);
-        const left = (pairLeft + pairRight) / 2 - width / 2;
-        const right = left + width;
-
-        // On refuse d'empiéter sur la rangée du dessous : elle peut porter
-        // une tout autre branche, posée là par un calcul qui ignore celui-ci.
-        const below = spanOf(generation + 1);
-        const clash = below && !(right + SIBLING_GAP <= below.lo || left - SIBLING_GAP >= below.hi);
-        if (!clash) {
-          for (const kid of kids) taken.add(kid);
-          lay(kids, left, generation + 1, kids.map(() => SIBLING_STEP), positions);
+        const kids = hiddenChildren(edge.id);
+        if (kids.length > 0) {
+          attachChildren(kids, Math.min(edge.x, spouseX), Math.max(edge.x, spouseX) + CARD_WIDTH);
         }
+        return side === 'left' ? spouseX - SIBLING_GAP : spouseX + CARD_WIDTH + SIBLING_GAP;
       }
 
-      // Ce qui reste du creux, une fois ce conjoint posé et sa marge gardée.
-      return side === 'left' ? spouseX - SIBLING_GAP : spouseX + CARD_WIDTH + SIBLING_GAP;
+      // Pas de conjoint à poser ici — mais peut-être des enfants tout de
+      // même, directement sous cette seule carte.
+      const kids = hiddenChildren(edge.id);
+      if (kids.length > 0) attachChildren(kids, edge.x, edge.x + CARD_WIDTH);
+
+      return side === 'left' ? gapHi : gapLo;
     };
 
     // Chaque creux de la rangée, marge extérieure comprise : entre `row[i-1]`
