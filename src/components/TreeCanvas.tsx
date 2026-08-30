@@ -134,9 +134,31 @@ export function TreeCanvas({
       setVisible({ nodes, detail });
     };
 
+    /*
+     * `.world` ne promeut sa propre couche GPU à AUCUN moment — voir plus bas
+     * pourquoi, mais figé, c'est le bon choix : le zoom rendait sinon les
+     * portraits flous en permanence. Le défaut opposé s'est révélé tout aussi
+     * réel pendant un geste : sans couche dédiée, chaque image d'un glissé ou
+     * d'un zoom oblige le navigateur à repeindre le sous-arbre entier — des
+     * dizaines de portraits, halos et plaques de verre — plutôt que de
+     * recomposer un calque déjà prêt.
+     *
+     * `will-change` ne se pose donc que PENDANT le mouvement, et se retire
+     * environ deux dixièmes de seconde après la dernière image du geste : le
+     * temps qu'il reste posé est trop court pour qu'une couche y garde une
+     * image figée assez longtemps pour qu'on la remarque, et une fois retiré,
+     * le rendu à l'arrêt redevient net au pixel près — exactement l'état
+     * déjà vérifié.
+     */
+    let movingTimer = 0;
     const apply = (): void => {
       const transform = viewport.transform;
       world.style.transform = `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`;
+      world.style.willChange = 'transform';
+      window.clearTimeout(movingTimer);
+      movingTimer = window.setTimeout(() => {
+        world.style.willChange = 'auto';
+      }, 200);
       if (!pending) pending = requestAnimationFrame(commitVisible);
     };
 
@@ -159,6 +181,7 @@ export function TreeCanvas({
       unsubscribe();
       observer.disconnect();
       if (pending) cancelAnimationFrame(pending);
+      window.clearTimeout(movingTimer);
     };
   }, [viewport, spatial]);
 

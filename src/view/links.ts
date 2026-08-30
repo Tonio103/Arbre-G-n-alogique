@@ -195,12 +195,45 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   for (const group of groups) {
     if (group.list.length === 0) continue;
     ctx.beginPath();
-    for (const union of group.list) traceUnion(ctx, union);
+    // Un divorce garde son trait de descente plein — se séparer ne défait
+    // pas la filiation — mais pas son trait d'alliance : celui-là se
+    // dessine à part, plus bas, en pointillé.
+    for (const union of group.list) traceUnion(ctx, union, union.status !== 'divorced');
     ctx.strokeStyle = group.color;
     // L'épaisseur est donnée en pixels d'écran : un trait de liaison ne
     // grossit pas avec le zoom, sans quoi il finit par masquer les cartes.
     ctx.lineWidth = group.weight / density;
     ctx.stroke();
+  }
+
+  /*
+   * Le trait d'alliance d'un divorce, à part et en pointillé.
+   *
+   * Un couple séparé garde sa place dans l'arbre — ses enfants en
+   * descendent toujours — mais le trait qui les unissait, lui, ne doit plus
+   * se lire comme un lien intact. Chaque teinte (atténuée, accentuée ou
+   * normale) reprend le même partage que les traits pleins ci-dessus, pour
+   * qu'un divorce mis en évidence par la sélection le reste ici aussi.
+   */
+  const divorced = drawableUnions.filter((union) => union.status === 'divorced');
+  if (divorced.length > 0) {
+    for (const group of groups) {
+      const list = group.list.filter((union) => union.status === 'divorced');
+      if (list.length === 0) continue;
+      ctx.beginPath();
+      for (const union of list) {
+        const alliance = allianceSegment(union);
+        if (!alliance) continue;
+        const [x1, y1, x2, y2] = alliance;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+      }
+      ctx.setLineDash([5 / density, 4 / density]);
+      ctx.strokeStyle = group.color;
+      ctx.lineWidth = group.weight / density;
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
   }
 
   // Le chemin de parenté, par-dessus tout le reste : c'est la réponse à la
@@ -277,6 +310,29 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+
+  /*
+   * Le veuvage : le même « † » que porte déjà la fiche de la personne
+   * disparue (voir `.node[data-deceased] .node-years::before` dans
+   * `node.css`) — pas un symbole inventé pour l'occasion, le même repère
+   * qu'on a déjà appris à lire, posé cette fois sur le nœud de l'union
+   * plutôt que caché dans une fiche qu'il faudrait ouvrir pour le découvrir.
+   */
+  const widowed = params.unions.filter((union) => union.status === 'widowed');
+  if (widowed.length > 0) {
+    const fontSize = 11 / density;
+    ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = palette.bandLabel;
+    ctx.globalAlpha = hasSelection ? 0.55 : 0.85;
+    for (const union of widowed) {
+      const hub = unionHub(union);
+      if (!hub) continue;
+      ctx.fillText('†', hub.x, hub.y - 6 / density);
+    }
+    ctx.globalAlpha = 1;
+  }
 }
 
 /** Le point où une union « se noue » : le milieu du trait d'alliance pour un
@@ -305,7 +361,24 @@ type Segment = readonly [number, number, number, number];
  * Dans l'ordre de lecture : le trait d'alliance entre les deux portraits, la
  * descente depuis le couple, le distributeur, puis une descente par enfant.
  */
-function unionSegments(union: LayoutUnion): Segment[] {
+/**
+ * Le trait d'alliance entre les deux conjoints — rien d'autre.
+ *
+ * Séparé de `unionSegments` pour qu'un divorce puisse le dessiner à part, en
+ * pointillé, sans toucher au tracé (plein, continu) de la descente vers les
+ * enfants : se séparer ne défait pas la filiation.
+ */
+function allianceSegment(union: LayoutUnion): Segment | undefined {
+  const { partners } = union;
+  if (partners.length < 2 || !union.adjacent) return undefined;
+  const sorted = [...partners].sort((a, b) => a.x - b.x);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const y = portraitCenterY(Math.min(first.y, last.y));
+  return [cardCenterX(first.x), y, cardCenterX(last.x), y];
+}
+
+function unionSegments(union: LayoutUnion, includeAlliance = true): Segment[] {
   const { partners, children } = union;
   if (partners.length === 0) return [];
 
@@ -314,9 +387,9 @@ function unionSegments(union: LayoutUnion): Segment[] {
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
 
-  if (sorted.length > 1 && union.adjacent) {
-    const y = portraitCenterY(Math.min(first.y, last.y));
-    segments.push([cardCenterX(first.x), y, cardCenterX(last.x), y]);
+  if (includeAlliance) {
+    const alliance = allianceSegment(union);
+    if (alliance) segments.push(alliance);
   }
 
   if (children.length === 0) return segments;
@@ -383,8 +456,8 @@ function unionSegments(union: LayoutUnion): Segment[] {
   return segments;
 }
 
-function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion): void {
-  for (const [x1, y1, x2, y2] of unionSegments(union)) {
+function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion, includeAlliance = true): void {
+  for (const [x1, y1, x2, y2] of unionSegments(union, includeAlliance)) {
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
   }

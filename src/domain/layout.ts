@@ -1,4 +1,5 @@
 import type { FamilyGraph } from './graph';
+import type { UnionStatus } from '@/data/schema';
 import { computePlacement, type PlacementOptions } from './placement';
 import {
   CARD_HEIGHT,
@@ -34,7 +35,7 @@ export interface LayoutUnion {
   anchorY: number;
   /** Vrai quand les deux conjoints sont côte à côte (cas courant). */
   adjacent: boolean;
-  status: string;
+  status: UnionStatus;
 }
 
 export interface Bounds {
