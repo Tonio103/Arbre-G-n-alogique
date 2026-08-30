@@ -247,6 +247,15 @@
   touch-action: none;
   cursor: grab;
   outline: none;
+  /*
+   * Sans ça, glisser la souris pour se déplacer sélectionnait le nom de
+   * chaque médaillon traversé — le texte se surlignait en bleu, et le
+   * navigateur, croyant à une sélection plutôt qu'à un déplacement,
+   * interrompait le glissé. `touch-action: none` réglait le geste tactile,
+   * mais rien n'empêchait la sélection de texte au clavier-souris.
+   */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .stage[data-grabbing='true'] {

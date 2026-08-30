@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import {
   collectScopedPlaces,
@@ -9,6 +9,8 @@ import {
 } from '@/domain/places';
 import type { Scope } from '@/domain/scope';
 import { ScopeBar } from './ScopeBar';
+import { IconButton } from './TopBar';
+import { FitIcon, MinusIcon, PlusIcon } from './icons';
 
 export interface MapViewProps {
   graph: FamilyGraph;
@@ -20,9 +22,9 @@ export interface MapViewProps {
 }
 
 /*
- * Le cadre est plus large que celui de la vignette de coin : il doit tenir la
- * Corse, dont les longitudes dépassent 9°. Sans ça, un marqueur à Bastia
- * sortirait du cadre — ou pire, serait replié sur son bord.
+ * Le cadre initial est plus large que celui de la vignette de coin : il doit
+ * tenir la Corse, dont les longitudes dépassent 9°. Sans ça, un marqueur à
+ * Bastia sortirait du cadre — ou pire, serait replié sur son bord.
  */
 const LAT_MIN = 41.2;
 const LAT_MAX = 51.4;
@@ -41,53 +43,86 @@ const PADDING = 24;
  * su et non découvert : c'est le premier appel à un domaine TIERS — le
  * serveur de données de l'application elle-même mis à part, tout le reste,
  * décor compris, était jusqu'ici un dégradé CSS qui ne quittait jamais le
- * navigateur. Chaque ouverture de cette vue demande désormais les tuiles à
+ * navigateur. Chaque ouverture de cette vue demande les tuiles à
  * `tile.openstreetmap.org`. La licence d'OpenStreetMap impose en retour la
  * mention « © OpenStreetMap contributors », visible et non retirée : elle est
  * posée en coin de carte, jamais masquée.
  *
- * La projection change avec : un simple dégradé linéaire suffisait à un
- * contour schématique, mais des tuiles réelles suivent la projection de
- * Mercator — la même qu'utilise la carte, sans quoi un marqueur dériverait de
- * sa vraie position à mesure qu'on s'éloigne de l'équateur.
+ * ── Le zoom ──────────────────────────────────────────────────────────────
+ *
+ * Zoomer ne grossit pas les mêmes tuiles au risque de les rendre floues :
+ * chaque cran change de NIVEAU de tuile — la géographie du web (celle de
+ * toutes les cartes en ligne) double la résolution à chaque niveau. La
+ * fenêtre affichée garde toujours la même taille en pixels ; ce qui change,
+ * c'est la portion du monde qu'elle couvre, et les tuiles demandées au
+ * niveau qui correspond. Le résultat reste net à n'importe quel cran, comme
+ * sur une vraie carte.
  */
-const ZOOM = 6;
 const TILE = 256;
+const MIN_ZOOM = 5;
+const MAX_ZOOM = 15;
+const START_ZOOM = 6;
 
-const tileX = (lon: number): number => ((lon + 180) / 360) * 2 ** ZOOM;
-const tileY = (lat: number): number => {
+const tileX = (lon: number, z: number): number => ((lon + 180) / 360) * 2 ** z;
+const tileY = (lat: number, z: number): number => {
   const rad = (lat * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** ZOOM;
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z;
 };
+/** L'inverse de `tileY` : la latitude d'un Y de tuile donné, à un niveau donné. */
+const tileYToLat = (ty: number, z: number): number => {
+  const n = Math.PI - (2 * Math.PI * ty) / 2 ** z;
+  return (180 / Math.PI) * Math.atan(Math.sinh(n));
+};
+const tileXToLon = (tx: number, z: number): number => (tx / 2 ** z) * 360 - 180;
 
-const xMinF = tileX(LON_MIN);
-const xMaxF = tileX(LON_MAX);
-const yMinF = tileY(LAT_MAX); // le nord donne le Y le plus PETIT en Mercator
-const yMaxF = tileY(LAT_MIN);
+// Le cadre de départ — toute la France et la Corse — donne la taille FIXE de
+// la fenêtre, en pixels : ce qui change avec le zoom, c'est le niveau de
+// tuile demandé pour la remplir, jamais cette taille-là.
+const startXMinF = tileX(LON_MIN, START_ZOOM);
+const startXMaxF = tileX(LON_MAX, START_ZOOM);
+const startYMinF = tileY(LAT_MAX, START_ZOOM);
+const startYMaxF = tileY(LAT_MIN, START_ZOOM);
+const VIEW_W = (startXMaxF - startXMinF) * TILE + PADDING * 2;
+const VIEW_H = (startYMaxF - startYMinF) * TILE + PADDING * 2;
+const START_LAT = (LAT_MIN + LAT_MAX) / 2;
+const START_LON = (LON_MIN + LON_MAX) / 2;
 
-const MOSAIC_W = (xMaxF - xMinF) * TILE;
-const MOSAIC_H = (yMaxF - yMinF) * TILE;
-const WIDTH = MOSAIC_W + PADDING * 2;
-const HEIGHT = MOSAIC_H + PADDING * 2;
+interface MapCamera {
+  z: number;
+  lat: number;
+  lon: number;
+}
 
-function project(lat: number, lon: number): { x: number; y: number } {
+/** Le coin haut-gauche de la fenêtre, en pixels du MONDE au niveau `z`. */
+function windowOrigin(camera: MapCamera): { x: number; y: number } {
   return {
-    x: PADDING + (tileX(lon) - xMinF) * TILE,
-    y: PADDING + (tileY(lat) - yMinF) * TILE,
+    x: tileX(camera.lon, camera.z) * TILE - VIEW_W / 2,
+    y: tileY(camera.lat, camera.z) * TILE - VIEW_H / 2,
   };
 }
 
-/** Chaque tuile entière que couvre la zone, en coordonnées de dalles OSM. */
-const TILES: Array<{ x: number; y: number; left: number; top: number }> = [];
-for (let tx = Math.floor(xMinF); tx <= Math.floor(xMaxF); tx += 1) {
-  for (let ty = Math.floor(yMinF); ty <= Math.floor(yMaxF); ty += 1) {
-    TILES.push({
-      x: tx,
-      y: ty,
-      left: PADDING + (tx - xMinF) * TILE,
-      top: PADDING + (ty - yMinF) * TILE,
-    });
+function projectAt(camera: MapCamera, origin: { x: number; y: number }, lat: number, lon: number) {
+  return {
+    x: tileX(lon, camera.z) * TILE - origin.x,
+    y: tileY(lat, camera.z) * TILE - origin.y,
+  };
+}
+
+/** Chaque tuile entière que couvre la fenêtre, à ce niveau de zoom. */
+function tilesFor(camera: MapCamera, origin: { x: number; y: number }) {
+  const count = 2 ** camera.z;
+  const txStart = Math.max(0, Math.floor(origin.x / TILE));
+  const txEnd = Math.min(count - 1, Math.floor((origin.x + VIEW_W) / TILE));
+  const tyStart = Math.max(0, Math.floor(origin.y / TILE));
+  const tyEnd = Math.min(count - 1, Math.floor((origin.y + VIEW_H) / TILE));
+
+  const tiles: Array<{ x: number; y: number; left: number; top: number }> = [];
+  for (let tx = txStart; tx <= txEnd; tx += 1) {
+    for (let ty = tyStart; ty <= tyEnd; ty += 1) {
+      tiles.push({ x: tx, y: ty, left: tx * TILE - origin.x, top: ty * TILE - origin.y });
+    }
   }
+  return tiles;
 }
 
 const KIND_ORDER: PlaceKind[] = ['birth', 'residence', 'union', 'death'];
@@ -124,6 +159,134 @@ export function MapView({
 
   const name = (id: string): string => graph.people.get(id)?.displayName ?? id;
 
+  /*
+   * ── Le zoom ────────────────────────────────────────────────────────────
+   *
+   * La caméra tient en trois nombres : le niveau de tuile et le point
+   * géographique regardé au centre. Tout le reste — quelles tuiles charger,
+   * où poser chaque marqueur — s'en déduit à chaque rendu, jamais l'inverse :
+   * on ne garde pas de position en pixels qui se déréglerait d'un niveau à
+   * l'autre.
+   */
+  const [camera, setCamera] = useState<MapCamera>({ z: START_ZOOM, lat: START_LAT, lon: START_LON });
+  const origin = useMemo(() => windowOrigin(camera), [camera]);
+  const tiles = useMemo(() => tilesFor(camera, origin), [camera, origin]);
+  const project = useCallback((lat: number, lon: number) => projectAt(camera, origin, lat, lon), [camera, origin]);
+
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; startClientX: number; startClientY: number; startOrigin: { x: number; y: number } } | null>(null);
+
+  const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>): void => {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startOrigin: origin,
+    };
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>): void => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const dx = ((event.clientX - drag.startClientX) / rect.width) * VIEW_W;
+    const dy = ((event.clientY - drag.startClientY) / rect.height) * VIEW_H;
+    const newOriginX = drag.startOrigin.x - dx;
+    const newOriginY = drag.startOrigin.y - dy;
+    setCamera((current) => ({
+      ...current,
+      lon: tileXToLon((newOriginX + VIEW_W / 2) / TILE, current.z),
+      lat: tileYToLat((newOriginY + VIEW_H / 2) / TILE, current.z),
+    }));
+  };
+
+  const endDrag = (event: ReactPointerEvent<SVGSVGElement>): void => {
+    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+  };
+
+  /**
+   * Change le zoom d'un cran, en gardant fixe à l'écran le point géographique
+   * visé — sous le curseur pour la molette, au centre pour les boutons.
+   *
+   * Tout se recalcule à partir de `current`, l'état AU MOMENT DE L'APPEL —
+   * jamais depuis `camera`/`origin` fermés dans la portée du rendu qui a créé
+   * cette fonction. Sans ça, `zoomTo` changerait d'identité à chaque zoom (son
+   * calcul dépendrait de `origin`, qui dépend de `camera`) : le seul endroit
+   * qui l'appelle en dehors d'un clic — l'écouteur de molette, posé une seule
+   * fois ci-dessous — se retrouverait à lire un niveau de zoom figé au tout
+   * premier rendu.
+   */
+  const zoomTo = useCallback((deltaZ: number, atClientX?: number, atClientY?: number) => {
+    setCamera((current) => {
+      const clampedZ = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current.z + deltaZ));
+      if (clampedZ === current.z) return current;
+
+      const currentOrigin = windowOrigin(current);
+      const rect = svgRef.current?.getBoundingClientRect();
+      const anchorWorld =
+        atClientX !== undefined && atClientY !== undefined && rect && rect.width > 0 && rect.height > 0
+          ? {
+              x: currentOrigin.x + ((atClientX - rect.left) / rect.width) * VIEW_W,
+              y: currentOrigin.y + ((atClientY - rect.top) / rect.height) * VIEW_H,
+            }
+          : { x: currentOrigin.x + VIEW_W / 2, y: currentOrigin.y + VIEW_H / 2 };
+
+      const anchorLon = tileXToLon(anchorWorld.x / TILE, current.z);
+      const anchorLat = tileYToLat(anchorWorld.y / TILE, current.z);
+
+      // Où ce point tombe-t-il, en fraction de la fenêtre actuelle ? On l'y
+      // replace après le changement de niveau, en recalant le centre.
+      const screenFracX = (anchorWorld.x - currentOrigin.x) / VIEW_W;
+      const screenFracY = (anchorWorld.y - currentOrigin.y) / VIEW_H;
+
+      const anchorWorldNew = { x: tileX(anchorLon, clampedZ) * TILE, y: tileY(anchorLat, clampedZ) * TILE };
+      const newOriginX = anchorWorldNew.x - screenFracX * VIEW_W;
+      const newOriginY = anchorWorldNew.y - screenFracY * VIEW_H;
+
+      return {
+        z: clampedZ,
+        lon: tileXToLon((newOriginX + VIEW_W / 2) / TILE, clampedZ),
+        lat: tileYToLat((newOriginY + VIEW_H / 2) / TILE, clampedZ),
+      };
+    });
+  }, []);
+
+  const resetCamera = useCallback(() => {
+    setCamera({ z: START_ZOOM, lat: START_LAT, lon: START_LON });
+  }, []);
+
+  /*
+   * La molette doit empêcher le défilement de la PAGE en dessous — mais React
+   * pose son propre écouteur de rendu en mode passif pour `wheel`, ce qui rend
+   * `preventDefault()` silencieusement inopérant depuis un `onWheel` JSX. On
+   * pose donc l'écouteur nous-mêmes, explicitement actif.
+   *
+   * `onWheelNative` doit garder la MÊME identité entre la pose et le retrait
+   * — `removeEventListener` n'agit que sur la fonction exacte qu'on lui
+   * passe. Comme elle ne dépend que de `zoomTo`, lui-même stable, elle l'est
+   * aussi : le callback de ref ci-dessous ne s'exécute donc qu'au montage et
+   * au démontage réels du SVG, jamais à chaque rendu.
+   */
+  const onWheelNative = useCallback(
+    (event: WheelEvent) => {
+      event.preventDefault();
+      zoomTo(event.deltaY < 0 ? 1 : -1, event.clientX, event.clientY);
+    },
+    [zoomTo],
+  );
+
+  const setSvgRef = useCallback(
+    (node: SVGSVGElement | null) => {
+      if (svgRef.current) svgRef.current.removeEventListener('wheel', onWheelNative);
+      svgRef.current = node;
+      if (node) node.addEventListener('wheel', onWheelNative, { passive: false });
+    },
+    [onWheelNative],
+  );
+
   return (
     <section className="view view--map" aria-label="Carte familiale">
       <ScopeBar
@@ -142,17 +305,26 @@ export function MapView({
       ) : (
         <div className="map-layout">
           <div className="map-stage lg lg--thick">
-            <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="map-svg" role="img"
-                 aria-label={`${report.places.length} lieux situés, sur fond OpenStreetMap`}>
+            <svg
+              ref={setSvgRef}
+              viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+              className="map-svg"
+              role="img"
+              aria-label={`${report.places.length} lieux situés, sur fond OpenStreetMap — niveau de zoom ${camera.z}`}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
               {/* Un fond uni sous les tuiles : si l'une d'elles ne charge pas
                   (hors ligne, service coupé), on garde un cadre propre plutôt
                   qu'un trou transparent. */}
-              <rect x={0} y={0} width={WIDTH} height={HEIGHT} className="map-tile-backing" />
+              <rect x={0} y={0} width={VIEW_W} height={VIEW_H} className="map-tile-backing" />
               <g className="map-tiles">
-                {TILES.map((tile) => (
+                {tiles.map((tile) => (
                   <image
-                    key={`${tile.x}-${tile.y}`}
-                    href={`https://tile.openstreetmap.org/${ZOOM}/${tile.x}/${tile.y}.png`}
+                    key={`${camera.z}-${tile.x}-${tile.y}`}
+                    href={`https://tile.openstreetmap.org/${camera.z}/${tile.x}/${tile.y}.png`}
                     x={tile.left}
                     y={tile.top}
                     width={TILE}
@@ -197,6 +369,18 @@ export function MapView({
                 );
               })}
             </svg>
+
+            <div className="map-zoom control-group lg lg--control lg--bar">
+              <IconButton label="Dézoomer" onClick={() => zoomTo(-1)}>
+                <MinusIcon />
+              </IconButton>
+              <IconButton label="Zoomer" onClick={() => zoomTo(1)}>
+                <PlusIcon />
+              </IconButton>
+              <IconButton label="Revenir à toute la famille" onClick={resetCamera}>
+                <FitIcon />
+              </IconButton>
+            </div>
 
             {/*
               Attribution OpenStreetMap : la licence des données (ODbL) impose

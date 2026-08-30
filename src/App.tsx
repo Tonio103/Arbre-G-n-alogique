@@ -337,27 +337,56 @@ export default function App() {
     // qu'un brouillon local — inutile de cadrer dessus pour devoir recadrer
     // une seconde fois dès que la vraie version arrive.
     if (datasetCtrl.loading) return;
-    const stageSize = viewport.size;
-    if (stageSize.width <= 1) return;
-    introRef.current = true;
-    // Le rideau de chargement se retire ici : c'est le premier instant où
-    // l'arbre est réellement cadré, pas un délai arbitraire.
-    setReady(true);
 
-    // L'arbre entier d'abord : on doit voir de quoi il s'agit — un arbre, sa
-    // silhouette, son ampleur — avant de descendre dans une branche.
-    viewport.set(transformForBounds(layout.bounds, stageSize, FIT_PADDING, 0.92));
+    /*
+     * `viewport.size` peut valoir zéro un court instant — un onglet ouvert en
+     * arrière-plan, par exemple, que certains navigateurs mettent en pause
+     * avant même son premier calcul de mise en page. Sans nouvelle tentative,
+     * ce `return` était définitif : rien ne redéclenchait cet effet une fois
+     * la taille redevenue valide (`viewport` ne change jamais d'identité, et
+     * `layout` non plus une fois les données arrivées), et le rideau restait
+     * affiché indéfiniment. On réessaie donc à chaque image, borné à un peu
+     * plus de deux secondes — largement au-delà de ce qu'il faut à un onglet
+     * réellement affiché pour obtenir sa taille.
+     */
+    let frame = 0;
+    let attempts = 0;
+    let focusTimer = 0;
 
-    // Puis la vue s'approche doucement du pied, d'où l'on plonge à la molette
-    // ou en glissant. Ce mouvement d'ouverture dit en une seconde ce que
-    // l'espace contient et comment il se parcourt.
-    // Puis la vue s'approche doucement de la personne principale.
-    const root = layout.positions.get(graph.rootId);
+    const start = (stageSize: { width: number; height: number }): void => {
+      introRef.current = true;
+      // Le rideau de chargement se retire ici : c'est le premier instant où
+      // l'arbre est réellement cadré, pas un délai arbitraire.
+      setReady(true);
 
-    const timer = window.setTimeout(() => {
-      if (root) viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1800);
-    }, 1500);
-    return () => window.clearTimeout(timer);
+      // L'arbre entier d'abord : on doit voir de quoi il s'agit — un arbre, sa
+      // silhouette, son ampleur — avant de descendre dans une branche.
+      viewport.set(transformForBounds(layout.bounds, stageSize, FIT_PADDING, 0.92));
+
+      // Puis la vue s'approche doucement du pied, d'où l'on plonge à la
+      // molette ou en glissant. Ce mouvement d'ouverture dit en une seconde
+      // ce que l'espace contient et comment il se parcourt.
+      const root = layout.positions.get(graph.rootId);
+      focusTimer = window.setTimeout(() => {
+        if (root) viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1800);
+      }, 1500);
+    };
+
+    const tryStart = (): void => {
+      const stageSize = viewport.size;
+      if (stageSize.width <= 1 && attempts < 150) {
+        attempts += 1;
+        frame = requestAnimationFrame(tryStart);
+        return;
+      }
+      start(stageSize);
+    };
+    tryStart();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(focusTimer);
+    };
   }, [viewport, layout, datasetCtrl.loading]);
 
   /*
@@ -755,15 +784,23 @@ export default function App() {
         onDetachChild={(childId) => selectedId && detachPersonChild(selectedId, childId)}
       />
 
-      <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>
-        <span>
-          <kbd>Molette</kbd> zoom
-        </span>
-        <span className="hint-sep" aria-hidden="true" />
-        <span>
-          <kbd>Glisser</kbd> déplacer
-        </span>
-      </div>
+      {/*
+        Décrit le geste de l'ARBRE — molette et glisser sur le canevas des
+        personnes. Restait affiché sur les trois autres vues aussi, où ni
+        l'un ni l'autre n'a de sens (rien à zoomer sur « À compléter », et la
+        Carte a désormais son propre geste, quoique de même nature).
+      */}
+      {viewMode === 'tree' && (
+        <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>
+          <span>
+            <kbd>Molette</kbd> zoom
+          </span>
+          <span className="hint-sep" aria-hidden="true" />
+          <span>
+            <kbd>Glisser</kbd> déplacer
+          </span>
+        </div>
+      )}
 
       {showDataPanel && (
         <DataPanel

@@ -233,6 +233,24 @@
   height: auto;
   max-height: min(58vh, 520px);
   border-radius: calc(var(--radius-panel, 18px) - 8px);
+  cursor: grab;
+  /* Le geste de glissé gère lui-même le déplacement ; laisser le navigateur
+     y mêler son propre défilement tactile ferait sauter la carte. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.map-svg:active {
+  cursor: grabbing;
+}
+
+/* Les boutons de zoom, superposés en bas à droite de la carte. */
+.map-zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 40px;
+  flex-direction: column;
 }
 
 /* Visible si une tuile n'a pas encore chargé, ou pas pu — jamais un trou
