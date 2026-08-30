@@ -214,8 +214,10 @@
 }
 
 .map-stage {
+  position: relative;
   border-radius: var(--radius-panel, 18px);
   padding: 10px;
+  overflow: hidden;
 }
 
 /*
@@ -230,12 +232,33 @@
   width: 100%;
   height: auto;
   max-height: min(58vh, 520px);
+  border-radius: calc(var(--radius-panel, 18px) - 8px);
 }
 
-.map-outline {
+/* Visible si une tuile n'a pas encore chargé, ou pas pu — jamais un trou
+   transparent dans le panneau de verre. */
+.map-tile-backing {
   fill: var(--glass-fill-faint);
-  stroke: var(--glass-border);
-  stroke-width: 1.2;
+}
+
+/*
+ * Les tuiles OpenStreetMap, reteintées pour rester dans la palette de
+ * l'application plutôt que d'y plaquer une carte routière ordinaire, blanche
+ * et saturée, qui jurerait avec le verre et le fond étoilé.
+ *
+ * Sombre : on inverse puis on fait pivoter la teinte — le fond clair des
+ * tuiles devient une nuit bleutée, les routes claires deviennent sombres.
+ * C'est une approximation (aucune tuile « nuit » officielle n'existe côté
+ * OSM standard), pas une carte pensée pour l'obscurité — mais elle se fond
+ * dans le ciel étoilé plutôt que de l'agresser.
+ * Clair : un simple ton sépia, dans l'esprit de l'atlas généalogique.
+ */
+:root:not([data-theme='light']) .map-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.55);
+}
+
+:root[data-theme='light'] .map-tiles {
+  filter: sepia(0.35) saturate(0.65) brightness(1.04) contrast(0.96);
 }
 
 .map-marker-dot {
@@ -251,15 +274,47 @@
   fill: var(--accent);
 }
 
+/*
+ * Halo derrière le texte : sur un fond de rue et de relief, un simple
+ * remplissage se perdait dans les tuiles. Le contour épais, de la couleur du
+ * panneau, redonne au nom sa lisibilité sans poser de plaque derrière lui.
+ */
 .map-marker-label {
-  fill: var(--text-secondary);
+  fill: var(--text-primary);
   font-size: 12px;
+  font-weight: 600;
   text-anchor: middle;
   pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--bg-deep);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+:root[data-theme='light'] .map-marker-label {
+  stroke: var(--bg-mid);
 }
 
 .map-marker[data-active] .map-marker-label {
-  fill: var(--text-primary);
+  fill: var(--accent-strong);
+}
+
+/* Attribution OpenStreetMap — imposée par la licence des données, jamais
+   masquée ni retirée. */
+.map-attribution {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--glass-panel-solid);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  text-decoration: none;
+}
+
+.map-attribution:hover {
+  color: var(--text-secondary);
 }
 
 .map-journey {

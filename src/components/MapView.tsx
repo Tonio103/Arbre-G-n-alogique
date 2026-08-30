@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { FRANCE_OUTLINE } from '@/data/geo';
 import type { FamilyGraph } from '@/domain/graph';
 import {
   collectScopedPlaces,
@@ -25,45 +24,71 @@ export interface MapViewProps {
  * Corse, dont les longitudes dépassent 9°. Sans ça, un marqueur à Bastia
  * sortirait du cadre — ou pire, serait replié sur son bord.
  */
-const WIDTH = 720;
-const HEIGHT = 720;
-const PADDING = 28;
-
 const LAT_MIN = 41.2;
 const LAT_MAX = 51.4;
 const LON_MIN = -5.2;
 const LON_MAX = 9.8;
+const PADDING = 24;
+
+/*
+ * ── Le fond de carte ─────────────────────────────────────────────────────
+ *
+ * De vraies tuiles OpenStreetMap plutôt qu'un contour dessiné à la main : les
+ * côtes, les reliefs, les villes s'y reconnaissent vraiment, là où l'ancien
+ * tracé (onze points pour la Corse) ne faisait que suggérer une forme.
+ *
+ * Ce que ça change dans le fonctionnement de l'application, pour que ce soit
+ * su et non découvert : c'est le premier appel à un domaine TIERS — le
+ * serveur de données de l'application elle-même mis à part, tout le reste,
+ * décor compris, était jusqu'ici un dégradé CSS qui ne quittait jamais le
+ * navigateur. Chaque ouverture de cette vue demande désormais les tuiles à
+ * `tile.openstreetmap.org`. La licence d'OpenStreetMap impose en retour la
+ * mention « © OpenStreetMap contributors », visible et non retirée : elle est
+ * posée en coin de carte, jamais masquée.
+ *
+ * La projection change avec : un simple dégradé linéaire suffisait à un
+ * contour schématique, mais des tuiles réelles suivent la projection de
+ * Mercator — la même qu'utilise la carte, sans quoi un marqueur dériverait de
+ * sa vraie position à mesure qu'on s'éloigne de l'équateur.
+ */
+const ZOOM = 6;
+const TILE = 256;
+
+const tileX = (lon: number): number => ((lon + 180) / 360) * 2 ** ZOOM;
+const tileY = (lat: number): number => {
+  const rad = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** ZOOM;
+};
+
+const xMinF = tileX(LON_MIN);
+const xMaxF = tileX(LON_MAX);
+const yMinF = tileY(LAT_MAX); // le nord donne le Y le plus PETIT en Mercator
+const yMaxF = tileY(LAT_MIN);
+
+const MOSAIC_W = (xMaxF - xMinF) * TILE;
+const MOSAIC_H = (yMaxF - yMinF) * TILE;
+const WIDTH = MOSAIC_W + PADDING * 2;
+const HEIGHT = MOSAIC_H + PADDING * 2;
 
 function project(lat: number, lon: number): { x: number; y: number } {
-  const nx = (lon - LON_MIN) / (LON_MAX - LON_MIN);
-  const ny = (LAT_MAX - lat) / (LAT_MAX - LAT_MIN);
-  return { x: PADDING + nx * (WIDTH - PADDING * 2), y: PADDING + ny * (HEIGHT - PADDING * 2) };
+  return {
+    x: PADDING + (tileX(lon) - xMinF) * TILE,
+    y: PADDING + (tileY(lat) - yMinF) * TILE,
+  };
 }
 
-const OUTLINE = FRANCE_OUTLINE.map(([lat, lon], index) => {
-  const { x, y } = project(lat, lon);
-  return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-}).join(' ');
-
-/** Contour très simplifié de la Corse — de quoi la reconnaître, rien de plus. */
-const CORSICA = (
-  [
-    [43.01, 9.35],
-    [42.7, 9.46],
-    [42.35, 9.55],
-    [41.86, 9.4],
-    [41.39, 9.28],
-    [41.36, 9.15],
-    [41.63, 8.79],
-    [41.92, 8.6],
-    [42.35, 8.57],
-    [42.62, 8.74],
-    [42.96, 9.2],
-  ] as Array<[number, number]>
-).map(([lat, lon], index) => {
-  const { x, y } = project(lat, lon);
-  return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-}).join(' ');
+/** Chaque tuile entière que couvre la zone, en coordonnées de dalles OSM. */
+const TILES: Array<{ x: number; y: number; left: number; top: number }> = [];
+for (let tx = Math.floor(xMinF); tx <= Math.floor(xMaxF); tx += 1) {
+  for (let ty = Math.floor(yMinF); ty <= Math.floor(yMaxF); ty += 1) {
+    TILES.push({
+      x: tx,
+      y: ty,
+      left: PADDING + (tx - xMinF) * TILE,
+      top: PADDING + (ty - yMinF) * TILE,
+    });
+  }
+}
 
 const KIND_ORDER: PlaceKind[] = ['birth', 'residence', 'union', 'death'];
 
@@ -118,9 +143,24 @@ export function MapView({
         <div className="map-layout">
           <div className="map-stage lg lg--thick">
             <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="map-svg" role="img"
-                 aria-label={`${report.places.length} lieux situés`}>
-              <path d={OUTLINE} className="map-outline" />
-              <path d={CORSICA} className="map-outline" />
+                 aria-label={`${report.places.length} lieux situés, sur fond OpenStreetMap`}>
+              {/* Un fond uni sous les tuiles : si l'une d'elles ne charge pas
+                  (hors ligne, service coupé), on garde un cadre propre plutôt
+                  qu'un trou transparent. */}
+              <rect x={0} y={0} width={WIDTH} height={HEIGHT} className="map-tile-backing" />
+              <g className="map-tiles">
+                {TILES.map((tile) => (
+                  <image
+                    key={`${tile.x}-${tile.y}`}
+                    href={`https://tile.openstreetmap.org/${ZOOM}/${tile.x}/${tile.y}.png`}
+                    x={tile.left}
+                    y={tile.top}
+                    width={TILE}
+                    height={TILE}
+                    preserveAspectRatio="none"
+                  />
+                ))}
+              </g>
 
               {/* Le parcours d'une personne, tracé par-dessus le fond. */}
               {journeyId && (
@@ -157,6 +197,20 @@ export function MapView({
                 );
               })}
             </svg>
+
+            {/*
+              Attribution OpenStreetMap : la licence des données (ODbL) impose
+              cette mention, visible, sur toute carte qui les affiche — elle
+              ne se retire pas et ne se cache pas dans un coin illisible.
+            */}
+            <a
+              className="map-attribution"
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              © OpenStreetMap contributors
+            </a>
           </div>
 
           <aside className="map-side">
@@ -249,9 +303,8 @@ export function MapView({
                   ))}
                 </ul>
                 <p className="view-note">
-                  L’application ne contacte aucun service extérieur : elle ne peut pas deviner des
-                  coordonnées. Ces lieux ne sont pas placés sur la carte plutôt que de l’être au
-                  hasard.
+                  Aucun de ces noms n’a de coordonnées connues dans le répertoire de l’application :
+                  ils ne sont pas placés sur la carte plutôt que de l’être au hasard.
                 </p>
               </div>
             )}

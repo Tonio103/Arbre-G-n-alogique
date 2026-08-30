@@ -232,33 +232,10 @@ export function locatePlace(
   return undefined;
 }
 
-/**
- * Silhouette très simplifiée de la France, juste assez de points pour se
- * reconnaître à la taille d'un médaillon de vignette — pas un tracé
- * cartographique fidèle.
+/*
+ * Le contour dessiné à la main qui vivait ici — une silhouette de la France
+ * en vingt-trois points, pour la vignette de coin — a disparu avec elle : la
+ * vue Carte affiche désormais de vraies tuiles OpenStreetMap (voir
+ * `MapView.tsx`), qui montrent le tracé réel des côtes sans qu'on ait à en
+ * approximer un.
  */
-export const FRANCE_OUTLINE: Array<[lat: number, lon: number]> = [
-  [51.05, 2.37], // Dunkerque
-  [50.95, 1.85], // Calais
-  [49.65, -1.62], // Cherbourg
-  [48.65, -2.03], // Saint-Malo
-  [48.39, -4.49], // Brest
-  [47.87, -4.29], // pointe bretonne sud
-  [47.28, -2.21], // Saint-Nazaire
-  [46.16, -1.15], // La Rochelle
-  [44.66, -1.15], // bassin d'Arcachon
-  [43.37, -1.77], // Hendaye
-  [42.9, -0.5], // Pyrénées ouest
-  [42.63, 2.9], // Perpignan
-  [43.2, 5.75], // delta du Rhône
-  [43.3, 5.37], // Marseille
-  [43.7, 7.27], // Nice
-  [43.79, 7.51], // Menton
-  [44.1, 7.1], // Alpes du sud
-  [45.9, 7.0], // Alpes du nord
-  [47.3, 7.0], // Jura
-  [48.58, 7.75], // Strasbourg
-  [49.35, 6.2], // Lorraine
-  [49.95, 4.9], // Ardennes
-  [51.05, 2.37], // retour Dunkerque
-];
