@@ -150,14 +150,33 @@ export function TreeCanvas({
      * le rendu à l'arrêt redevient net au pixel près — exactement l'état
      * déjà vérifié.
      */
+    /*
+     * Les plaques de nom sont du vrai verre en permanence (voir `lg--plate`
+     * dans `liquid-glass.css`) : leur flou d'arrière-plan échantillonne ce
+     * qu'il y a dessous à chaque image, quel que soit le calque. C'est la
+     * seule dépense qu'aucune promotion de `.world` ne met en cache — une
+     * couche composée fige une image de son CONTENU, pas de ce qu'un flou
+     * situé dedans doit lire derrière lui, qui continue de défiler sous les
+     * cinquante plaques visibles à chaque glissé.
+     *
+     * `data-panning` suspend donc ce flou précis (et lui seul — la teinte,
+     * la nappe, l'arête restent, ce sont des dégradés, pas des échantillons)
+     * pendant le geste et les deux mêmes dixièmes de seconde qui suivent que
+     * `will-change`. Réduit à cinquante plaques minuscules et déjà en
+     * mouvement, le figement ne se voit pas — c'est le même raisonnement que
+     * pour `SCALE_DRIFT` dans `LinkLayer.tsx` : l'œil ne résout pas une
+     * texture fine au milieu d'un mouvement qu'il ne peut lui-même pas suivre.
+     */
     let movingTimer = 0;
     const apply = (): void => {
       const transform = viewport.transform;
       world.style.transform = `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`;
       world.style.willChange = 'transform';
+      world.setAttribute('data-panning', '');
       window.clearTimeout(movingTimer);
       movingTimer = window.setTimeout(() => {
         world.style.willChange = 'auto';
+        world.removeAttribute('data-panning');
       }, 200);
       if (!pending) pending = requestAnimationFrame(commitVisible);
     };
@@ -182,6 +201,7 @@ export function TreeCanvas({
       observer.disconnect();
       if (pending) cancelAnimationFrame(pending);
       window.clearTimeout(movingTimer);
+      world.removeAttribute('data-panning');
     };
   }, [viewport, spatial]);
 

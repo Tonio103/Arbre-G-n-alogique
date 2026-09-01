@@ -899,6 +899,28 @@
     inset 0 0 14px -6px var(--lg-inner-depth);
 }
 
+/*
+ * Geste actif sur l'arbre : suspendre le flou des plaques de nom.
+ *
+ * `data-panning` est posé par `TreeCanvas.tsx` sur `.world`, en même temps
+ * que `will-change`, et retiré dans le même délai. Seule la couche qui
+ * échantillonne réellement l'arrière-plan — le flou, sur l'élément et sur son
+ * `::before` de réfraction — disparaît ; la teinte, la nappe et l'arête sont
+ * des dégradés posés sur la surface, ils ne coûtent rien de plus en
+ * mouvement qu'à l'arrêt et restent donc en place. La teinte monte d'un cran
+ * pour porter seule la lisibilité du nom le temps du geste.
+ */
+.world[data-panning] .lg--plate {
+  --lg-tint-alpha: 0.85;
+  --lg-tint-alpha-edge: 0.92;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.world[data-panning] .lg--plate::before {
+  display: none;
+}
+
 /* Le conteneur des filtres ne doit occuper aucune place. */
 .glass-filters {
   position: absolute;

@@ -19,12 +19,17 @@
  * quelqu'un. En bas, elle reste atteignable en toutes circonstances, et le
  * haut de l'arbre redevient libre.
  */
+/*
+ * Vivait seule, en pilule flottante au bas de l'écran — coupée de tout ce qui
+ * règle la vue au-dessus d'elle. Elle est maintenant un second contrôle dans
+ * la barre de recherche : changer de lecture est un geste de la même famille
+ * que chercher quelqu'un, pas un geste à part qui mérite son propre coin
+ * d'écran. `flex: none` d'abord — c'est la recherche qui cède la place, voir
+ * `.topbar-search` dans `chrome.css` — puis les libellés disparaissent en
+ * dessous de 720px (règle plus bas) avant que les onglets eux-mêmes rétrécissent.
+ */
 .view-switch {
-  position: fixed;
-  bottom: calc(18px + var(--safe-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 26;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1051,15 +1056,19 @@
     gap: 12px;
   }
 
-  .view-switch {
-    width: calc(100vw - 24px);
-    justify-content: space-around;
-  }
-
+  /*
+   * `.view-switch` vivait seule, en pilule flottante pleine largeur au bas de
+   * l'écran — d'où le `width: calc(100vw - 24px)` et des onglets étirés en
+   * `flex: 1` pour occuper cette largeur. Elle est maintenant un élément
+   * parmi d'autres dans la barre de recherche (voir `TopBar.tsx`) : lui
+   * redonner sa pleine largeur d'écran la ferait déborder de son conteneur,
+   * puisque la recherche occupe déjà une partie de la même rangée. Elle garde
+   * donc sa largeur naturelle — quatre pastilles d'icônes, les libellés déjà
+   * cachés par la règle plus bas — et ne prend qu'un peu moins de place que
+   * sur grand écran, pour laisser un peu plus de champ à la recherche.
+   */
   .view-switch-tab {
-    flex: 1;
-    justify-content: center;
-    padding: 9px 6px;
+    padding: 9px 8px;
   }
 
   /* Le périmètre tient sur deux lignes plutôt que de rogner les libellés. */

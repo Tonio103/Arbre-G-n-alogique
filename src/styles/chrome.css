@@ -7,7 +7,7 @@
   right: calc(14px + var(--safe-right));
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(240px, 460px) minmax(180px, 1fr);
+  grid-template-columns: minmax(160px, 1fr) minmax(280px, 720px) minmax(150px, 1fr);
   align-items: center;
   gap: 16px;
   height: var(--topbar-height);
@@ -100,6 +100,27 @@
 }
 
 .topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/*
+ * La recherche prend toute la place que les onglets lui laissent ; eux ne
+ * rétrécissent qu'en dernier recours, une fois leurs propres libellés déjà
+ * cachés (voir `.view-switch-tab span` dans `views.css`).
+ *
+ * La cible est `.search`, pas `.search-field` : c'est `.search` que
+ * `SearchField.tsx` pose en racine (`.search-field` n'est qu'un de ses
+ * enfants, pour porter le panneau de résultats à côté). C'est donc `.search`
+ * qui est le véritable élément flexible de `.topbar-search` — lui donner
+ * `flex: 1` sur le mauvais des deux ne changeait rien à son rétrécissement
+ * réel : sans `min-width: 0` sur le bon élément, la recherche débordait de
+ * son conteneur au lieu de céder du terrain aux onglets.
+ */
+.topbar-search .search {
+  flex: 1;
   min-width: 0;
 }
 

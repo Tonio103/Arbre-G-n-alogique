@@ -3,18 +3,8 @@ import type { FamilyGraph } from '@/domain/graph';
 import type { SearchIndex } from '@/domain/search';
 import type { HighlightMode } from '@/domain/relations';
 import { SearchField } from './SearchField';
-import {
-  BranchIcon,
-  FitIcon,
-  HomeIcon,
-  HelpIcon,
-  ImportIcon,
-  MapIcon,
-  MinusIcon,
-  MoonIcon,
-  PlusIcon,
-  SunIcon,
-} from './icons';
+import { ViewSwitch, type ViewMode } from './ViewSwitch';
+import { BranchIcon, FitIcon, HelpIcon, MinusIcon, MoonIcon, PlusIcon, SunIcon } from './icons';
 
 export interface TopBarProps {
   graph: FamilyGraph;
@@ -22,7 +12,6 @@ export interface TopBarProps {
   onPick: (id: string) => void;
   /** Personne de référence, transmise à la recherche. */
   anchorId: string | null;
-  onHome: () => void;
   onFit: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -31,11 +20,13 @@ export interface TopBarProps {
   theme: 'dark' | 'light';
   /** Coordonnées de l'écran d'où fait rayonner la transition de thème. */
   onToggleTheme: (x: number, y: number) => void;
-  showMiniMap: boolean;
-  onToggleMiniMap: () => void;
-  onOpenData: () => void;
   /** Rouvre le guide de navigation. */
   onOpenTour: () => void;
+  /** La bascule entre l'arbre et ses trois autres lectures — voir `ViewSwitch`. */
+  viewMode: ViewMode;
+  onChangeView: (mode: ViewMode) => void;
+  /** Nombre de manques relevés, reporté en pastille sur l'onglet « À compléter ». */
+  gapCount: number;
 }
 
 interface IconButtonProps {
@@ -67,7 +58,6 @@ export function TopBar({
   searchIndex,
   onPick,
   anchorId,
-  onHome,
   onFit,
   onZoomIn,
   onZoomOut,
@@ -75,10 +65,10 @@ export function TopBar({
   onToggleHighlightMode,
   theme,
   onToggleTheme,
-  showMiniMap,
-  onToggleMiniMap,
-  onOpenData,
   onOpenTour,
+  viewMode,
+  onChangeView,
+  gapCount,
 }: TopBarProps) {
   return (
     <header className="topbar lg lg--thick lg--bar">
@@ -100,19 +90,19 @@ export function TopBar({
           total={graph.people.size}
           anchorId={anchorId}
         />
+        {/* Les quatre lectures de l'arbre vivaient dans une pilule flottante
+            au bas de l'écran, coupée de tout ce qui règle la vue au-dessus
+            d'elle. Elles rejoignent la recherche : changer de lecture est un
+            geste de la même famille que chercher quelqu'un, pas un geste à
+            part. */}
+        <ViewSwitch mode={viewMode} onChange={onChangeView} gapCount={gapCount} />
       </div>
 
       <div className="topbar-controls">
         <div className="control-group lg lg--control lg--bar">
-          <IconButton label="Revenir à la personne principale" onClick={onHome}>
-            <HomeIcon />
-          </IconButton>
           <IconButton label="Voir l’arbre entier" onClick={onFit}>
             <FitIcon />
           </IconButton>
-        </div>
-
-        <div className="control-group lg lg--control lg--bar">
           <IconButton label="Dézoomer" onClick={onZoomOut}>
             <MinusIcon />
           </IconButton>
@@ -134,14 +124,6 @@ export function TopBar({
           >
             <BranchIcon />
           </IconButton>
-          <IconButton
-            className="hide-compact"
-            label={showMiniMap ? 'Masquer la vue d’ensemble' : 'Afficher la vue d’ensemble'}
-            onClick={onToggleMiniMap}
-            pressed={showMiniMap}
-          >
-            <MapIcon />
-          </IconButton>
           <button
             type="button"
             className="icon-button"
@@ -153,9 +135,6 @@ export function TopBar({
           </button>
           <IconButton label="Comment lire l’arbre" onClick={onOpenTour}>
             <HelpIcon />
-          </IconButton>
-          <IconButton className="hide-compact" label="Importer / exporter vos données" onClick={onOpenData}>
-            <ImportIcon />
           </IconButton>
         </div>
       </div>

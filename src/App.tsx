@@ -34,9 +34,7 @@ import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
-import { DataPanel } from '@/components/DataPanel';
-import { MiniMap } from '@/components/MiniMap';
-import { ViewSwitch, type ViewMode } from '@/components/ViewSwitch';
+import type { ViewMode } from '@/components/ViewSwitch';
 import { FamilyBanner } from '@/components/FamilyBanner';
 /*
  * Les trois autres vues et le guide ne sont chargés qu'à l'ouverture.
@@ -151,8 +149,6 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightMode, setHighlightMode] = useState<HighlightMode>('close');
   const [flaggedId, setFlaggedId] = useState<string | null>(null);
-  const [showMiniMap, setShowMiniMap] = useState(true);
-  const [showDataPanel, setShowDataPanel] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
 
   /**
@@ -288,13 +284,6 @@ export default function App() {
     },
     [reveal],
   );
-
-  const goHome = useCallback(() => {
-    setSelectedId(graph.rootId);
-    setFlaggedId(graph.rootId);
-    setFamilyOf(null);
-    setFocusId(graph.rootId);
-  }, [graph.rootId]);
 
   /*
    * Changer de personne racine amène la vue sur elle.
@@ -458,8 +447,6 @@ export default function App() {
     () => computeHighlight(graph, selectedId, highlightMode),
     [graph, selectedId, highlightMode],
   );
-
-  const highlightPeople = useMemo(() => new Set(highlight.people.keys()), [highlight]);
 
   /*
    * Le chemin de parenté entre le repère et la personne ouverte.
@@ -701,7 +688,6 @@ export default function App() {
         searchIndex={searchIndex}
         onPick={pickFromSearch}
         anchorId={anchorId}
-        onHome={goHome}
         onFit={fitAll}
         onZoomIn={() => viewport.zoomBy(1.35)}
         onZoomOut={() => viewport.zoomBy(1 / 1.35)}
@@ -711,10 +697,10 @@ export default function App() {
         }
         theme={theme}
         onToggleTheme={toggleThemeFromPoint}
-        showMiniMap={showMiniMap}
-        onToggleMiniMap={() => setShowMiniMap((value) => !value)}
-        onOpenData={() => setShowDataPanel(true)}
         onOpenTour={() => setTourOpen(true)}
+        viewMode={viewMode}
+        onChangeView={setViewMode}
+        gapCount={gapCount}
       />
 
       {familyOf && graph.people.has(familyOf) && viewMode === 'tree' && (
@@ -724,8 +710,6 @@ export default function App() {
           onClose={() => setFamilyOf(null)}
         />
       )}
-
-      <ViewSwitch mode={viewMode} onChange={setViewMode} gapCount={gapCount} />
 
       <Suspense fallback={null}>
         {tourOpen && <Tour open onClose={() => setTourOpen(false)} />}
@@ -787,10 +771,6 @@ export default function App() {
 
       <DataNotice anomalies={anomalies} onSelect={selectPerson} />
 
-      {viewMode === 'tree' && showMiniMap && !compact && (
-        <MiniMap layout={layout} viewport={viewport} highlighted={highlightPeople} theme={theme} />
-      )}
-
       <DetailPanel
         relation={relation}
         graph={graph}
@@ -842,16 +822,6 @@ export default function App() {
         </div>
       )}
 
-      {showDataPanel && (
-        <DataPanel
-          graph={graph}
-          dataset={datasetCtrl.dataset}
-          source={datasetCtrl.source}
-          onImport={(imported) => datasetCtrl.replace(imported, 'import')}
-          onReset={datasetCtrl.reset}
-          onClose={() => setShowDataPanel(false)}
-        />
-      )}
     </div>
   );
 }
