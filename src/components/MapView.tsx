@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import {
   collectScopedPlaces,
@@ -8,6 +8,7 @@ import {
   type ScopedPlace,
 } from '@/domain/places';
 import type { Scope } from '@/domain/scope';
+import { useGlassScrollSuspend } from '@/hooks/useGlassScrollSuspend';
 import { ScopeBar } from './ScopeBar';
 import { IconButton } from './TopBar';
 import { FitIcon, MinusIcon, PlusIcon } from './icons';
@@ -175,6 +176,38 @@ export function MapView({
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startClientX: number; startClientY: number; startOrigin: { x: number; y: number } } | null>(null);
+  const viewRef = useGlassScrollSuspend<HTMLElement>();
+
+  /*
+   * Suspendre la teinte du fond de carte pendant qu'on la déplace.
+   *
+   * `.map-tiles` porte un filtre CSS — c'est lui qui recolore les tuiles
+   * OpenStreetMap pour les accorder au thème (voir `views.css`). Un filtre
+   * posé sur un groupe qui contient plusieurs images force le navigateur à
+   * traiter tout le groupe comme une seule surface à re-rasteriser dès qu'UNE
+   * tuile bouge — et ici, toutes bougent à chaque image d'un glissé, puisque
+   * c'est `camera` qui pilote leur position. La même dépense, au fond, que le
+   * flou des plaques de nom pendant un glissé de l'arbre : un effet dont le
+   * rendu dépend de ce qu'il y a dessous ne peut pas être mis en cache dans un
+   * calque tant que ce dessous continue de changer.
+   *
+   * `data-panning`, posé sur `.map-stage` à chaque changement de caméra et
+   * retiré dans le même délai que partout ailleurs, suspend ce filtre-là
+   * précisément pendant le geste — pas d'effet sur le premier rendu, gardé
+   * par `mountedRef`.
+   */
+  const mapStageRef = useRef<HTMLDivElement | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    const stage = mapStageRef.current;
+    if (!stage || !mountedRef.current) {
+      mountedRef.current = true;
+      return undefined;
+    }
+    stage.setAttribute('data-panning', '');
+    const timer = window.setTimeout(() => stage.removeAttribute('data-panning'), 200);
+    return () => window.clearTimeout(timer);
+  }, [camera]);
 
   const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>): void => {
     if (event.button !== 0) return;
@@ -288,7 +321,7 @@ export function MapView({
   );
 
   return (
-    <section className="view view--map" aria-label="Carte familiale">
+    <section className="view view--map" aria-label="Carte familiale" ref={viewRef}>
       <ScopeBar
         graph={graph}
         focusId={focusId}
@@ -304,7 +337,7 @@ export function MapView({
         </p>
       ) : (
         <div className="map-layout">
-          <div className="map-stage lg lg--thick">
+          <div className="map-stage lg lg--thick" ref={mapStageRef}>
             <svg
               ref={setSvgRef}
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}

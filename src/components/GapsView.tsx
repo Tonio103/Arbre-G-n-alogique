@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
+import { useGlassScrollSuspend } from '@/hooks/useGlassScrollSuspend';
 import {
   findGaps,
   GAP_STATUS_LABELS,
@@ -81,6 +82,8 @@ export function GapsView({
   const visible = shown.slice(0, shownCount);
   const remaining = shown.length - visible.length;
 
+  const viewRef = useGlassScrollSuspend<HTMLElement>();
+
   const byPriority = {
     high: visible.filter((gap) => gap.priority === 'high'),
     medium: visible.filter((gap) => gap.priority === 'medium'),
@@ -88,7 +91,7 @@ export function GapsView({
   };
 
   return (
-    <section className="view view--gaps" aria-label="Informations manquantes">
+    <section className="view view--gaps" aria-label="Informations manquantes" ref={viewRef}>
       <ScopeBar graph={graph} focusId={focusId} scope={scope} onChange={onScopeChange} count={people.size} />
 
       <header className="gaps-head lg lg--thick">

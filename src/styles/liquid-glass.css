@@ -921,6 +921,30 @@
   display: none;
 }
 
+/*
+ * Défilement natif : suspendre le flou des plaques qu'il traverse.
+ *
+ * Même dépense que `.world[data-panning]` ci-dessus, derrière un geste
+ * natif — voir `useGlassScrollSuspend.ts`. Doit gagner sur les variantes
+ * (`.lg--thick`, y compris sa version sombre) : posée en dernier dans ce
+ * fichier, elle l'emporte par l'ordre des règles à spécificité égale.
+ */
+.view[data-scrolling] .lg {
+  --lg-tint-alpha: 0.85;
+  --lg-tint-alpha-edge: 0.92;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme='dark'] .view[data-scrolling] .lg {
+  --lg-tint-alpha: 0.86;
+  --lg-tint-alpha-edge: 0.92;
+}
+
+.view[data-scrolling] .lg::before {
+  display: none;
+}
+
 /* Le conteneur des filtres ne doit occuper aucune place. */
 .glass-filters {
   position: absolute;

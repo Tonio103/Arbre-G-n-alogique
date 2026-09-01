@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
+import { useGlassScrollSuspend } from '@/hooks/useGlassScrollSuspend';
 import type { Scope } from '@/domain/scope';
 import { buildTimeline, livingIn, type LifeSpan } from '@/domain/timeline';
 import { formatLifespan } from '@/domain/dates';
@@ -60,12 +61,13 @@ export function TimelineView({
 }: TimelineViewProps) {
   const timeline = useMemo(() => buildTimeline(graph, people), [graph, people]);
   const [year, setYear] = useState<number | null>(null);
+  const viewRef = useGlassScrollSuspend<HTMLElement>();
 
   const name = (id: string): string => graph.people.get(id)?.displayName ?? id;
 
   if (timeline.spans.length === 0) {
     return (
-      <section className="view view--timeline" aria-label="Chronologie familiale">
+      <section className="view view--timeline" aria-label="Chronologie familiale" ref={viewRef}>
         <ScopeBar graph={graph} focusId={focusId} scope={scope} onChange={onScopeChange} count={people.size} />
         <p className="view-empty lg lg--thick">
           Aucune date n’est renseignée dans cette partie de la famille.
@@ -102,7 +104,7 @@ export function TimelineView({
       .join(' ');
 
   return (
-    <section className="view view--timeline" aria-label="Chronologie familiale">
+    <section className="view view--timeline" aria-label="Chronologie familiale" ref={viewRef}>
       <ScopeBar graph={graph} focusId={focusId} scope={scope} onChange={onScopeChange} count={people.size} />
 
       <div className="timeline-tools">

@@ -284,6 +284,22 @@
   filter: sepia(0.35) saturate(0.65) brightness(1.04) contrast(0.96);
 }
 
+/*
+ * Pendant un glissé ou un zoom, ce filtre force le navigateur à re-rasteriser
+ * tout le groupe de tuiles à chaque image, puisque `camera` déplace chacune
+ * d'elles (voir `MapView.tsx`, où `data-panning` est posé). Les tuiles
+ * réapparaissent dans leurs couleurs d'origine — le temps du geste seulement,
+ * comme le flou des plaques de nom sur l'arbre.
+ *
+ * Doit être déclarée APRÈS les deux règles de thème ci-dessus : à
+ * spécificité égale (trois sélecteurs de chaque côté), c'est l'ordre dans la
+ * feuille qui tranche, et la seconde des deux gagnait sur celle-ci tant
+ * qu'elle la suivait dans le fichier.
+ */
+.map-stage[data-panning] .map-tiles {
+  filter: none;
+}
+
 .map-marker-dot {
   fill: var(--accent-soft);
   stroke: var(--accent);
