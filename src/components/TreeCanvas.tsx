@@ -503,6 +503,7 @@ export function TreeCanvas({
                 selected={selectedId === node.id}
                 flagged={flaggedId === node.id}
                 onPath={pathPeople?.has(node.id) || undefined}
+                hiddenKin={layout.hiddenKin.get(node.id)}
                 onSelect={handleSelect}
                 onHover={handleHover}
               />

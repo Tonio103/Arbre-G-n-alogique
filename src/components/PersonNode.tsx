@@ -29,15 +29,33 @@ export interface PersonNodeProps {
    */
   /** Cette personne fait partie du chemin de parenté affiché. */
   onPath?: boolean;
+  /**
+   * Nombre de proches — conjoints, enfants — que cette vue ne montre pas.
+   *
+   * Une ascendance n'a qu'une place par étage : un remariage ou une seconde
+   * famille n'y tiennent pas. Sans ce repère, la carte mentait par omission,
+   * et la seule façon de découvrir une seconde épouse était de cliquer au
+   * hasard sur la bonne personne.
+   */
+  hiddenKin?: number;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
 
-function buildAriaLabel(person: Person): string {
+function buildAriaLabel(person: Person, hiddenKin?: number): string {
   const parts = [person.displayName];
   const lifespan = formatLifespan(person.birthDate, person.deathDate);
   if (lifespan) parts.push(lifespan);
   if (person.profession) parts.push(person.profession);
+  // Le repère « +2 » est décoratif à l'écran ; ici il devient une phrase, sans
+  // quoi l'information n'existerait que pour qui voit la pastille.
+  if (hiddenKin) {
+    parts.push(
+      hiddenKin === 1
+        ? 'un proche non affiché, ouvrir sa famille'
+        : `${hiddenKin} proches non affichés, ouvrir sa famille`,
+    );
+  }
   return parts.join(', ');
 }
 
@@ -45,8 +63,9 @@ function buildAriaLabel(person: Person): string {
  * Médaillon d'une personne.
  *
  * Un portrait rond et un nom, sans cadre : sur un arbre, une grille de
- * rectangles écraserait la ramure qu'elle est censée habiter. Le verre
- * n'apparaît qu'au survol et à la sélection, là où il aide à lire.
+ * rectangles écraserait la ramure qu'elle est censée habiter. La plaque du
+ * nom est du verre en permanence, comme le reste de l'interface ; le survol
+ * et la sélection ne font que l'épaissir.
  *
  * Mémoïsé et piloté par CSS pour le survol : sur un arbre de plusieurs
  * centaines de personnes, seul le changement de sélection doit provoquer un
@@ -62,6 +81,7 @@ export const PersonNode = memo(function PersonNode({
   selected,
   flagged,
   onPath,
+  hiddenKin,
   onSelect,
   onHover,
 }: PersonNodeProps) {
@@ -88,7 +108,7 @@ export const PersonNode = memo(function PersonNode({
       data-selected={selected || undefined}
       data-flagged={flagged || undefined}
       data-deceased={!person.living || undefined}
-      aria-label={buildAriaLabel(person)}
+      aria-label={buildAriaLabel(person, hiddenKin)}
       aria-pressed={selected}
       onClick={(event) => {
         event.stopPropagation();
@@ -104,6 +124,14 @@ export const PersonNode = memo(function PersonNode({
       <span className="node-halo" aria-hidden="true" />
 
       <span className="node-portrait">
+        {/* Des proches manquent à l'appel : le dire, plutôt que de laisser
+            croire que la carte montre toute la famille. Le clic ouvre
+            justement la vue « famille » — voir `reveal` dans `App.tsx`. */}
+        {hiddenKin ? (
+          <span className="node-more lg lg--chip" aria-hidden="true">
+            +{hiddenKin}
+          </span>
+        ) : null}
         <Avatar
           id={person.id}
           initials={person.initials}

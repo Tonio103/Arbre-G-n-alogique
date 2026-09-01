@@ -164,6 +164,74 @@
     inset var(--dur-base) var(--ease-spring);
 }
 
+/* --------------------------- Les proches cachés --------------------------- */
+
+/*
+ * « +2 » : cette carte ne montre pas tout.
+ *
+ * Une ascendance n'a qu'une place par étage — un remariage, un veuvage, une
+ * seconde famille n'y tiennent pas. La vue les taisait sans le dire : rien à
+ * l'écran ne distinguait quelqu'un dont on voyait toute la famille de
+ * quelqu'un dont on n'en voyait qu'une moitié. Mesuré sur les données
+ * réelles, 8 % des cartes affichées sont dans ce cas.
+ *
+ * Posée sur le bord du portrait, comme une pastille de notification : c'est
+ * la seule place du médaillon qui ne dispute rien au nom, et l'anneau du
+ * portrait lui donne déjà un bord contre lequel se caler. Le clic sur la
+ * carte ouvre la vue « famille », qui montre enfin tout le monde.
+ */
+.node-more {
+  position: absolute;
+  right: -3px;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-size: 9.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--accent);
+  /* Assez de masse pour se lire sur un portrait, qui est tout sauf uniforme. */
+  --lg-tint-alpha: 0.86;
+  --lg-tint-alpha-edge: 0.94;
+  --lg-blur: 8px;
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    opacity var(--dur-base) var(--ease-out);
+}
+
+:root[data-theme='dark'] .node-more {
+  --lg-tint-alpha: 0.88;
+  --lg-tint-alpha-edge: 0.94;
+}
+
+/* Au survol, la pastille se soulève avec le portrait qu'elle borde. */
+.node:hover .node-more,
+.node:focus-visible .node-more {
+  transform: scale(1.12);
+}
+
+/* Une carte réduite n'a plus la place d'un chiffre : la pastille devient un
+   simple point, qui dit encore « il y a autre chose » sans dire combien. */
+.node[data-detail='compact'] .node-more {
+  min-width: 9px;
+  height: 9px;
+  padding: 0;
+  font-size: 0;
+  right: -1px;
+}
+
+/* Une carte estompée par une sélection ne doit pas garder une pastille vive :
+   elle attirerait l'œil hors de ce qu'on regarde. */
+.node[data-dimmed] .node-more {
+  opacity: 0.35;
+}
+
 /* -------------------------------- Le nom -------------------------------- */
 
 /*

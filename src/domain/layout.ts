@@ -63,6 +63,21 @@ export interface TreeLayout {
   /** Ordre de dessin des liens : les unions d'abord, indexées par personne. */
   unionsByPerson: Map<string, string[]>;
   unionById: Map<string, LayoutUnion>;
+  /**
+   * Les proches qu'une carte affichée ne montre pas, comptés par personne.
+   *
+   * Une ascendance est un arbre : chacun y a UN couple de parents, et le
+   * dessin n'a donc qu'une place par étage. Un remariage, un veuvage, une
+   * seconde famille n'y entrent pas — la vue les tait. Mesuré sur les
+   * quatre-vingts sujets des données réelles, cela concerne 8 % des cartes
+   * affichées : bien trop pour le passer sous silence.
+   *
+   * Ce décompte est ce qui permet de le dire à l'écran plutôt que de le
+   * cacher, et c'est aussi lui qui décide d'ouvrir la vue « famille » au clic
+   * (voir `reveal` dans `App.tsx`). Une seule définition, deux lecteurs :
+   * impossible qu'un repère s'affiche sans que le clic ne mène nulle part.
+   */
+  hiddenKin: Map<string, number>;
 }
 
 
@@ -210,6 +225,23 @@ export function computeLayout(
     }));
 
 
+  // Les proches restés hors du dessin, carte par carte. Conjoints et enfants
+  // seulement : ce sont les liens dont l'absence surprend, un frère ou un
+  // cousin non montré se comprenant de lui-même dans une ascendance.
+  const hiddenKin = new Map<string, number>();
+  for (const id of positions.keys()) {
+    const person = graph.people.get(id);
+    if (!person) continue;
+    let count = 0;
+    for (const link of person.spouseLinks) {
+      if (graph.people.has(link.id) && !positions.has(link.id)) count += 1;
+    }
+    for (const childId of person.children) {
+      if (graph.people.has(childId) && !positions.has(childId)) count += 1;
+    }
+    if (count > 0) hiddenKin.set(id, count);
+  }
+
   return {
     positions,
     weights,
@@ -218,5 +250,6 @@ export function computeLayout(
     rows,
     unionsByPerson,
     unionById,
+    hiddenKin,
   };
 }

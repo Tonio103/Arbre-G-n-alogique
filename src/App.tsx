@@ -256,18 +256,17 @@ export default function App() {
         setFocusId(id);
         return;
       }
-      // Déjà dessinée : on l'amène au centre. Et si elle cache une union que
+      // Déjà dessinée : on l'amène au centre. Et si elle cache un proche que
       // cette vue ne montre pas, on ouvre sa famille à part.
+      //
+      // Le décompte vient du calcul de mise en page, qui est aussi ce que lit
+      // la pastille « +2 » sur la carte (voir `hiddenKin` dans `layout.ts`).
+      // Une seule définition pour les deux : une carte marquée mène donc
+      // toujours quelque part, et une carte non marquée ne cache rien.
       focusOn(id);
-      const person = graph.people.get(id);
-      const hidden =
-        person &&
-        [...person.spouseLinks.map((link) => link.id), ...person.children].some(
-          (other) => graph.people.has(other) && !placed.has(other),
-        );
-      if (hidden) setFamilyOf(id);
+      if (layoutRef.current.hiddenKin.has(id)) setFamilyOf(id);
     },
-    [focusOn, graph],
+    [focusOn],
   );
 
   const selectPerson = useCallback(
@@ -310,6 +309,47 @@ export default function App() {
     if (!focusId) return;
     focusOn(focusId, { scale: 1.05, duration: 620 });
   }, [focusId, focusOn]);
+
+  /*
+   * Recadrer quand on entre dans la vue « famille », et quand on en sort.
+   *
+   * Cette vue ne déplace pas la caméra : elle REFAIT le placement. Les
+   * coordonnées d'avant ne désignent plus rien — la même personne se retrouve
+   * à quelques centaines de pixels de là, et tout le reste de l'arbre a
+   * disparu du calcul. Sans recadrage, on cliquait donc quelqu'un, le bandeau
+   * annonçait « Famille de X — 23 personnes », et l'écran restait vide : la
+   * caméra visait fidèlement un endroit du monde précédent.
+   *
+   * À l'ouverture on montre la famille entière — c'est ce qu'on est venu voir,
+   * et elle tient à l'écran. À la fermeture on revient sur la personne dont on
+   * regardait la famille, à sa nouvelle place dans le placement restauré, pour
+   * ne pas être rendu au hasard.
+   *
+   * Le placement est lu par référence : il est déjà recalculé quand cet effet
+   * s'exécute, comme pour l'effet de `focusId` ci-dessus.
+   */
+  const previousFamilyOf = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousFamilyOf.current;
+    previousFamilyOf.current = familyOf;
+    if (familyOf) {
+      // La fiche est ouverte — c'est elle qu'on vient de cliquer. Le cadrage
+      // se calcule donc sur la largeur qu'elle laisse, sinon la famille est
+      // mise à l'échelle de tout l'écran puis poussée à moitié dessous.
+      const bounds = layoutRef.current.bounds;
+      const free = { width: Math.max(1, viewport.size.width - panelOffset), height: viewport.size.height };
+      const { scale } = transformForBounds(bounds, free, FIT_PADDING, 0.95);
+      viewport.focusPoint(
+        (bounds.minX + bounds.maxX) / 2,
+        (bounds.minY + bounds.maxY) / 2,
+        scale,
+        panelOffset,
+        620,
+      );
+    } else if (previous) {
+      focusOn(previous, { duration: 620 });
+    }
+  }, [familyOf, viewport, focusOn, panelOffset]);
 
   // Échap referme la vue famille : c'est le geste attendu de tout ce qui se
   // superpose, et il évite d'avoir à viser la croix.
