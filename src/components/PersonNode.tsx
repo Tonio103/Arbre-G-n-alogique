@@ -114,7 +114,7 @@ export const PersonNode = memo(function PersonNode({
         <span className="node-ring" aria-hidden="true" />
       </span>
 
-      <span className="node-plate">
+      <span className="node-plate lg lg--plate">
         <span className="node-first">{person.firstName}</span>
         {!compact && <span className="node-last">{person.lastName}</span>}
         {!compact && lifespan && <span className="node-years">{lifespan}</span>}

@@ -167,8 +167,7 @@
   height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-pill);
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -185,8 +184,13 @@
 }
 
 .action-button:hover {
-  background: var(--glass-fill-hover);
+  --lg-tint-inner: 0.62;
+  --lg-glare: rgba(255, 255, 255, 0.42);
   color: var(--text-primary);
+}
+
+:root[data-theme='dark'] .action-button:hover {
+  --lg-tint-inner: 0.16;
 }
 
 .action-button:active {
@@ -404,7 +408,6 @@
   flex: none;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--glass-fill);
   font-size: 10.5px;
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -421,8 +424,7 @@
 .chip {
   padding: 5px 11px;
   border-radius: 999px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -603,11 +605,9 @@
 }
 
 .note {
-  position: relative;
   padding: 10px 13px;
   border-radius: 15px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
   font-size: 13px;
   line-height: 1.55;
   color: var(--text-secondary);
@@ -761,8 +761,7 @@
   gap: 5px;
   padding: 4px 6px 4px 11px;
   border-radius: 999px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -1021,12 +1020,11 @@
   flex-direction: column;
   padding: 7px 8px 7px 11px;
   border-radius: 12px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
 }
 
 .relation-editor-item[data-expanded] {
-  background: var(--glass-fill-strong);
+  --lg-tint-inner: 0.5;
   padding-bottom: 12px;
 }
 

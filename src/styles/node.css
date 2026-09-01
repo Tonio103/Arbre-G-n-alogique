@@ -7,8 +7,12 @@
  *  détache le médaillon de son fond, c'est un halo très doux et l'anneau qui
  *  cercle le portrait — pas une boîte.
  *
- *  Au repos le médaillon est discret. Le verre, la matière et la lumière
- *  n'apparaissent qu'au survol et à la sélection, là où ils aident à lire.
+ *  Le médaillon est fait de la même matière que le reste de l'interface, et
+ *  il l'est en permanence : sa plaque de nom est une vraie plaque de verre —
+ *  mince (voir `lg--plate`), mais avec son flou, sa réfraction, sa nappe, son
+ *  arête et sa tranche, éclairée par la même source que la barre supérieure.
+ *  Le survol et la sélection ne font que l'épaissir ; ils n'ajoutent aucune
+ *  couche qui n'était pas déjà là au repos.
  *
  * ========================================================================== */
 
@@ -163,12 +167,19 @@
 /* -------------------------------- Le nom -------------------------------- */
 
 /*
- * Le nom repose sur une plaque à peine teintée. Elle existe pour une seule
- * raison : garantir la lisibilité quand le texte tombe sur du feuillage clair
- * ou sur une branche. Elle reste donc aussi discrète que le contraste le permet.
+ * Le nom repose sur une plaque de verre.
+ *
+ * Elle portait autrefois un simple aplat teinté (`--node-plate`) et ne prenait
+ * un peu de matière qu'au survol. C'était la seule surface de l'application à
+ * ne pas être faite de verre — et, à cinquante exemplaires à l'écran, de loin
+ * la plus visible : l'arbre entier se lisait comme des étiquettes de papier
+ * posées sous une interface de verre.
+ *
+ * Elle porte donc `lg lg--plate`, qui lui donne tout le matériau. Il ne reste
+ * ici que sa géométrie et ce qui lui est propre — le rayon, la teinte et la
+ * lentille viennent de la variante.
  */
 .node-plate {
-  position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -177,10 +188,8 @@
   margin-top: 6px;
   max-width: 100%;
   padding: 3px 7px 4px;
-  border-radius: 10px;
-  background: var(--node-plate);
   transition:
-    background var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
     transform var(--dur-base) var(--ease-spring);
 }
@@ -270,13 +279,25 @@
   opacity: 1;
 }
 
+/*
+ * Au survol, la plaque ne change pas de nature : elle s'épaissit. Plus de
+ * masse, un flou un peu plus long, un reflet plus vif, un décollement plus
+ * net — les mêmes jetons que partout ailleurs, poussés d'un cran.
+ */
 .node:hover .node-plate,
 .node:focus-visible .node-plate {
-  background: var(--node-plate-strong);
-  box-shadow:
-    0 1px 2px rgba(16, 26, 44, 0.1),
-    0 8px 20px rgba(16, 26, 44, 0.14),
-    inset 0 1px 0 var(--lg-inner-light);
+  --lg-tint-alpha: 0.72;
+  --lg-tint-alpha-edge: 0.82;
+  --lg-blur: 14px;
+  --lg-glare: rgba(255, 255, 255, 0.4);
+  --lg-shadow-near: 0 5px 14px rgba(18, 28, 48, 0.13);
+  --lg-shadow-far: 0 16px 34px rgba(18, 28, 48, 0.15);
+}
+
+:root[data-theme='dark'] .node:hover .node-plate,
+:root[data-theme='dark'] .node:focus-visible .node-plate {
+  --lg-tint-alpha: 0.8;
+  --lg-tint-alpha-edge: 0.88;
 }
 
 .node:hover .node-years,
@@ -369,9 +390,29 @@
   opacity: 0;
 }
 
+/*
+ * Sélection : la même plaque épaissie, plus un liseré d'accent. Il s'ajoute
+ * aux ombres du matériau au lieu de les remplacer — sinon la plaque perdait sa
+ * tranche et son élévation à l'instant précis où on la regarde le plus.
+ */
 .node[data-selected] .node-plate {
-  background: var(--node-plate-strong);
-  box-shadow: 0 0 0 1px var(--accent-ring);
+  --lg-tint-alpha: 0.76;
+  --lg-tint-alpha-edge: 0.86;
+  --lg-blur: 14px;
+  box-shadow:
+    var(--lg-shadow-contact),
+    var(--lg-shadow-near),
+    var(--lg-shadow-far),
+    inset 0 1px 0 0 var(--lg-inner-light),
+    inset 0 -1px 0 0 var(--lg-inner-shade),
+    inset 0 0 22px -6px var(--lg-inner-depth),
+    inset 0 0 0 0.5px rgba(var(--lg-tint), 0.5),
+    0 0 0 1px var(--accent-ring);
+}
+
+:root[data-theme='dark'] .node[data-selected] .node-plate {
+  --lg-tint-alpha: 0.84;
+  --lg-tint-alpha-edge: 0.9;
 }
 
 .node[data-selected] .node-years {
@@ -445,8 +486,18 @@
     0 6px 16px rgba(16, 26, 44, 0.22);
 }
 
+/* Le liseré du chemin de parenté s'ajoute au matériau, comme celui de la
+   sélection : il ne le remplace pas. */
 .node[data-path] .node-plate {
-  box-shadow: 0 0 0 1px var(--accent-ring);
+  box-shadow:
+    var(--lg-shadow-contact),
+    var(--lg-shadow-near),
+    var(--lg-shadow-far),
+    inset 0 1px 0 0 var(--lg-inner-light),
+    inset 0 -1px 0 0 var(--lg-inner-shade),
+    inset 0 0 22px -6px var(--lg-inner-depth),
+    inset 0 0 0 0.5px rgba(var(--lg-tint), 0.5),
+    0 0 0 1px var(--accent-ring);
 }
 
 /* Résultat de recherche mis en avant. */
@@ -545,6 +596,7 @@
 }
 
 .node[data-detail='compact'] .node-plate {
+  --lg-radius: 8px;
   margin-top: 5px;
   padding: 2px 6px 3px;
 }

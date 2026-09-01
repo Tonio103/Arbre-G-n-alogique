@@ -6,6 +6,22 @@
  * avec l'arbre qu'il précède.
  */
 
+/*
+ * Le rideau est lui aussi une plaque de verre — la première qu'on voit, et la
+ * seule qui couvre tout l'écran.
+ *
+ * Il était auparavant un aplat dégradé, parfaitement opaque : la seule surface
+ * de l'application à ne pas être faite de la matière que l'application passe
+ * ensuite son temps à montrer. Frosté, il annonce ce qui suit, et il gagne
+ * surtout une chose que l'opacité lui interdisait : l'arbre existe derrière
+ * lui, flou, et il se révèle en même temps que le rideau se lève au lieu
+ * d'apparaître d'un coup une fois le rideau parti.
+ *
+ * La teinte reste très couvrante. Ce n'est pas un panneau qu'on lit par-dessus
+ * une scène installée : à cet instant l'arbre n'est pas encore cadré, et
+ * laisser deviner un enchevêtrement de traits en train de se placer donnerait
+ * une impression de chargement bancal, pas de profondeur.
+ */
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -15,12 +31,26 @@
   gap: 28px;
   background:
     radial-gradient(60% 50% at 50% 42%, var(--ls-glow-field) 0%, transparent 70%),
-    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 58%, var(--bg-deep) 100%);
+    linear-gradient(
+      var(--lg-light),
+      transparent 8%,
+      var(--lg-sheen-edge) 26%,
+      var(--lg-sheen) 47%,
+      var(--lg-sheen-edge) 66%,
+      transparent 88%
+    ),
+    linear-gradient(180deg, var(--ls-veil-a) 0%, var(--ls-veil-b) 58%, var(--ls-veil-a) 100%);
+  backdrop-filter: blur(34px) saturate(150%) brightness(var(--lg-brightness));
+  -webkit-backdrop-filter: blur(34px) saturate(150%) brightness(var(--lg-brightness));
   transition:
     opacity var(--dur-slow) var(--ease-out),
     filter var(--dur-slow) var(--ease-out);
 
   --ls-glow-field: rgba(127, 176, 255, 0.1);
+  /* Le même dégradé qu'avant, à peine ouvert : assez pour que le flou ait
+     quelque chose à flouter, pas assez pour qu'on y lise une forme. */
+  --ls-veil-a: color-mix(in srgb, var(--bg-deep) 94%, transparent);
+  --ls-veil-b: color-mix(in srgb, var(--bg-mid) 92%, transparent);
 }
 
 .loading-screen[data-leaving] {

@@ -71,6 +71,23 @@
   --lg-glare: rgba(255, 255, 255, 0.26);
   --lg-glare-size: 62%;
 
+  /* Teinte des commandes intérieures ------------------------------------
+     Un panneau se teinte pour couvrir ce qu'il y a derrière ; une commande
+     posée dessus se teinte pour s'en détacher. Sur fond clair les deux vont
+     dans le même sens — un crème un peu plus dense. Sur fond sombre, non : le
+     panneau est une masse bleu nuit, et lui ajouter du bleu nuit creuse un
+     renfoncement là où il faut un relief. La commande s'éclaircit donc. */
+  --lg-tint-inner-rgb: var(--lg-tint);
+  --lg-tint-inner: 0.3;
+
+  /* Nappe directionnelle -------------------------------------------------
+     Le reflet radial dit où est la source ; il ne dit pas que la surface est
+     plane. Une plaque réelle renvoie aussi une bande de lumière étirée, qui
+     balaie toute la face perpendiculairement à la source — c'est elle qui fait
+     lire une surface plutôt qu'un halo posé sur un fond. */
+  --lg-sheen: rgba(255, 255, 255, 0.14);
+  --lg-sheen-edge: rgba(255, 255, 255, 0.04);
+
   /* Spéculaire ----------------------------------------------------------- */
   --lg-specular: rgba(255, 255, 255, 1);
   --lg-specular-soft: rgba(255, 255, 255, 0.5);
@@ -119,7 +136,12 @@
   --lg-tint-alpha-moving: 0.86;
   --lg-tint-alpha-edge-moving: 0.78;
 
+  --lg-tint-inner-rgb: 255, 255, 255;
+  --lg-tint-inner: 0.07;
+
   --lg-glare: rgba(255, 255, 255, 0.16);
+  --lg-sheen: rgba(255, 255, 255, 0.07);
+  --lg-sheen-edge: rgba(255, 255, 255, 0.02);
   --lg-specular: rgba(255, 255, 255, 0.72);
   --lg-specular-soft: rgba(255, 255, 255, 0.16);
   --lg-fringe-warm: rgba(255, 206, 150, 0.32);
@@ -158,6 +180,17 @@
       var(--lg-glare) 0%,
       transparent 100%
     ),
+    /* La nappe, sous le reflet : elle suit le même angle que les arêtes, si
+       bien que le point chaud du pourtour se prolonge en travers de la face
+       au lieu de s'arrêter net au bord. */
+    linear-gradient(
+      var(--lg-light),
+      transparent 8%,
+      var(--lg-sheen-edge) 26%,
+      var(--lg-sheen) 47%,
+      var(--lg-sheen-edge) 66%,
+      transparent 88%
+    ),
     radial-gradient(
       130% 130% at 50% 0%,
       rgba(var(--lg-tint), 0) 40%,
@@ -182,7 +215,12 @@
     var(--lg-shadow-far),
     inset 0 1px 0 0 var(--lg-inner-light),
     inset 0 -1px 0 0 var(--lg-inner-shade),
-    inset 0 0 22px -6px var(--lg-inner-depth);
+    inset 0 0 22px -6px var(--lg-inner-depth),
+    /* La seconde face. Une plaque a deux surfaces : celle qu'on touche et
+       celle du dessous, qu'on voit à travers la première. Ce demi-pixel net,
+       posé en retrait de l'arête spéculaire, est cette seconde face — c'est
+       lui qui donne au bord une épaisseur au lieu d'un simple contour. */
+    inset 0 0 0 0.5px rgba(var(--lg-tint), 0.5);
 
   transition:
     background-color var(--lg-dur) var(--lg-ease),
@@ -429,6 +467,48 @@
   --lg-glare-size: 110%;
 }
 
+/*
+ * Verre mince : la plaque qui porte un nom sous un portrait.
+ *
+ * C'est la seule surface de l'application qui existe en cinquante exemplaires
+ * à l'écran en même temps, et elle mesure une soixantaine de pixels de large.
+ * Deux conséquences, qui vont dans le même sens :
+ *
+ *   — physiquement, une plaque mince ne fait presque rien. Elle ne brasse pas
+ *     l'arrière-plan sur trente pixels, elle ne courbe pas la lumière comme
+ *     une lentille épaisse. Le flou est donc court et le clapotis discret,
+ *     non pas par économie mais parce que c'est ce que fait un verre mince ;
+ *   — un flou d'arrière-plan coûte à peu près la surface qu'il couvre fois le
+ *     rayon qu'on lui demande. Court rayon, petite surface : ce que cinquante
+ *     plaques demandent au compositeur reste de l'ordre de ce que demandait
+ *     déjà la seule barre supérieure.
+ *
+ * L'arête, la nappe, le reflet et la tranche, eux, sont des dégradés : ils ne
+ * coûtent rien de plus au cinquantième exemplaire qu'au premier. La plaque a
+ * donc le matériau entier, sans exception.
+ */
+.lg--plate {
+  --lg-lens: url(#lg-lens-chip);
+  --lg-radius: 10px;
+  --lg-blur: 9px;
+  --lg-saturate: 165%;
+  --lg-tint-alpha: 0.42;
+  --lg-tint-alpha-edge: 0.56;
+  --lg-glare-size: 130%;
+  --lg-specular-width: 0.8px;
+  /* Une plaque est posée sur le feuillage, pas suspendue au-dessus de la
+     scène : son élévation est celle d'un objet qui touche presque son fond. */
+  --lg-shadow-near: 0 3px 9px rgba(18, 28, 48, 0.09);
+  --lg-shadow-far: 0 10px 24px rgba(18, 28, 48, 0.1);
+}
+
+:root[data-theme='dark'] .lg--plate {
+  --lg-tint-alpha: 0.5;
+  --lg-tint-alpha-edge: 0.62;
+  --lg-shadow-near: 0 3px 10px rgba(0, 0, 0, 0.34);
+  --lg-shadow-far: 0 12px 26px rgba(0, 0, 0, 0.4);
+}
+
 /* Surface entièrement arrondie : le conique tourne alors sur un cercle
    parfait, ce que le rayon en pilule donne naturellement. */
 .lg--pill {
@@ -483,15 +563,67 @@
   }
 }
 
-/* Transparence refusée : le matériau devient une surface pleine. Le contraste
-   du texte reste alors garanti quel que soit le contenu derrière. */
+/*
+ * Transparence refusée : moins de transparence, pas moins de matière.
+ *
+ * Ce repli coupait autrefois le flou d'arrière-plan et rendait la teinte
+ * presque opaque : toute l'interface devenait une pile de rectangles pleins.
+ * C'était un contresens, et il se déclenchait bien plus souvent qu'on ne le
+ * croyait — Windows expose ici son réglage « Effets de transparence », que
+ * beaucoup de machines livrent désactivé. Sur ces postes, le matériau de tout
+ * ce fichier n'était jamais apparu une seule fois.
+ *
+ * Or ce que cette préférence demande, c'est de ne pas avoir à lire un texte
+ * par-dessus une image qui bouge. Un flou répond exactement à cela : il détruit
+ * l'information derrière la surface, là où la seule transparence la laissait
+ * lisible. La bonne réponse est donc l'inverse de l'ancienne — garder le flou,
+ * et l'appuyer d'une masse plus couvrante :
+ *
+ *   — le substrat reste, et floute davantage ;
+ *   — la teinte monte assez haut pour qu'aucune forme ne survive derrière ;
+ *   — la réfraction part, elle : elle ne sert qu'à déformer ce qu'on voit à
+ *     travers, et il n'y a plus rien à voir à travers ;
+ *   — l'arête, la nappe et la tranche restent : ce sont des dégradés posés
+ *     sur la surface, ils ne laissent rien transparaître.
+ *
+ * Le contraste du texte est donc au moins aussi garanti qu'avant, et la
+ * surface reste du verre.
+ */
 @media (prefers-reduced-transparency: reduce) {
+  /* Chaque variante monte d'un cran, sans jamais atteindre l'opacité : ce
+     qu'on doit perdre, c'est la lisibilité de ce qu'il y a derrière, pas la
+     lecture de la surface elle-même. */
   .lg {
-    --lg-tint-alpha: 0.97;
-    --lg-tint-alpha-edge: 1;
-    --lg-glare: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    --lg-tint-alpha: 0.72;
+    --lg-tint-alpha-edge: 0.82;
+    --lg-glare: rgba(255, 255, 255, 0.18);
+  }
+
+  :root[data-theme='dark'] .lg {
+    --lg-tint-alpha: 0.78;
+    --lg-tint-alpha-edge: 0.86;
+  }
+
+  .lg--thick {
+    --lg-tint-alpha: 0.84;
+    --lg-tint-alpha-edge: 0.92;
+  }
+
+  :root[data-theme='dark'] .lg--thick {
+    --lg-tint-alpha: 0.88;
+    --lg-tint-alpha-edge: 0.94;
+  }
+
+  /* La plaque d'un nom est petite et posée sur du feuillage clair : elle n'a
+     pas besoin de la même masse qu'un panneau qui porte un paragraphe. */
+  .lg--plate {
+    --lg-tint-alpha: 0.66;
+    --lg-tint-alpha-edge: 0.78;
+  }
+
+  :root[data-theme='dark'] .lg--plate {
+    --lg-tint-alpha: 0.72;
+    --lg-tint-alpha-edge: 0.82;
   }
 
   .lg::before {
@@ -627,6 +759,144 @@
   .lg--interactive:active {
     border-radius: var(--lg-radius);
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * 9. LE MATÉRIAU À L'INTÉRIEUR DES PANNEAUX
+ *
+ * Les commandes qui vivent dans un panneau — boutons d'action, pastilles,
+ * notes, entrées de liste — étaient les dernières surfaces peintes à l'aplat :
+ * un fond translucide et un trait d'un pixel. Posées sur du verre, elles se
+ * lisaient comme des autocollants.
+ *
+ * Elles sont donc faites de la même matière, à une exception près, qui est
+ * une exception physique et non une économie : elles n'ont ni flou ni
+ * réfraction. Deux vitres accolées ne floutent pas deux fois — c'est déjà la
+ * règle `.lg .lg` plus haut, et c'est la même raison ici. Ce qu'il leur reste,
+ * c'est tout le reste : la masse, la nappe, le reflet glissant, l'arête
+ * spéculaire et la tranche. Aucun de ces éléments ne coûte plus qu'un dégradé.
+ *
+ * La liste est explicite plutôt que générique : une commande de panneau n'est
+ * pas reconnaissable à sa balise, et une règle attrape-tout finirait par
+ * poser une arête de verre sur une ligne de tableau.
+ * ------------------------------------------------------------------------- */
+
+.lg--inner,
+.action-button,
+.chip,
+.relation-badge,
+.note,
+.edit-chip,
+.relation-editor-item {
+  position: relative;
+  isolation: isolate;
+
+  background-image:
+    radial-gradient(
+      var(--lg-glare-size) var(--lg-glare-size) at var(--lg-glare-x) var(--lg-glare-y),
+      var(--lg-glare) 0%,
+      transparent 100%
+    ),
+    linear-gradient(
+      var(--lg-light),
+      transparent 8%,
+      var(--lg-sheen-edge) 26%,
+      var(--lg-sheen) 47%,
+      var(--lg-sheen-edge) 66%,
+      transparent 88%
+    );
+  background-color: rgba(var(--lg-tint-inner-rgb), var(--lg-tint-inner));
+
+  /* Pas d'ombre portée : une commande est posée à plat sur la surface qui la
+     porte, elle ne plane pas au-dessus. Il ne reste que la tranche. */
+  box-shadow:
+    inset 0 1px 0 0 var(--lg-inner-light),
+    inset 0 -1px 0 0 var(--lg-inner-shade),
+    inset 0 0 14px -6px var(--lg-inner-depth);
+
+  /* L'arête spéculaire remplace le trait d'un pixel : la largeur de bordure
+     est conservée pour que rien ne se décale, mais elle devient invisible.
+     Les états qui recolorent la bordure (un bouton enfoncé) restent, eux,
+     plus spécifiques et continuent de l'emporter. */
+  border-color: transparent;
+}
+
+.lg--inner::after,
+.action-button::after,
+.chip::after,
+.relation-badge::after,
+.note::after,
+.edit-chip::after,
+.relation-editor-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: var(--lg-specular-width);
+  pointer-events: none;
+
+  background: conic-gradient(
+    from var(--lg-light) at 50% 50%,
+    transparent 0deg,
+    var(--lg-fringe-warm) 14deg,
+    var(--lg-specular) 30deg,
+    var(--lg-fringe-cool) 48deg,
+    var(--lg-specular-soft) 78deg,
+    transparent 128deg,
+    transparent 186deg,
+    var(--lg-specular-soft) 230deg,
+    var(--lg-fringe-cool) 252deg,
+    var(--lg-specular) 270deg,
+    var(--lg-fringe-warm) 288deg,
+    transparent 320deg
+  );
+
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+}
+
+/* Le contenu passe devant l'arête, comme dans un panneau. */
+.lg--inner > *,
+.action-button > *,
+.chip > *,
+.note > *,
+.edit-chip > *,
+.relation-editor-item > * {
+  position: relative;
+  z-index: 2;
+}
+
+/*
+ * Les champs de saisie.
+ *
+ * Un `input` n'a pas de pseudo-élément : la couronne conique est hors de
+ * portée, et aucun contournement ne vaut d'envelopper chaque champ dans une
+ * boîte de plus. `border-image` accepte en revanche un dégradé, et suffit à
+ * poser la même arête colorée sur les quatre bords — sans le point chaud qui
+ * tourne, mais avec la même lumière et la même dispersion.
+ */
+.edit-field input,
+.edit-field textarea,
+.edit-list-add-row input,
+.edit-list-row textarea,
+.edit-milestone-row input {
+  background-image: linear-gradient(
+    var(--lg-light),
+    transparent 8%,
+    var(--lg-sheen-edge) 26%,
+    var(--lg-sheen) 47%,
+    var(--lg-sheen-edge) 66%,
+    transparent 88%
+  );
+  box-shadow:
+    inset 0 1px 0 0 var(--lg-inner-light),
+    inset 0 -1px 0 0 var(--lg-inner-shade),
+    inset 0 0 14px -6px var(--lg-inner-depth);
 }
 
 /* Le conteneur des filtres ne doit occuper aucune place. */

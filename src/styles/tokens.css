@@ -42,8 +42,6 @@
   /* Médaillon : halo, plaque du nom, cerne des personnes disparues */
   --node-halo-core: rgba(18, 28, 48, 0.5);
   --node-halo-mid: rgba(18, 28, 48, 0.26);
-  --node-plate: rgba(18, 28, 48, 0.34);
-  --node-plate-strong: rgba(22, 33, 56, 0.72);
   --node-deceased-ring: rgba(255, 255, 255, 0.16);
 
   --link-highlight: rgba(140, 176, 232, 0.85);
@@ -152,8 +150,6 @@
 
   --node-halo-core: rgba(255, 251, 240, 0.82);
   --node-halo-mid: rgba(255, 251, 240, 0.42);
-  --node-plate: rgba(255, 251, 240, 0.55);
-  --node-plate-strong: rgba(255, 253, 246, 0.88);
   --node-deceased-ring: rgba(64, 44, 20, 0.14);
 
   --link-highlight: rgba(122, 68, 25, 0.82);
