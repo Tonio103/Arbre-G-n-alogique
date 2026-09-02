@@ -41,6 +41,29 @@ export function useGlassLight(): void {
     // Sans pointeur fin, il n'y a rien à suivre : la lumière garde sa valeur
     // de repos plutôt que de sauter au gré des contacts tactiles.
     if (!window.matchMedia('(pointer: fine)').matches) return undefined;
+
+    /*
+     * Transparence réduite : la lumière ne bouge plus du tout.
+     *
+     * Sous Windows, cette préférence expose le réglage « Effets de
+     * transparence », le plus souvent désactivé parce que la machine n'a pas
+     * le GPU pour les porter (voir le repli correspondant dans
+     * `liquid-glass.css`). Or le commentaire de `IDLE_FRAME` ci-dessus le dit
+     * déjà : chaque écriture de ces trois variables invalide TOUTES les
+     * surfaces de verre à la fois. Cinquante médaillons portent chacun un
+     * anneau et une plaque dont le dégradé conique lit `--lg-light` : une
+     * écriture, c'est plus de cent cinquante éléments à recalculer et
+     * repeindre — en continu, pour un reflet qui se déplace de quelques
+     * dixièmes de pour cent.
+     *
+     * Sur une machine qui a déjà dit qu'elle ne voulait pas payer d'effets de
+     * composition, faire tourner une boucle d'animation permanente pour un
+     * ornement est exactement ce qu'il ne faut pas faire. Les valeurs de repos
+     * définies dans `:root` restent en place, et le verre garde son reflet —
+     * simplement immobile.
+     */
+    if (window.matchMedia('(prefers-reduced-transparency: reduce)').matches) return undefined;
+
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const root = document.documentElement;

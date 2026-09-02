@@ -150,48 +150,25 @@
 }
 
 /*
- * Le décor respire.
+ * Le décor ne respire plus.
  *
- * Un ciel figé se lit comme une image ; un ciel qui scintille très légèrement
- * se lit comme un lieu. L'amplitude reste minuscule et la période très longue
- * — on ne doit jamais surprendre le mouvement, seulement sentir, au bout de
- * quelques minutes, que le fond n'était pas tout à fait immobile.
+ * Il portait une animation `filter` infinie — un scintillement du ciel, un
+ * souffle sur le parchemin — d'une amplitude que son propre commentaire
+ * décrivait comme imperceptible : « on ne doit jamais surprendre le
+ * mouvement ». Elle coûtait pourtant, en permanence et sans qu'on touche à
+ * rien, davantage que tout le reste de l'interface réuni.
+ *
+ * `.backdrop` couvre tout l'écran et empile une quarantaine de dégradés.
+ * Animer son `filter` invalide cette surface entière à chaque image — et
+ * elle est précisément ce que TOUTES les surfaces de verre lisent à travers
+ * leur `backdrop-filter`. Chaque image imposait donc : refiltrer un plein
+ * écran, puis refaire chacun des flous posés dessus. Pour toujours, y compris
+ * sur une page à l'arrêt que personne ne touche.
+ *
+ * C'est ce qui rendait l'application lente « dès le chargement ». Le décor est
+ * donc fixe. On perd un mouvement que l'on ne voyait pas ; on récupère la
+ * totalité des images par seconde qu'il consommait.
  */
-:root[data-theme='dark'] .backdrop {
-  animation: sky-twinkle 9s var(--ease-inout) infinite;
-}
-
-@keyframes sky-twinkle {
-  0%,
-  100% {
-    filter: brightness(1) saturate(1);
-  }
-  50% {
-    filter: brightness(1.07) saturate(1.15);
-  }
-}
-
-/* Atlas : le parchemin ne scintille pas, il respire — un souffle de lumière
-   bien plus lent et bien plus discret que celui du ciel. */
-:root[data-theme='light'] .backdrop {
-  animation: paper-breathe 16s var(--ease-inout) infinite;
-}
-
-@keyframes paper-breathe {
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(1.018);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .backdrop {
-    animation: none;
-  }
-}
 
 /*
  * Atlas généalogique, suite : le filigrane de courbes de niveau concentriques

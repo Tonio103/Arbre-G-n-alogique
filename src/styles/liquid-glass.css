@@ -589,10 +589,43 @@
  * Le contraste du texte est donc au moins aussi garanti qu'avant, et la
  * surface reste du verre.
  */
+/*
+ * Transparence réduite : plus de flou du tout, mais tout le reste du matériau.
+ *
+ * Ce repli coupait le flou. Je l'ai « corrigé » pour le garder, en
+ * argumentant qu'un flou sert la lisibilité mieux que l'opacité — ce qui est
+ * vrai, et complètement à côté de la question. Cette préférence ne parle pas
+ * que de lisibilité : sous Windows, elle expose le réglage « Effets de
+ * transparence », que l'on désactive le plus souvent parce que la machine
+ * n'a pas le GPU pour les porter. C'est un signal de CAPACITÉ autant que de
+ * goût, et le lui retirer revenait à passer outre la seule information fiable
+ * qu'on ait sur ce que cette machine peut tenir.
+ *
+ * Le coût était réel : sur un poste où ce réglage est actif, l'application
+ * est passée de zéro flou d'arrière-plan à une cinquantaine — les plaques de
+ * nom devenues du verre permanent, plus toute l'interface fixe. D'où un
+ * ralentissement franc, y compris au repos, sur la machine où cela a été
+ * signalé.
+ *
+ * Le flou repart donc. Ce qui reste n'est PAS l'ancien aplat opaque : la
+ * teinte, la nappe, le reflet, l'arête spéculaire et la tranche sont tous des
+ * dégradés peints sur la surface — ils ne lisent jamais l'arrière-plan, ne
+ * coûtent rien au compositeur, et suffisent à faire lire du verre plutôt
+ * qu'un rectangle. Seules les deux couches qui échantillonnent ce qu'il y a
+ * derrière — le flou et la réfraction — disparaissent.
+ *
+ * Réactiver « Effets de transparence » dans Windows redonne le matériau
+ * entier, flou compris.
+ */
 @media (prefers-reduced-transparency: reduce) {
-  /* Chaque variante monte d'un cran, sans jamais atteindre l'opacité : ce
-     qu'on doit perdre, c'est la lisibilité de ce qu'il y a derrière, pas la
-     lecture de la surface elle-même. */
+  /* Sans flou, la teinte doit porter seule la lisibilité : elle monte donc
+     franchement, sans pour autant aller jusqu'à l'opacité — l'arête et la
+     nappe restent lisibles par-dessus. */
+  .lg {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .lg {
     --lg-tint-alpha: 0.72;
     --lg-tint-alpha-edge: 0.82;
@@ -626,6 +659,8 @@
     --lg-tint-alpha-edge: 0.82;
   }
 
+  /* La réfraction n'a plus rien à réfracter, et c'est de loin la plus chère
+     des sept couches : un filtre SVG appliqué à l'arrière-plan capté. */
   .lg::before {
     display: none;
   }
