@@ -151,32 +151,43 @@ export function TreeCanvas({
      * déjà vérifié.
      */
     /*
-     * Les plaques de nom sont du vrai verre en permanence (voir `lg--plate`
-     * dans `liquid-glass.css`) : leur flou d'arrière-plan échantillonne ce
-     * qu'il y a dessous à chaque image, quel que soit le calque. C'est la
-     * seule dépense qu'aucune promotion de `.world` ne met en cache — une
-     * couche composée fige une image de son CONTENU, pas de ce qu'un flou
-     * situé dedans doit lire derrière lui, qui continue de défiler sous les
-     * cinquante plaques visibles à chaque glissé.
+     * Ce qui flotte AU-DESSUS de l'arbre paie le même prix que les plaques
+     * de nom qui sont DEDANS — et pour une raison à laquelle on ne pense pas
+     * d'emblée : la barre du haut, la frise des générations, la fiche
+     * ouverte ne bougent pas pendant un glissé, mais ce qu'il y a DERRIÈRE
+     * elles, si — c'est tout l'arbre qui défile sous des panneaux fixes. Un
+     * flou d'arrière-plan échantillonne ce qui est dessous à chaque image,
+     * qu'il soit lui-même en mouvement ou non : rester immobile ne met donc
+     * PAS ces panneaux à l'abri, puisqu'ils regardent chacun un rectangle de
+     * scène qui change en continu.
      *
-     * `data-panning` suspend donc ce flou précis (et lui seul — la teinte,
-     * la nappe, l'arête restent, ce sont des dégradés, pas des échantillons)
-     * pendant le geste et les deux mêmes dixièmes de seconde qui suivent que
-     * `will-change`. Réduit à cinquante plaques minuscules et déjà en
-     * mouvement, le figement ne se voit pas — c'est le même raisonnement que
-     * pour `SCALE_DRIFT` dans `LinkLayer.tsx` : l'œil ne résout pas une
-     * texture fine au milieu d'un mouvement qu'il ne peut lui-même pas suivre.
+     * Mesuré autrement qu'en chiffres : la barre du haut et la fiche ouverte
+     * sont deux flous de 28 à 30 pixels sur une bien plus grande surface que
+     * cinquante plaques de 9 pixels — la dépense qu'ils paient à eux deux
+     * pendant un glissé peut aisément dépasser celle de tous les médaillons
+     * réunis.
+     *
+     * L'attribut se pose donc sur la racine du document, pas sur `.world` :
+     * ces panneaux ne sont pas ses descendants, une classe CSS ne peut pas
+     * les viser depuis un ancêtre qui n'est pas le leur. Une seule règle,
+     * dans `liquid-glass.css`, suspend alors le flou de TOUTE surface de
+     * verre à la fois — les plaques comme les panneaux fixes — pendant le
+     * geste et les deux dixièmes de seconde qui suivent, le même délai que
+     * `will-change`. La teinte, la nappe, l'arête restent : ce sont des
+     * dégradés, pas des échantillons, ils ne coûtent rien de plus en
+     * mouvement.
      */
     let movingTimer = 0;
+    const root = document.documentElement;
     const apply = (): void => {
       const transform = viewport.transform;
       world.style.transform = `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`;
       world.style.willChange = 'transform';
-      world.setAttribute('data-panning', '');
+      root.setAttribute('data-panning', '');
       window.clearTimeout(movingTimer);
       movingTimer = window.setTimeout(() => {
         world.style.willChange = 'auto';
-        world.removeAttribute('data-panning');
+        root.removeAttribute('data-panning');
       }, 200);
       if (!pending) pending = requestAnimationFrame(commitVisible);
     };
@@ -201,7 +212,7 @@ export function TreeCanvas({
       observer.disconnect();
       if (pending) cancelAnimationFrame(pending);
       window.clearTimeout(movingTimer);
-      world.removeAttribute('data-panning');
+      root.removeAttribute('data-panning');
     };
   }, [viewport, spatial]);
 
