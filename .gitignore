@@ -13,3 +13,8 @@ npm-debug.log*
 coverage
 .wrangler
 .claude
+
+# Les variables locales du Worker — c'est là qu'atterrit OWNER_EMAIL quand on
+# développe hors ligne. Ce dépôt est public : ce fichier ne doit jamais y entrer.
+.dev.vars
+.dev.vars.*

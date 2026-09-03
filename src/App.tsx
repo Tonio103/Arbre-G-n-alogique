@@ -5,6 +5,7 @@ import { unionKey } from '@/domain/graph';
 import { useDataset } from '@/hooks/useDataset';
 import { useTheme } from '@/hooks/useTheme';
 import { useGlassLight } from '@/hooks/useGlassLight';
+import { useVisitor } from '@/hooks/useVisitor';
 import { useIsCompact } from '@/hooks/useMediaQuery';
 import { computeHighlight, relationPath, type HighlightMode } from '@/domain/relations';
 import {
@@ -34,6 +35,7 @@ import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
 import { DataNotice } from '@/components/DataNotice';
+import { WelcomeNote } from '@/components/WelcomeNote';
 import type { ViewMode } from '@/components/ViewSwitch';
 import { FamilyBanner } from '@/components/FamilyBanner';
 /*
@@ -651,6 +653,13 @@ export default function App() {
   // Le décompte de la pastille suit le périmètre courant, comme la liste.
   const gapCount = useMemo(() => findGaps(graph, scopePeople).length, [graph, scopePeople]);
 
+  /*
+   * Qui regarde l'arbre — Cloudflare Access le sait déjà, il n'y a qu'à le
+   * lui demander (voir `useVisitor`). Vaut `null` en développement local,
+   * où Access n'est pas devant : l'accueil ne s'affiche simplement pas.
+   */
+  const { visitor, identify: identifyVisitor } = useVisitor();
+
   /** Ouvre une personne dans l'arbre : on y revient, puis on la sélectionne. */
   const showInTree = useCallback(
     (id: string) => {
@@ -770,6 +779,19 @@ export default function App() {
       <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />
 
       <DataNotice anomalies={anomalies} onSelect={selectPerson} />
+
+      {/* Après le rideau seulement : un mot d'accueil par-dessus l'écran de
+          chargement s'adresserait à quelqu'un qui ne voit pas encore l'arbre
+          dont on lui parle. */}
+      {ready && visitor && viewMode === 'tree' && (
+        <WelcomeNote
+          visitor={visitor}
+          graph={graph}
+          gapCount={gapCount}
+          onIdentify={identifyVisitor}
+          onOpenGaps={() => setViewMode('gaps')}
+        />
+      )}
 
       <DetailPanel
         relation={relation}
