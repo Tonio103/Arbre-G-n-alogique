@@ -1209,3 +1209,41 @@
     transform: none;
   }
 }
+
+/* ── Boutons d'action tranchés ────────────────────────────────────────────
+ *
+ * Confirmer et supprimer, dans les formulaires de la fiche. Ces trois règles
+ * vivaient dans `data-panel.css`, avec le panneau d'import qui n'existe plus
+ * — leur nom disait le panneau, jamais ce qu'elles font. Renommées d'après
+ * leur rôle, elles rejoignent la feuille des formulaires qui les utilisent.
+ */
+.action-button--confirm {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.action-button--confirm:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+  color: #fff;
+}
+
+.action-button--danger {
+  background: rgba(214, 76, 60, 0.14);
+  border-color: rgba(214, 76, 60, 0.4);
+  color: #d64c3c;
+}
+
+.action-button--danger:hover {
+  background: rgba(214, 76, 60, 0.22);
+  color: #d64c3c;
+}
+
+/* L'avertissement qui précède une suppression. */
+.form-warning {
+  margin-top: 6px;
+  color: var(--accent-warm, #c2761c);
+  font-size: 12px;
+  line-height: 1.5;
+}

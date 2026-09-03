@@ -1,6 +1,5 @@
 import type { GenerationRow, LayoutUnion } from '@/domain/layout';
 import {
-  CARD_WIDTH,
   CARD_HEIGHT,
   ROW_HEIGHT,
   cardCenterX,
@@ -472,22 +471,3 @@ function unionPathLength(union: LayoutUnion): number {
   return total;
 }
 
-/** Étendue d'une union, pour ne dessiner que ce qui est réellement visible. */
-export function unionExtent(union: LayoutUnion): {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-} {
-  let left = Number.POSITIVE_INFINITY;
-  let top = Number.POSITIVE_INFINITY;
-  let right = Number.NEGATIVE_INFINITY;
-  let bottom = Number.NEGATIVE_INFINITY;
-  for (const point of [...union.partners, ...union.children]) {
-    left = Math.min(left, point.x);
-    top = Math.min(top, point.y);
-    right = Math.max(right, point.x + CARD_WIDTH);
-    bottom = Math.max(bottom, point.y + CARD_HEIGHT);
-  }
-  return { left, top, right, bottom };
-}

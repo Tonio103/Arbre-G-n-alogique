@@ -53,11 +53,8 @@ export const MIN_SCALE_FIT_RATIO = 0.55;
 /** Seuils de niveau de détail : au-delà, on dégrade le rendu pour tenir la fluidité. */
 export const LOD_FULL = 0.52;
 export const LOD_COMPACT = 0.24;
-/** Au-dessus de cette densité de cartes visibles, on coupe le flou d'arrière-plan. */
-export const BLUR_BUDGET = 90;
 
 export const cardCenterX = (x: number): number => x + CARD_WIDTH / 2;
-export const cardCenterY = (y: number): number => y + CARD_HEIGHT / 2;
 export const cardTop = (y: number): number => y;
 export const cardBottom = (y: number): number => y + CARD_HEIGHT;
 
@@ -79,7 +76,5 @@ export const PORTRAIT_RADIUS = PORTRAIT_SIZE / 2;
 
 /** Haut du portrait : d'où part une branche qui monte vers la descendance. */
 export const portraitTop = (y: number): number => y + PORTRAIT_TOP;
-/** Bas du portrait : où arrive la branche venant des parents. */
-export const portraitBottom = (y: number): number => y + PORTRAIT_TOP + PORTRAIT_SIZE;
 /** Centre du portrait : hauteur du trait qui unit deux conjoints. */
 export const portraitCenterY = (y: number): number => y + PORTRAIT_TOP + PORTRAIT_RADIUS;

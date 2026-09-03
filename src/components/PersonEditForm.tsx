@@ -523,7 +523,7 @@ export function PersonEditForm({
       <LinkListEditor items={links} onChange={setLinks} />
 
       <div className="edit-form-actions">
-        <button type="submit" className="action-button data-panel-confirm">
+        <button type="submit" className="action-button action-button--confirm">
           Enregistrer
         </button>
         <button type="button" className="action-button" onClick={onCancel}>
@@ -557,10 +557,10 @@ export function PersonEditForm({
           </button>
         ) : (
           <div className="edit-form-actions">
-            <span className="data-panel-warning">
+            <span className="form-warning">
               Retire {person.firstName} de l’arbre, et des fiches des proches qui la citaient.
             </span>
-            <button type="button" className="action-button data-panel-danger" onClick={onDelete}>
+            <button type="button" className="action-button action-button--danger" onClick={onDelete}>
               Confirmer la suppression
             </button>
             <button type="button" className="action-button" onClick={() => setConfirmingDelete(false)}>

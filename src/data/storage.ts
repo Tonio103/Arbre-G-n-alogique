@@ -9,8 +9,12 @@ import type { FamilyDataset } from './schema';
  * Cloudflare Access au même titre que le reste. Avant cette API, chaque
  * navigateur gardait sa propre copie (`localStorage`) : un proche ouvrant le
  * site depuis son téléphone ne voyait jamais ce qui avait été saisi
- * ailleurs. Voir aussi `gedcom-export.ts` et le bouton d'export pour sortir
- * une copie qui survit à une panne ou une erreur de manipulation.
+ * ailleurs.
+ *
+ * Il n'existe plus de bouton pour sortir une copie de l'arbre : l'import et
+ * l'export GEDCOM ont été retirés de l'interface. Ce qu'il y a dans KV est
+ * donc la seule copie — une sauvegarde passe aujourd'hui par le tableau de
+ * bord Cloudflare.
  */
 
 export interface StoredFamily {
@@ -49,14 +53,5 @@ export async function saveStoredFamily(dataset: FamilyDataset, source: StoredFam
   }
   if (!response.ok) {
     throw new Error("Le serveur a refusé d'enregistrer cette modification.");
-  }
-}
-
-export async function clearStoredFamily(): Promise<void> {
-  try {
-    await fetch('/api/family', { method: 'DELETE' });
-  } catch {
-    // Une réinitialisation qui échoue à prévenir le serveur n'empêche pas
-    // de revenir localement à la démonstration — voir `useDataset.reset`.
   }
 }

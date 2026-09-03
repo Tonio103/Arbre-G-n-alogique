@@ -64,7 +64,6 @@ import '@/styles/avatar.css';
 import '@/styles/node.css';
 import '@/styles/chrome.css';
 import '@/styles/detail.css';
-import '@/styles/data-panel.css';
 import '@/styles/loading-screen.css';
 import '@/styles/path-flow.css';
 import '@/styles/views.css';

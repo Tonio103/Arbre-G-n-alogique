@@ -3,7 +3,7 @@
  *  MATÉRIAU DE VERRE
  *
  *  Un seul matériau, décliné. Tout ce qui flotte au-dessus de l'arbre — barre
- *  supérieure, fiche, recherche, vue d'ensemble, étiquettes — est fait de cette
+ *  supérieure, fiche, recherche, onglets, médaillons — est fait de cette
  *  matière et obéit aux mêmes règles physiques.
  *
  *  Un panneau translucide n'est pas du verre. Ce qui fait le verre, c'est la
@@ -61,8 +61,6 @@
   /* Densité de repli, le temps d'un déplacement : voir la règle
      `[data-moving]` plus bas. Privé de son flou, le verre ne doit plus compter
      que sur sa masse pour porter le texte. */
-  --lg-tint-alpha-moving: 0.87;
-  --lg-tint-alpha-edge-moving: 0.93;
 
   /* Reflet glissant ------------------------------------------------------ */
   /* Position par défaut, remplacée en continu par `useGlassLight`. */
@@ -133,8 +131,6 @@
   --lg-tint: 18, 21, 46;
   --lg-tint-alpha: 0.42;
   --lg-tint-alpha-edge: 0.26;
-  --lg-tint-alpha-moving: 0.86;
-  --lg-tint-alpha-edge-moving: 0.78;
 
   --lg-tint-inner-rgb: 255, 255, 255;
   --lg-tint-inner: 0.07;
@@ -253,21 +249,21 @@
 }
 
 /*
- * Le verre ne se suspend plus pendant le geste.
+ * Le flou pendant le geste : deux fois abandonné, une fois retrouvé.
  *
- * Une version précédente coupait la réfraction (`.lg::before`) et le flou
- * d'arrière-plan dès que l'arbre bougeait : c'est la dépense la plus lourde
- * de l'interface, et la couper faisait gagner près du double d'images par
- * seconde pendant un déplacement soutenu.
+ * Une première version coupait la réfraction et le flou dès que l'arbre
+ * bougeait, et gagnait beaucoup — mais la bascule se voyait : le verre
+ * changeait d'aspect à chaque zoom, un scintillement permanent là où
+ * l'optimisation devait passer inaperçue. On a donc tout laissé en place en
+ * permanence, et c'était trop cher.
  *
- * Mais la bascule se voyait. Le verre changeait d'aspect à chaque zoom, à
- * chaque glissé, et revenait après coup — un scintillement permanent, là où
- * l'optimisation était censée passer inaperçue. La netteté constante vaut
- * mieux ici que les images gagnées : le flou, la transparence, les reflets,
- * les bordures et les ombres restent donc en place en permanence.
- *
- * Les jetons `--lg-tint-alpha-moving` existent toujours dans le thème mais
- * ne sont plus appliqués : rien ne les lit désormais.
+ * Ce qui manquait à ces deux essais, c'est la distinction entre les couches.
+ * Seul le flou d'arrière-plan échantillonne ce qu'il y a dessous, et lui seul
+ * doit être refait à chaque image ; la teinte, la nappe et l'arête sont des
+ * dégradés qui ne coûtent rien de plus en mouvement. Suspendre le seul flou
+ * en gardant tout le reste ne se voit pas, et retire la dépense entière —
+ * c'est ce que font les règles `[data-panning]` et `[data-scrolling]` en fin
+ * de fichier.
  */
 
 /*
@@ -816,7 +812,6 @@
  * poser une arête de verre sur une ligne de tableau.
  * ------------------------------------------------------------------------- */
 
-.lg--inner,
 .action-button,
 .chip,
 .relation-badge,
@@ -856,7 +851,6 @@
   border-color: transparent;
 }
 
-.lg--inner::after,
 .action-button::after,
 .chip::after,
 .relation-badge::after,
@@ -896,7 +890,6 @@
 }
 
 /* Le contenu passe devant l'arête, comme dans un panneau. */
-.lg--inner > *,
 .action-button > *,
 .chip > *,
 .note > *,

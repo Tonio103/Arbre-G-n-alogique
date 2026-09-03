@@ -8,11 +8,14 @@ import type { FamilyDataset } from './schema';
  * l'application. Aucun composant d'interface ne connaît vos ancêtres : ils
  * lisent tous ce qui sort d'ici.
  *
- * ── Le plus simple : depuis l'application elle-même ─────────────────────────
+ * Depuis que l'arbre est partagé par le Worker, ce fichier n'est plus que la
+ * GRAINE : ce qu'on voit avant que la version commune n'arrive, et à défaut
+ * d'elle. L'arbre que voit la famille vit dans Cloudflare KV et se modifie
+ * depuis l'application, fiche par fiche.
  *
- * Construisez votre arbre dans l'application (import GEDCOM et/ou retouches
- * en place), puis « Importer/exporter vos données » → Télécharger en JSON.
- * Déposez le fichier téléchargé ici, sous le nom exact `ma-famille.json` :
+ * ── Repartir d'un fichier JSON ──────────────────────────────────────────────
+ *
+ * Déposez un export de l'arbre ici, sous le nom exact `ma-famille.json` :
  *
  *     src/data/ma-famille.json
  *
@@ -72,7 +75,7 @@ const importedFamily = Object.values(jsonModules)[0]?.default ?? null;
 /*
  * La famille de démonstration est désormais désactivée : `MA_FAMILLE` n'est
  * plus `importedFamily` (qui retomberait sur les Beaumont fictifs tant
- * qu'aucun GEDCOM ou JSON n'est importé), mais le noyau ci-dessous — Antoine
+ * qu'aucun JSON n'est déposé), mais le noyau ci-dessous — Antoine
  * et Stella Albertini, frère et sœur. Le reste de la famille (parents,
  * grands-parents de chaque côté, autres fratries…) se construit depuis
  * l'application elle-même, fiche après fiche, avec « Ajouter un proche » :

@@ -202,7 +202,7 @@ export function RelationEditor({
                         <div className="edit-form-actions">
                           <button
                             type="button"
-                            className="action-button data-panel-confirm"
+                            className="action-button action-button--confirm"
                             onClick={() => {
                               onUpdateUnion(id, {
                                 status: unionDraft.status,

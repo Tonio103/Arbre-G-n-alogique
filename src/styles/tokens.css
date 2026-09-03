@@ -20,8 +20,6 @@
   --glass-fill-hover: rgba(255, 255, 255, 0.115);
   --glass-border: rgba(255, 255, 255, 0.11);
   --glass-border-strong: rgba(255, 255, 255, 0.2);
-  --glass-sheen: rgba(255, 255, 255, 0.14);
-  --glass-panel: rgba(16, 22, 38, 0.62);
   --glass-panel-solid: rgba(14, 19, 34, 0.86);
 
   /* Texte */
@@ -62,12 +60,8 @@
   --motif-nebula-a: rgba(120, 130, 220, 0.16);
   --motif-nebula-b: rgba(200, 130, 220, 0.1);
   --star-glow: rgba(255, 255, 255, 0.9);
-  --link-glow-alpha: 0.55;
 
   /* Ombres */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 8px 22px rgba(0, 0, 0, 0.28);
-  --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, 0.34), 0 20px 46px rgba(0, 0, 0, 0.44);
-  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.3), 0 32px 80px rgba(0, 0, 0, 0.5);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.09);
 
   /* Rayons */
@@ -131,8 +125,6 @@
   --glass-fill-hover: rgba(255, 253, 246, 0.94);
   --glass-border: rgba(94, 62, 24, 0.12);
   --glass-border-strong: rgba(94, 62, 24, 0.2);
-  --glass-sheen: rgba(255, 253, 246, 0.9);
-  --glass-panel: rgba(253, 248, 236, 0.74);
   --glass-panel-solid: rgba(251, 245, 231, 0.93);
 
   --text-primary: rgba(38, 26, 10, 0.92);
@@ -161,10 +153,6 @@
   --motif-nebula-a: rgba(180, 130, 60, 0.1);
   --motif-nebula-b: rgba(120, 90, 50, 0.07);
   --star-glow: rgba(154, 91, 35, 0.5);
-  --link-glow-alpha: 0.16;
 
-  --shadow-card: 0 1px 2px rgba(58, 38, 12, 0.1), 0 6px 18px rgba(58, 38, 12, 0.1);
-  --shadow-card-hover: 0 2px 6px rgba(58, 38, 12, 0.12), 0 18px 40px rgba(58, 38, 12, 0.18);
-  --shadow-panel: 0 2px 8px rgba(58, 38, 12, 0.08), 0 30px 70px rgba(58, 38, 12, 0.16);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }

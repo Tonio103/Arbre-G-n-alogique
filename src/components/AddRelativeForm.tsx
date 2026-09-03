@@ -190,7 +190,7 @@ export function AddRelativeForm({ kind, spouseOptions, candidates, onSubmit, onL
       )}
 
       <div className="edit-form-actions">
-        <button type="submit" className="action-button data-panel-confirm" disabled={mode === 'existing' && !selectedId}>
+        <button type="submit" className="action-button action-button--confirm" disabled={mode === 'existing' && !selectedId}>
           {mode === 'existing' ? 'Relier' : 'Ajouter'}
         </button>
         <button type="button" className="action-button" onClick={onCancel}>

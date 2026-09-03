@@ -8,18 +8,6 @@
 /* ── La bascule de vue ───────────────────────────────────────────────────── */
 
 /*
- * La barre de vues, posée en bas.
- *
- * Elle flottait sous la barre du haut, exactement sur la rangée d'ancêtres la
- * plus dense : elle masquait des médaillons, et empilait une deuxième dalle de
- * verre par-dessus le dessin.
- *
- * On ne peut pas la fondre dans la barre du haut, qui s'efface dès qu'une
- * fiche est ouverte — la navigation disparaîtrait au moindre clic sur
- * quelqu'un. En bas, elle reste atteignable en toutes circonstances, et le
- * haut de l'arbre redevient libre.
- */
-/*
  * Vivait seule, en pilule flottante au bas de l'écran — coupée de tout ce qui
  * règle la vue au-dessus d'elle. Elle est maintenant un second contrôle dans
  * la barre de recherche : changer de lecture est un geste de la même famille
@@ -110,8 +98,7 @@
   z-index: 20;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* De quoi ne pas passer sous la barre de vues, en bas. */
-  padding: 8px clamp(16px, 4vw, 40px) 92px;
+  padding: 8px clamp(16px, 4vw, 40px) 28px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1068,7 +1055,7 @@
 @media (max-width: 720px) {
   .view {
     inset: calc(var(--topbar-height, 62px) + 20px) 0 0 0;
-    padding: 8px 12px 88px;
+    padding: 8px 12px 24px;
     gap: 12px;
   }
 

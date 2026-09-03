@@ -279,21 +279,10 @@
   transform-origin: 0 0;
 }
 
-.empty-state {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-/* Bandeau d'aide en bas d'écran, s'efface une fois l'utilisateur lancé. */
 .hint-bar {
   position: absolute;
   left: 50%;
-  /* Au-dessus de la barre de vues, qui occupe désormais le bas du cadre. */
-  bottom: calc(76px + var(--safe-bottom));
+  bottom: calc(22px + var(--safe-bottom));
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -353,19 +342,4 @@
   .hint-bar {
     display: none;
   }
-}
-
-/*
- * La scène en trois dimensions.
- *
- * Elle occupe tout le cadre et reçoit les gestes elle-même : la caméra tourne
- * autour de l'arbre, il n'y a plus de monde transformé sous elle.
- */
-.orbit-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  touch-action: none;
 }

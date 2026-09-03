@@ -155,7 +155,6 @@ export const REGIONS: Record<string, Region> = {
   },
 };
 
-export type RegionKey = keyof typeof REGIONS;
 
 export interface ProfessionEra {
   until: number;

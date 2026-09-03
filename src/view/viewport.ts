@@ -83,7 +83,7 @@ const easeInOutCubic = (t: number): number =>
 /**
  * Détente avec léger dépassement — la même sensation que `--ease-spring` en
  * CSS, portée ici en fonction pour les animations pilotées en JavaScript. Un
- * geste ponctuel (recentrer la vue d'ensemble d'un clic) gagne à se sentir
+ * geste ponctuel (recadrer l'arbre entier d'un clic) gagne à se sentir
  * comme un objet qu'on relâche plutôt que comme un simple fondu de
  * coordonnées ; un geste continu (glisser) ne doit jamais l'utiliser, sous
  * peine de rejouer le dépassement à chaque image du glissé.

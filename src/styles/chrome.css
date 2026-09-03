@@ -1,4 +1,4 @@
-/* Barre supérieure, recherche, contrôles, vue d'ensemble et rail des générations. */
+/* Barre supérieure, recherche, contrôles, rail des générations, mot d'accueil. */
 
 .topbar {
   position: absolute;
@@ -20,20 +20,20 @@
 }
 
 /*
- * Effacée pendant qu'une fiche est ouverte.
+ * Effacée pendant qu'une fiche est ouverte — sur petit écran seulement.
  *
- * Chercher quelqu'un d'autre ou changer de vue n'a pas de sens tant qu'on lit
- * une personne : la fiche couvre déjà ce périmètre, et la barre du haut ne
- * fait plus que disputer l'attention à ce qu'on est venu lire. Elle se
- * referme donc avec la fiche, comme un rideau, et revient dès qu'on la
- * ferme — `pointer-events: none` l'écarte aussi de la tabulation pendant
- * qu'elle est invisible.
+ * Là, la fiche est une feuille qui prend tout : la barre du haut ne ferait
+ * que disputer l'attention à ce qu'on est venu lire, et se retire donc comme
+ * un rideau (voir la règle dans le bloc compact, plus bas).
+ *
+ * Sur grand écran, elle reste. Elle s'effaçait aussi, à une époque où elle ne
+ * portait que le titre et la recherche ; depuis que les quatre onglets de vue
+ * l'ont rejointe, cet effacement coûtait toute la navigation au moindre clic
+ * sur quelqu'un — plus moyen de passer à la Carte ou à la Chronologie sans
+ * refermer d'abord la fiche. Et l'argument ne tenait de toute façon que sur
+ * une feuille plein écran : ici la fiche occupe la droite, la barre a sa
+ * place à elle, et les deux ne se disputent rien.
  */
-.app[data-panel-open] .topbar {
-  opacity: 0;
-  transform: translateY(-14px);
-  pointer-events: none;
-}
 
 @keyframes chrome-in {
   from {
@@ -367,26 +367,6 @@
   color: var(--text-tertiary);
 }
 
-/* ------------------------------ Vue d'ensemble ------------------------------ */
-
-.minimap {
-  position: absolute;
-  left: calc(14px + var(--safe-left));
-  bottom: calc(14px + var(--safe-bottom));
-  z-index: 12;
-  padding: 8px;
-  border-radius: 20px;
-  line-height: 0;
-  animation: chrome-in 620ms var(--ease-out) 120ms both;
-}
-
-.minimap canvas {
-  display: block;
-  border-radius: 13px;
-  cursor: crosshair;
-  touch-action: none;
-}
-
 /* --------------------------- Rail des générations --------------------------- */
 
 .rail {
@@ -406,13 +386,6 @@
 /* Le rail s'écarte pour laisser la place à la fiche plutôt que de passer dessous. */
 .app[data-panel-open] .rail {
   right: calc(var(--panel-width) + 26px);
-}
-
-/* Et s'efface le temps que la carte des lieux, dépliée dans le même coin,
-   reste ouverte — pas de quoi lui garder deux couches superposées. */
-.app:has(.family-map-panel) .rail {
-  opacity: 0;
-  pointer-events: none;
 }
 
 .rail-list {
@@ -498,6 +471,13 @@
  * pour l'accueillir.
  */
 @media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
+  /* La feuille de détail prend tout l'écran : la barre se retire derrière. */
+  .app[data-panel-open] .topbar {
+    opacity: 0;
+    transform: translateY(-14px);
+    pointer-events: none;
+  }
+
   .topbar {
     top: calc(10px + var(--safe-top));
     left: calc(10px + var(--safe-left));
@@ -524,8 +504,8 @@
     grid-area: controls;
   }
 
-  /* Sur petit écran on garde l'essentiel : le thème reste accessible,
-     la vue d'ensemble et le mode lignée passent par la fiche. */
+  /* Sur petit écran on garde l'essentiel : le thème, l'aide et le zoom
+     restent accessibles ; le mode lignée passe par la fiche. */
   .hide-compact {
     display: none;
   }
@@ -563,181 +543,6 @@
   .icon-button {
     width: 32px;
     height: 32px;
-  }
-}
-
-/* ---------------------------- Noms de branches ---------------------------- */
-
-.branches {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  pointer-events: none;
-  opacity: 0;
-  /* Masqué pour de bon quand le zoom rend les étiquettes inutiles : une couche
-     transparente laisse ses surfaces de verre flouter l'arrière-plan à chaque
-     image, pour un contenu que personne ne voit. */
-  visibility: hidden;
-  transition:
-    opacity var(--dur-slow) var(--ease-out),
-    visibility 0s linear var(--dur-slow);
-}
-
-.branches[data-visible='true'] {
-  opacity: 1;
-  visibility: visible;
-  transition:
-    opacity var(--dur-slow) var(--ease-out),
-    visibility 0s;
-}
-
-/* Fil reliant l'étiquette au point de l'arbre qu'elle nomme. */
-.branch-tether {
-  position: absolute;
-  top: calc(100% - 2px);
-  left: 50%;
-  width: 1.5px;
-  height: 16px;
-  transform: translateX(-50%);
-  transform-origin: top;
-  border-radius: 1px;
-  background: linear-gradient(var(--glass-border-strong), transparent);
-  pointer-events: none;
-}
-
-.branch-tether::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: var(--glass-border-strong);
-}
-
-.branch-label {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 230px;
-  margin-top: -16px;
-  padding: 7px 12px;
-  border-radius: var(--radius-pill);
-  opacity: 0;
-  will-change: transform;
-  transition:
-    opacity var(--dur-base) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
-}
-
-.branch-label:hover {
-  background: var(--glass-panel-solid);
-}
-
-.branch-label-surface {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-/*
- * Entrée d'une étiquette : une montée plutôt qu'un simple fondu, et le fil
- * d'amarre qui se déroule depuis l'étiquette vers le point qu'il désigne —
- * l'inverse de sa lecture visuelle (de haut en bas), mais l'ordre dans
- * lequel `transform-origin: top` le fait grandir donne bien l'impression
- * qu'il descend se planter sur la branche.
- */
-.branch-label[data-entering] .branch-label-surface {
-  animation: branch-label-rise 460ms var(--ease-spring) both;
-}
-
-.branch-label[data-entering] .branch-tether {
-  animation: branch-tether-grow 340ms var(--ease-out) 90ms both;
-}
-
-@keyframes branch-label-rise {
-  from {
-    opacity: 0;
-    transform: translateY(-7px) scale(0.94);
-  }
-}
-
-@keyframes branch-tether-grow {
-  from {
-    transform: translateX(-50%) scaleY(0);
-  }
-  to {
-    transform: translateX(-50%) scaleY(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .branch-label[data-entering] .branch-label-surface,
-  .branch-label[data-entering] .branch-tether {
-    animation: none;
-  }
-}
-
-.branch-name {
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-primary);
-}
-
-.branch-count {
-  flex: none;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  font-size: 10.5px;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-}
-
-@media (max-width: 720px) {
-  /* Fil reliant l'étiquette au point de l'arbre qu'elle nomme. */
-.branch-tether {
-  position: absolute;
-  top: calc(100% - 2px);
-  left: 50%;
-  width: 1.5px;
-  height: 16px;
-  transform: translateX(-50%);
-  transform-origin: top;
-  border-radius: 1px;
-  background: linear-gradient(var(--glass-border-strong), transparent);
-  pointer-events: none;
-}
-
-.branch-tether::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: var(--glass-border-strong);
-}
-
-.branch-label {
-    max-width: 170px;
-    padding: 5px 9px;
-  }
-
-  .branch-name {
-    font-size: 11px;
   }
 }
 
@@ -1014,7 +819,7 @@
    remonte au-dessus des onglets plutôt que de passer dessous. */
 @media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
   .welcome {
-    bottom: calc(78px + var(--safe-bottom, 0px));
+    bottom: calc(20px + var(--safe-bottom, 0px));
     left: calc(10px + var(--safe-left));
     right: calc(10px + var(--safe-right));
     width: auto;

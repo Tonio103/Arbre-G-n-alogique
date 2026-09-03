@@ -47,7 +47,7 @@ interface LensSpec {
 }
 
 const LENSES: LensSpec[] = [
-  // Grands panneaux (fiche, vue d'ensemble) : des vagues amples, qui se
+  // Grands panneaux (fiche, barre du haut) : des vagues amples, qui se
   // lisent comme une surface plutôt qu'une texture.
   { id: 'lg-lens-panel', scale: 15, frequency: 0.009 },
   // Contrôles et pilules de taille moyenne.

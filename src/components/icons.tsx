@@ -82,22 +82,9 @@ export const AddPersonIcon = () => (
   </svg>
 );
 
-export const ImportIcon = () => (
-  <svg {...base}>
-    <path d="M10 3v9M6.5 8.5 10 12l3.5-3.5" />
-    <path d="M4 13.6V16.4h12V13.6" />
-  </svg>
-);
-
 export const CloseIcon = () => (
   <svg {...base}>
     <path d="M5.4 5.4 14.6 14.6M14.6 5.4 5.4 14.6" />
-  </svg>
-);
-
-export const ChevronIcon = () => (
-  <svg {...base}>
-    <path d="M7.6 4.8 12.8 10l-5.2 5.2" />
   </svg>
 );
 

@@ -47,7 +47,7 @@ const json = (body: unknown, status = 200): Response =>
 
 /** Vérification minimale : on ne veut pas écraser l'arbre par n'importe
  *  quoi, mais la validation détaillée (dates, doublons…) reste au
- *  chargement côté application, comme pour un import GEDCOM. */
+ *  chargement côté application. */
 function looksLikeFamilyDataset(value: unknown): value is { people: PersonLike[] } {
   return (
     typeof value === 'object' &&
@@ -326,11 +326,15 @@ export default {
         return new Response(null, { status: 204 });
       }
 
-      if (request.method === 'DELETE') {
-        await env.FAMILY_KV.delete(FAMILY_KEY);
-        return new Response(null, { status: 204 });
-      }
-
+      /*
+       * Il y avait ici un `DELETE` qui vidait l'arbre d'un coup. Plus rien ne
+       * l'appelait depuis que la remise à zéro a quitté l'interface — mais il
+       * restait joignable par quiconque a passé Access, c'est-à-dire par
+       * n'importe quel proche, sans confirmation ni retour en arrière, et
+       * depuis qu'il n'y a plus d'export, sans copie de secours non plus.
+       * Effacer l'arbre passe désormais par le tableau de bord Cloudflare, où
+       * il faut le vouloir.
+       */
       return json({ error: 'Méthode non gérée.' }, 405);
     }
 
