@@ -174,11 +174,6 @@ export function GapsView({
           <em>{remaining} restants</em>
         </button>
       )}
-
-      <p className="view-note view-note--standalone">
-        Le suivi 🔴 🟡 🟢 n’est qu’un pense-bête : il ne touche jamais aux données familiales.
-        Il est gardé dans ce navigateur, sur cet appareil uniquement.
-      </p>
     </section>
   );
 }

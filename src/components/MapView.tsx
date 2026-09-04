@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import {
   collectScopedPlaces,
@@ -337,7 +345,21 @@ export function MapView({
         </p>
       ) : (
         <div className="map-layout">
-          <div className="map-stage lg lg--thick" ref={mapStageRef}>
+          {/*
+            Le rapport du `viewBox`, donné au CSS.
+            
+            C'est lui qui permet au panneau d'épouser exactement la carte :
+            la feuille en déduit une largeur maximale au lieu de plafonner la
+            hauteur (voir `.map-svg` dans `views.css`). Passé d'ici plutôt
+            qu'écrit en dur là-bas — `VIEW_W` et `VIEW_H` se calculent au
+            chargement, à partir du cadrage de départ, et personne ne pensera
+            à recopier la nouvelle valeur le jour où il changera.
+          */}
+          <div
+            className="map-stage lg lg--thick"
+            ref={mapStageRef}
+            style={{ '--map-aspect': String(VIEW_W / VIEW_H) } as CSSProperties}
+          >
             <svg
               ref={setSvgRef}
               viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}

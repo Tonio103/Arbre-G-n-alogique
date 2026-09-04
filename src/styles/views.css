@@ -205,8 +205,18 @@
   }
 }
 
+/*
+ * Le panneau épouse la carte, et rien de plus.
+ *
+ * Il s'étirait sur toute sa colonne alors que la carte, elle, gardait le
+ * rapport de son `viewBox` : le verre débordait largement du dessin, à
+ * gauche et à droite. `fit-content` le fait se refermer sur ce qu'il
+ * contient.
+ */
 .map-stage {
   position: relative;
+  width: fit-content;
+  max-width: 100%;
   border-radius: var(--radius-panel, 18px);
   padding: 10px;
   overflow: hidden;
@@ -214,16 +224,20 @@
 
 /*
  * La carte se cale sur la hauteur disponible, pas sur la largeur de sa
- * colonne. Laissée libre, elle prenait 733 px de côté dans une zone qui n'en
- * fait que 588 : il fallait faire défiler pour voir le bas de la France.
- * Le `viewBox` garde les proportions, l'espace en trop se répartit sur les
- * côtés.
+ * colonne : laissée libre, elle prenait 733 px de côté dans une zone qui n'en
+ * fait que 588, et il fallait défiler pour voir le bas de la France.
+ *
+ * Mais plafonner la HAUTEUR laissait la boîte large de toute sa colonne, avec
+ * le dessin centré dedans et du vide de chaque côté — c'est ce vide qu'on
+ * voyait déborder du panneau. Le plafond porte donc sur la largeur, déduite
+ * de la hauteur voulue et du rapport du `viewBox` (`--map-aspect`, posé par
+ * `MapView`) : la boîte épouse alors le dessin au pixel près.
  */
 .map-svg {
   display: block;
   width: 100%;
   height: auto;
-  max-height: min(58vh, 520px);
+  max-width: calc(min(58vh, 520px) * var(--map-aspect, 1.4));
   border-radius: calc(var(--radius-panel, 18px) - 8px);
   cursor: grab;
   /* Le geste de glissé gère lui-même le déplacement ; laisser le navigateur
@@ -541,11 +555,24 @@
   text-decoration: underline;
 }
 
+/*
+ * Un seul ascenseur, celui de la vue.
+ *
+ * La frise était plafonnée à 62 % de la hauteur d'écran et défilait à
+ * l'intérieur d'elle-même : il fallait descendre la page, puis descendre
+ * encore DANS le panneau pour atteindre les dernières vies — deux gestes
+ * imbriqués pour un seul mouvement voulu, et deux barres de défilement
+ * côte à côte. Elle garde donc sa hauteur naturelle, comme le veut déjà
+ * `.view > *` plus haut, et c'est la vue entière qui défile.
+ *
+ * Seul l'axe des années peut encore déborder, quand l'écran est plus étroit
+ * que les 640 px minimum de la frise : `overflow-x` s'en charge, et lui
+ * seul.
+ */
 .timeline-stage {
   border-radius: var(--radius-panel, 18px);
   padding: 12px;
-  overflow: auto;
-  max-height: min(62vh, 560px);
+  overflow-x: auto;
 }
 
 .timeline-svg {
@@ -1101,11 +1128,6 @@
    */
   .timeline-svg {
     min-width: 0;
-  }
-
-  .timeline-stage {
-    max-height: none;
-    overflow: visible;
   }
 
   .timeline-tools {
