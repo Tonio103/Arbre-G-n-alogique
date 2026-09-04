@@ -190,9 +190,8 @@
 /* Le focus se marque par un halo, la surface n'ayant plus de bordure propre. */
 .search-field:focus-within {
   box-shadow:
-    var(--lg-shadow-contact),
-    var(--lg-shadow-near),
-    inset 0 1px 0 0 var(--lg-inner-light),
+    var(--pa-ombre),
+    inset 0 1px 0 0 var(--pa-arete),
     0 0 0 3px var(--accent-soft),
     0 0 0 1px var(--accent-ring);
 }
@@ -674,15 +673,12 @@
 
 .search-chip[data-on] {
   color: var(--accent-strong);
-  --lg-tint: 47, 111, 219;
-  --lg-tint-alpha: 0.14;
-  --lg-tint-alpha-edge: 0.22;
+  background-color: var(--accent-soft);
   box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
 :root[data-theme='dark'] .search-chip[data-on] {
-  --lg-tint: 127, 176, 255;
-  --lg-tint-alpha: 0.2;
+  background-color: var(--accent-soft);
 }
 
 /* Séparateur entre l'état civil et les branches. */

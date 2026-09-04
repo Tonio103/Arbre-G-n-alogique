@@ -127,43 +127,6 @@
   transition: box-shadow var(--dur-base) var(--ease-out);
 }
 
-/*
- * Anneau de verre autour du portrait.
- *
- * C'est la seule pièce de matière du médaillon au repos : un cerne clair en
- * haut, plus sombre en bas, qui donne au disque son épaisseur. Le dégradé
- * conique partage l'angle de lumière du reste de l'interface, si bien que
- * portrait et panneaux sont éclairés depuis le même point.
- */
-.node-ring {
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  padding: 1.2px;
-  background: conic-gradient(
-    from var(--lg-light),
-    transparent 0deg,
-    var(--lg-specular) 30deg,
-    var(--lg-specular-soft) 82deg,
-    transparent 140deg,
-    transparent 200deg,
-    var(--lg-specular-soft) 250deg,
-    var(--lg-specular) 285deg,
-    transparent 336deg
-  );
-  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-  -webkit-mask-clip: content-box, border-box;
-  -webkit-mask-composite: xor;
-  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
-  mask-clip: content-box, border-box;
-  mask-composite: exclude;
-  opacity: 0.75;
-  pointer-events: none;
-  transition:
-    opacity var(--dur-base) var(--ease-out),
-    inset var(--dur-base) var(--ease-spring);
-}
-
 /* --------------------------- Les proches cachés --------------------------- */
 
 /*
@@ -197,8 +160,7 @@
   line-height: 1;
   color: var(--accent);
   /* Assez de masse pour se lire sur un portrait, qui est tout sauf uniforme. */
-  --lg-tint-alpha: 0.86;
-  --lg-tint-alpha-edge: 0.94;
+  background-color: var(--glass-panel-solid);
   --lg-blur: 8px;
   transition:
     transform var(--dur-base) var(--ease-spring),
@@ -206,8 +168,7 @@
 }
 
 :root[data-theme='dark'] .node-more {
-  --lg-tint-alpha: 0.88;
-  --lg-tint-alpha-edge: 0.94;
+  background-color: var(--glass-panel-solid);
 }
 
 /* Au survol, la pastille se soulève avec le portrait qu'elle borde. */
@@ -340,13 +301,6 @@
   transform: scale(1.16);
 }
 
-/* L'anneau s'écarte et s'allume : le disque paraît se soulever. */
-.node:hover .node-ring,
-.node:focus-visible .node-ring {
-  inset: -4px;
-  opacity: 1;
-}
-
 /*
  * Au survol, la plaque ne change pas de nature : elle s'épaissit. Plus de
  * masse, un flou un peu plus long, un reflet plus vif, un décollement plus
@@ -354,18 +308,19 @@
  */
 .node:hover .node-plate,
 .node:focus-visible .node-plate {
-  --lg-tint-alpha: 0.72;
-  --lg-tint-alpha-edge: 0.82;
+  background-color: var(--glass-fill-hover);
   --lg-blur: 14px;
   --lg-glare: rgba(255, 255, 255, 0.4);
-  --lg-shadow-near: 0 5px 14px rgba(18, 28, 48, 0.13);
-  --lg-shadow-far: 0 16px 34px rgba(18, 28, 48, 0.15);
+  box-shadow:
+    0 1px 2px rgba(46, 36, 24, 0.1),
+    0 5px 14px rgba(46, 36, 24, 0.12),
+    inset 0 1px 0 0 var(--pa-arete),
+    0 0 0 0.5px var(--pa-bord);
 }
 
 :root[data-theme='dark'] .node:hover .node-plate,
 :root[data-theme='dark'] .node:focus-visible .node-plate {
-  --lg-tint-alpha: 0.8;
-  --lg-tint-alpha-edge: 0.88;
+  background-color: var(--glass-fill-hover);
 }
 
 .node:hover .node-years,
@@ -454,33 +409,23 @@
     0 12px 28px rgba(16, 26, 44, 0.3);
 }
 
-.node[data-selected] .node-ring {
-  opacity: 0;
-}
-
 /*
  * Sélection : la même plaque épaissie, plus un liseré d'accent. Il s'ajoute
  * aux ombres du matériau au lieu de les remplacer — sinon la plaque perdait sa
  * tranche et son élévation à l'instant précis où on la regarde le plus.
  */
 .node[data-selected] .node-plate {
-  --lg-tint-alpha: 0.76;
-  --lg-tint-alpha-edge: 0.86;
+  background-color: var(--glass-fill-strong);
   --lg-blur: 14px;
   box-shadow:
-    var(--lg-shadow-contact),
-    var(--lg-shadow-near),
-    var(--lg-shadow-far),
-    inset 0 1px 0 0 var(--lg-inner-light),
-    inset 0 -1px 0 0 var(--lg-inner-shade),
-    inset 0 0 22px -6px var(--lg-inner-depth),
-    inset 0 0 0 0.5px rgba(var(--lg-tint), 0.5),
+    var(--pa-ombre),
+    inset 0 1px 0 0 var(--pa-arete),
+    inset 0 -1px 0 0 var(--pa-creux),
     0 0 0 1px var(--accent-ring);
 }
 
 :root[data-theme='dark'] .node[data-selected] .node-plate {
-  --lg-tint-alpha: 0.84;
-  --lg-tint-alpha-edge: 0.9;
+  background-color: var(--glass-fill-strong);
 }
 
 .node[data-selected] .node-years {
@@ -498,10 +443,6 @@
   opacity: 1;
   height: auto;
   transform: translateY(0);
-}
-
-.node[data-role] .node-ring {
-  opacity: 0;
 }
 
 .node[data-role='spouse'] .node-avatar {
@@ -558,13 +499,9 @@
    sélection : il ne le remplace pas. */
 .node[data-path] .node-plate {
   box-shadow:
-    var(--lg-shadow-contact),
-    var(--lg-shadow-near),
-    var(--lg-shadow-far),
-    inset 0 1px 0 0 var(--lg-inner-light),
-    inset 0 -1px 0 0 var(--lg-inner-shade),
-    inset 0 0 22px -6px var(--lg-inner-depth),
-    inset 0 0 0 0.5px rgba(var(--lg-tint), 0.5),
+    var(--pa-ombre),
+    inset 0 1px 0 0 var(--pa-arete),
+    inset 0 -1px 0 0 var(--pa-creux),
     0 0 0 1px var(--accent-ring);
 }
 
@@ -622,26 +559,18 @@
 }
 
 /*
- * Une infobulle par médaillon visible, toutes invisibles sauf une : leur flou
- * d'arrière-plan ne doit exister qu'au moment où elle se montre, sinon on paie
- * quatre-vingts surfaces floutées pour n'en regarder qu'une.
+ * L'infobulle n'allume plus son flou au survol.
+ *
+ * Elle en avait un, allumé au dernier moment pour ne pas payer quatre-vingts
+ * surfaces floutées quand une seule se montre. C'était une bonne économie
+ * pour du verre ; sur du papier la question ne se pose plus — un feuillet
+ * opaque n'a rien à flouter, et ne coûte rien qu'il soit visible ou non.
  */
-.node-tooltip {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.node-tooltip::before {
-  display: none;
-}
-
 .node:hover .node-tooltip,
 .node:focus-visible .node-tooltip {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
   transition-delay: 60ms;
-  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
-  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
 }
 
 .node-tooltip-name {
@@ -678,7 +607,6 @@
   .node-halo,
   .node-portrait,
   .node-plate,
-  .node-ring,
   .node-years {
     transition: none;
   }

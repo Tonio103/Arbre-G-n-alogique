@@ -1,3 +1,33 @@
+/* ============================================================================
+ *
+ *  LE CAMÉE
+ *
+ *  Le portrait était un disque à dégradés — deux halos colorés sur un fond
+ *  incliné, une couleur par personne. Sur une planche gravée, c'est la seule
+ *  chose qui restait d'une application moderne, et elle suffisait à tout
+ *  démentir.
+ *
+ *  Il devient donc une taille-douce, obtenue sans une seule image :
+ *
+ *    LA TAILLE        un dégradé répété — des traits parallèles, l'outil de
+ *                     base du burin
+ *    LA RÉSERVE       un dégradé radial de la couleur du papier, posé en haut
+ *                     à gauche : là où le graveur n'a pas creusé, la lumière
+ *                     frappe
+ *    LA CONTRE-TAILLE une seconde trame, à un autre angle, MASQUÉE dans le
+ *                     seul quart d'ombre — c'est elle qui donne le volume
+ *    LE LAVIS         la teinte propre à chaque personne, réduite à une
+ *                     ombre colorée très pâle
+ *
+ *  La couleur par personne est conservée — sans elle, cent portraits se
+ *  ressemblent — mais elle passe de l'aplat saturé au lavis du coloriste :
+ *  une touche posée à la main par-dessus le noir, jamais à la place.
+ *
+ *  Tout cela est en dégradés : peint une fois, jamais recalculé, et net à
+ *  toutes les tailles.
+ *
+ * ========================================================================== */
+
 .avatar {
   position: relative;
   display: grid;
@@ -6,52 +36,97 @@
   border-radius: 50%;
   overflow: hidden;
   isolation: isolate;
+  background-color: var(--glass-panel-solid);
+  /* Le double filet du graveur : un trait franc, un blanc de réserve, un
+     trait plus fin. Jamais un simple cerne d'un pixel. */
   box-shadow:
-    0 0 0 1px var(--glass-border-strong),
-    0 6px 16px rgba(0, 0, 0, 0.28);
+    0 0 0 1px var(--text-primary),
+    0 0 0 2.5px var(--glass-panel-solid),
+    0 0 0 3.5px var(--glass-border-strong);
 }
 
+/* Une vraie photographie doit entrer dans la planche : on la ramène au bistre
+   plutôt que de la laisser en couleurs au milieu d'une gravure. */
 .avatar-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  /*
-   * Ken Burns discret : le zoom n'est pas une transition qu'on regarde finir,
-   * c'est un mouvement qui doit encore être en train de se faire quand le
-   * regard s'en va déjà — d'où une durée bien plus longue que tout le reste
-   * de l'interface. `.node` et `.detail-identity` déclenchent le survol
-   * chacun à leur façon (voir `node.css`, `detail.css`) ; l'image elle-même
-   * ne porte que le mouvement, jamais la condition qui le déclenche.
-   */
+  filter: sepia(0.42) saturate(0.7) contrast(1.06) brightness(0.98);
   transition: transform 6.5s var(--ease-out);
 }
 
-/*
- * Portrait généré : deux halos décalés sur un fond incliné. Le résultat reste
- * doux et différent pour chaque personne sans jamais devenir criard.
- */
-.avatar-generated {
-  background:
-    radial-gradient(72% 68% at 26% 22%, var(--avatar-c), transparent 62%),
-    radial-gradient(80% 76% at 78% 82%, var(--avatar-b), transparent 68%),
-    linear-gradient(var(--avatar-tilt), var(--avatar-a), var(--avatar-b));
+:root[data-theme='dark'] .avatar-image {
+  filter: grayscale(1) sepia(0.5) hue-rotate(165deg) saturate(1.6) brightness(0.9);
 }
 
+/*
+ * Le portrait gravé.
+ *
+ * L'ordre des couches compte : la réserve est AU-DESSUS de la taille, puisque
+ * c'est le papier qu'on voit là où le burin n'est pas passé.
+ */
+.avatar-generated {
+  background-image:
+    /* La réserve est SERRÉE : elle marque la lumière, elle ne blanchit pas
+       tout le camée. Trop large, la taille disparaît et le portrait n'est
+       plus qu'un disque de la couleur du papier — c'est ce qui s'est produit
+       au premier essai, où les cinquante médaillons étaient présents dans la
+       page mais parfaitement invisibles à l'écran. */
+    radial-gradient(
+      closest-side at 32% 26%,
+      var(--glass-panel-solid) 0%,
+      color-mix(in srgb, var(--glass-panel-solid) 55%, transparent) 24%,
+      transparent 62%
+    ),
+    repeating-linear-gradient(
+      var(--avatar-angle, 13deg),
+      color-mix(in srgb, var(--avatar-taille) 80%, transparent) 0 0.9px,
+      transparent 0.9px 2.7px
+    ),
+    linear-gradient(0deg, var(--avatar-lavis), var(--avatar-lavis));
+  background-color: var(--glass-panel-solid);
+}
+
+/* La contre-taille, cantonnée au quart d'ombre par son masque. */
+.avatar-generated::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    calc(var(--avatar-angle, 13deg) - 78deg),
+    color-mix(in srgb, var(--avatar-taille) 62%, transparent) 0 0.8px,
+    transparent 0.8px 3.4px
+  );
+  -webkit-mask-image: radial-gradient(closest-side at 76% 80%, #000 6%, transparent 74%);
+  mask-image: radial-gradient(closest-side at 76% 80%, #000 6%, transparent 74%);
+}
+
+/* Le creux du bord : une gravure s'assombrit contre son cerne. */
 .avatar-generated::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.26), transparent 46%);
-  mix-blend-mode: soft-light;
+  border-radius: inherit;
+  background: radial-gradient(
+    closest-side,
+    transparent 62%,
+    color-mix(in srgb, var(--text-primary) 22%, transparent) 100%
+  );
 }
 
 .avatar-initials {
   position: relative;
   z-index: 1;
+  font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: 0.01em;
-  color: rgba(255, 255, 255, 0.94);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  letter-spacing: 0.015em;
+  color: var(--text-primary);
+  /* Le blanc de réserve autour de la lettre : le graveur épargne le papier
+     pour que la capitale se détache de la trame. */
+  text-shadow:
+    0 0 3px var(--glass-panel-solid),
+    0 0 6px var(--glass-panel-solid),
+    0 1px 0 var(--glass-panel-solid);
   user-select: none;
 }

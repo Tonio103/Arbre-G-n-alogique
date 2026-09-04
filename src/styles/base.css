@@ -1,12 +1,17 @@
 @import './tokens.css';
 /*
- * Une seule police d'appoint, réservée aux titres du thème clair — le
- * cartouche d'un atlas ancien n'a jamais été composé dans la même linéale
- * que ses légendes. Le thème sombre garde la police du corps de texte
- * partout : sa singularité tient à la couleur et à la lueur, pas à la
- * lettre.
+ * Trois mains sur la planche, et chacune a sa fonction — voir `--font-*`
+ * dans `tokens.css`.
+ *
+ *   CORMORANT GARAMOND   le graveur. Lettre de planche, contraste élevé,
+ *                        déliés fins. Titres, noms, boutons.
+ *   SPECTRAL             l'imprimeur. Le corps de texte, lisible à petit
+ *                        corps sur un fond teinté.
+ *   PETIT FORMAL SCRIPT  le naturaliste. La main qui annote en marge, à
+ *                        l'encre bleue — plafonnée à une ligne, sous peine
+ *                        de virer au pastiche.
  */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,440;0,9..144,600;1,9..144,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Spectral:ital,wght@0,300;0,400;0,600;1,300&family=Petit+Formal+Script&display=swap');
 
 *,
 *::before,
@@ -23,10 +28,9 @@ body,
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial,
-    sans-serif;
-  font-size: 15px;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 15.5px;
   line-height: 1.5;
   color: var(--text-primary);
   background: var(--bg-base);

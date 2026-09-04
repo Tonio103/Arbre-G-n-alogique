@@ -814,12 +814,12 @@
   padding: 20px;
 }
 
+/* Une feuille de calque posée sur la planche : elle éteint ce qu'il y a
+   dessous par sa seule opacité, sans avoir à le flouter. */
 .tour-veil {
   position: absolute;
   inset: 0;
-  background: var(--bg-veil);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: color-mix(in srgb, var(--bg-deep) 62%, transparent);
   animation: tour-fade 220ms var(--ease-out) both;
 }
 

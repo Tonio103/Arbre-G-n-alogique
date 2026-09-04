@@ -139,7 +139,6 @@ export const PersonNode = memo(function PersonNode({
           size={compact ? 44 : 50}
           className="node-avatar"
         />
-        <span className="node-ring" aria-hidden="true" />
       </span>
 
       <span className="node-plate lg lg--plate">

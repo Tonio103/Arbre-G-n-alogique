@@ -2,11 +2,15 @@ import { memo, useState } from 'react';
 import { hashString } from '@/domain/text';
 
 /**
- * Teintes retenues pour les portraits générés. Volontairement peu nombreuses
- * et proches en saturation : côte à côte par centaines, elles doivent former
- * un ensemble, pas un nuancier.
+ * Les teintes du coloriste.
+ *
+ * Elles ne font plus le portrait — c'est la taille-douce qui le fait, en
+ * dégradés (voir `avatar.css`) — elles ne font que le laver. D'où une gamme
+ * de planche ancienne : les terres, les verts de vessie, les bleus de Prusse
+ * et de cobalt, tels qu'un coloriste les avait sur sa palette. Pas de magenta,
+ * pas de cyan : ces pigments-là n'existaient pas.
  */
-const HUES = [212, 232, 258, 284, 318, 342, 12, 32, 46, 168, 186, 196];
+const HUES = [24, 38, 48, 96, 148, 172, 196, 214, 232, 352];
 
 export interface AvatarProps {
   id: string;
@@ -35,19 +39,20 @@ export const Avatar = memo(function Avatar({
   // au-delà de 2³¹, donc une couleur invalide et un portrait sans fond.
   const hash = hashString(id);
   const hue = HUES[hash % HUES.length];
-  const hueB = HUES[(hash >>> 5) % HUES.length];
-  const tilt = (hash >>> 11) % 60;
+  // L'angle du burin varie d'une planche à l'autre : deux camées voisins ne
+  // doivent pas avoir exactement la même trame, sinon l'œil y voit un motif
+  // au lieu d'un dessin.
+  const taille = 9 + ((hash >>> 7) % 11);
 
-  // Saturation volontairement contenue : côte à côte par centaines, des
-  // portraits vifs donneraient un damier criard. On cherche des teintes
-  // sourdes qui se distinguent sans se disputer l'attention.
   const style = {
     width: size,
     height: size,
-    '--avatar-a': `hsl(${hue} 38% 56%)`,
-    '--avatar-b': `hsl(${hueB} 34% 40%)`,
-    '--avatar-c': `hsl(${(hue + 18) % 360} 42% 66%)`,
-    '--avatar-tilt': `${tilt + 110}deg`,
+    // Le lavis : une touche, pas un aplat. Au-delà de 0,2 d'opacité la
+    // couleur reprend le dessus sur la gravure et le camée redevient une
+    // pastille colorée.
+    '--avatar-lavis': `hsl(${hue} 32% 46% / 0.16)`,
+    '--avatar-taille': 'var(--text-primary)',
+    '--avatar-angle': `${taille}deg`,
     fontSize: Math.round(size * 0.34),
   } as React.CSSProperties;
 

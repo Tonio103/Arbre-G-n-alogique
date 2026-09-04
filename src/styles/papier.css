@@ -1,0 +1,350 @@
+/* ============================================================================
+ *
+ *  MATÉRIAU DE PAPIER
+ *
+ *  Ce fichier remplace `liquid-glass.css`, et garde ses noms de classes : tout
+ *  ce qui portait `.lg` porte encore `.lg`. Seule la MATIÈRE a changé — le
+ *  verre est devenu du papier — et aucun composant n'a eu à le savoir.
+ *
+ *  Le marché est le suivant, et il est bon des deux côtés.
+ *
+ *  Un verre coûte cher parce que son rendu dépend de ce qu'il y a dessous : un
+ *  `backdrop-filter` doit être refait à chaque image tant que le fond bouge,
+ *  et il y en avait sur la barre du haut, la fiche, la frise, les cinquante
+ *  plaques de nom. C'était la dépense la plus lourde de l'application, et on a
+ *  passé quatre commits à la contourner.
+ *
+ *  Un papier ne dépend de rien. Sa fibre, ses vergeures, ses rousseurs sont
+ *  peintes une fois et ne se recalculent jamais. On y gagne donc en même temps
+ *  la richesse visuelle ET la fluidité — les deux choses qui semblaient
+ *  s'opposer depuis le début.
+ *
+ *  Ce qui disparaît, et ne doit jamais revenir :
+ *      backdrop-filter        le flou d'arrière-plan
+ *      url(#lg-lens-*)        la réfraction par filtre SVG
+ *      [data-panning]         les mécanismes qui suspendaient l'un et l'autre
+ *
+ *  Ce qui reste : la teinte, l'arête, la tranche, l'élévation — tous des
+ *  dégradés et des ombres, qui ne coûtent rien de plus en mouvement.
+ *
+ *  Utilisation, inchangée :
+ *      <div class="lg">…</div>                 feuille par défaut
+ *      <div class="lg lg--thick">…</div>       feuille plus épaisse, opaque
+ *      <div class="lg lg--clear">…</div>       simple bristol, léger
+ *      <div class="lg lg--control">…</div>     petite pièce
+ *      <div class="lg lg--plate">…</div>       l'étiquette d'un médaillon
+ *
+ * ========================================================================== */
+
+:root {
+  /*
+   * Le grain, en une image cuite une fois.
+   *
+   * `feTurbulence` sert ici de GÉNÉRATEUR, pas de filtre vivant : le
+   * navigateur rastérise ce SVG une seule fois, le met en cache et le répète
+   * comme n'importe quel motif. C'est exactement le même bruit qu'avant, pour
+   * un coût qui n'existe plus après la première image.
+   */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.42'/%3E%3C/svg%3E");
+
+  /* La trame du vergé : chaînettes fines, pontuseaux plus espacés. */
+  --vergeures: repeating-linear-gradient(
+    0deg,
+    var(--pa-fibre) 0 0.5px,
+    transparent 0.5px 4.5px
+  );
+  --pontuseaux: repeating-linear-gradient(
+    90deg,
+    var(--pa-fibre-forte) 0 1px,
+    transparent 1px 27px
+  );
+
+  --pa-fibre: rgba(46, 36, 24, 0.05);
+  --pa-fibre-forte: rgba(46, 36, 24, 0.06);
+  --pa-grain-force: 0.5;
+
+  /* La feuille : sa masse, son bord, son ombre de contact. */
+  --pa-feuille: #E4DFCC;
+  --pa-feuille-epaisse: #EAE5D4;
+  --pa-bord: rgba(46, 36, 24, 0.2);
+  --pa-arete: rgba(255, 253, 246, 0.55);
+  --pa-creux: rgba(46, 36, 24, 0.09);
+
+  /* Trois ombres : le contact, la proximité, la portée. Une feuille posée
+     sur une autre ne flotte pas — elle touche presque. */
+  --pa-ombre:
+    0 1px 1px rgba(46, 36, 24, 0.07),
+    0 3px 8px rgba(46, 36, 24, 0.07),
+    0 14px 34px rgba(46, 36, 24, 0.09);
+
+  --lg-radius: 4px;
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --lg-ease-press: cubic-bezier(0.34, 1.5, 0.64, 1);
+  --lg-dur: 200ms;
+}
+
+:root[data-theme='dark'] {
+  --pa-fibre: rgba(222, 235, 246, 0.045);
+  --pa-fibre-forte: rgba(222, 235, 246, 0.055);
+  --pa-grain-force: 0.34;
+
+  --pa-feuille: #12304A;
+  --pa-feuille-epaisse: #163A57;
+  --pa-bord: rgba(222, 235, 246, 0.2);
+  --pa-arete: rgba(222, 235, 246, 0.14);
+  --pa-creux: rgba(0, 0, 0, 0.28);
+
+  --pa-ombre:
+    0 1px 1px rgba(0, 0, 0, 0.3),
+    0 3px 9px rgba(0, 0, 0, 0.28),
+    0 16px 38px rgba(0, 0, 0, 0.34);
+}
+
+/* ---------------------------------------------------------------------------
+ * LA FEUILLE
+ * ------------------------------------------------------------------------- */
+
+.lg {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--lg-radius);
+  background-color: var(--pa-feuille);
+  background-image: var(--vergeures), var(--pontuseaux), var(--grain);
+  background-blend-mode: normal, normal, multiply;
+  box-shadow:
+    var(--pa-ombre),
+    /* L'arête du haut prend la lumière, celle du bas s'enfonce : c'est
+       l'épaisseur du papier, vue de côté. */
+    inset 0 1px 0 0 var(--pa-arete),
+    inset 0 -1px 0 0 var(--pa-creux),
+    /* Le trait qui cerne la feuille — un filet, pas une bordure. */
+    0 0 0 1px var(--pa-bord);
+  transition:
+    background-color var(--lg-dur) var(--lg-ease),
+    box-shadow var(--lg-dur) var(--lg-ease);
+}
+
+/*
+ * Le bord frangé.
+ *
+ * Un papier de cuve n'est pas coupé au massicot : sa lisière est irrégulière,
+ * un peu plus mince, et laisse passer un rien de lumière. Deux dégradés très
+ * courts sur les quatre bords suffisent à le suggérer — et coûtent, comme le
+ * reste, exactement rien.
+ */
+.lg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, var(--pa-arete) 0, transparent 2.5px),
+    linear-gradient(0deg, var(--pa-creux) 0, transparent 2px);
+  opacity: 0.9;
+}
+
+/* Le contenu passe devant la lisière. */
+.lg > * {
+  position: relative;
+  z-index: 2;
+}
+
+/*
+ * Du papier sur du papier.
+ *
+ * Une étiquette collée sur une feuille n'a pas sa propre ombre portée ni son
+ * propre grain : elle partage la fibre de son support. Elle garde sa masse et
+ * son filet, perd son élévation.
+ */
+.lg .lg:not(.search-results) {
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 0 var(--pa-arete),
+    inset 0 -1px 0 0 var(--pa-creux),
+    0 0 0 1px var(--pa-bord);
+}
+
+.lg .lg:not(.search-results)::after {
+  opacity: 0.5;
+}
+
+/* ---------------------------------------------------------------------------
+ * LES ÉPAISSEURS
+ * ------------------------------------------------------------------------- */
+
+/* Le bristol : une pièce mince, posée sur le dessin, qu'on doit pouvoir
+   ignorer du regard. */
+.lg--clear {
+  background-color: color-mix(in srgb, var(--pa-feuille) 82%, transparent);
+  box-shadow:
+    0 1px 2px rgba(46, 36, 24, 0.06),
+    0 6px 16px rgba(46, 36, 24, 0.06),
+    inset 0 1px 0 0 var(--pa-arete),
+    0 0 0 1px var(--pa-bord);
+}
+
+/* La feuille épaisse : ce qui porte du texte long et doit rester lisible quoi
+   qu'il y ait derrière. Opaque, sans discussion. */
+.lg--thick {
+  background-color: var(--pa-feuille-epaisse);
+}
+
+/* Petites pièces : le filet compte proportionnellement plus, la fibre moins. */
+.lg--control,
+.lg--chip {
+  --lg-radius: 3px;
+  background-image: var(--grain);
+}
+
+/* L'étiquette d'un médaillon : le papier collé sous un portrait. */
+.lg--plate {
+  --lg-radius: 2px;
+  background-color: color-mix(in srgb, var(--pa-feuille-epaisse) 94%, transparent);
+  background-image: none;
+  box-shadow:
+    0 1px 1px rgba(46, 36, 24, 0.08),
+    0 3px 7px rgba(46, 36, 24, 0.07),
+    inset 0 1px 0 0 var(--pa-arete),
+    0 0 0 0.5px var(--pa-bord);
+}
+
+:root[data-theme='dark'] .lg--plate {
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.3),
+    0 3px 8px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 0 var(--pa-arete),
+    0 0 0 0.5px var(--pa-bord);
+}
+
+.lg--plate::after { display: none; }
+
+/*
+ * Ces trois-là ne veulent plus rien dire sur du papier — une feuille n'a ni
+ * pilule ni barre — mais les composants les posent encore. On les garde
+ * neutres plutôt que de toucher à quinze fichiers pour rien.
+ */
+.lg--pill { --lg-radius: 3px; }
+.lg--bar,
+.lg--bar-v { background-image: var(--vergeures), var(--grain); }
+
+/* ---------------------------------------------------------------------------
+ * LA RÉACTION AU DOIGT
+ *
+ * Un bouton gravé s'enfonce dans le papier : l'arête du haut s'éteint,
+ * l'ombre passe à l'intérieur. Rien ne s'éclaire — le papier ne brille pas.
+ * ------------------------------------------------------------------------- */
+
+.lg--interactive {
+  transition:
+    transform var(--lg-dur) var(--lg-ease-press),
+    box-shadow var(--lg-dur) var(--lg-ease),
+    background-color var(--lg-dur) var(--lg-ease);
+}
+
+.lg--interactive:hover {
+  background-color: var(--pa-feuille-epaisse);
+}
+
+.lg--interactive:active {
+  transform: translateY(0.5px);
+  box-shadow:
+    inset 0 2px 4px var(--pa-creux),
+    0 0 0 1px var(--pa-bord);
+}
+
+/* ---------------------------------------------------------------------------
+ * L'APPARITION
+ *
+ * Une feuille qu'on pose ne rebondit pas comme une goutte : elle descend,
+ * touche, et s'arrête. L'ancien `lg--liquid` partait d'un rayon de 999 px et
+ * dépassait sa taille — c'était le geste d'une matière liquide, qui n'a plus
+ * cours ici.
+ * ------------------------------------------------------------------------- */
+
+@keyframes lg-poser {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+}
+
+.lg--liquid {
+  animation: lg-poser 320ms var(--lg-ease) both;
+}
+
+.lg--liquid > * {
+  animation: lg-poser 380ms var(--lg-ease) 40ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg--liquid,
+  .lg--liquid > *,
+  .lg,
+  .lg--interactive { animation: none; transition: none; }
+  .lg--interactive:active { transform: none; }
+}
+
+/* ---------------------------------------------------------------------------
+ * LES REPLIS
+ *
+ * Il n'y a plus de transparence à refuser : le papier est opaque par nature.
+ * `prefers-reduced-transparency` n'a donc plus rien à défaire — et c'est la
+ * meilleure preuve que la direction était la bonne, puisque c'est ce réglage,
+ * activé sur la machine de l'utilisateur, qui avait rendu tout le verre
+ * invisible pendant des mois.
+ *
+ * Reste le grain, qui est une image : sans support des motifs SVG, la feuille
+ * garde sa couleur et son filet, et personne ne voit la différence.
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-transparency: reduce) {
+  .lg--clear {
+    background-color: var(--pa-feuille);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * LES ORNEMENTS
+ *
+ * Gravures du domaine des images fournies, transformées en masques : le noir
+ * est devenu de l'alpha, si bien qu'un seul fichier prend la couleur d'encre
+ * du thème. Voir `src/assets/README.md`.
+ * ------------------------------------------------------------------------- */
+
+.ornement {
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+}
+
+.ornement--filet {
+  -webkit-mask-image: url('../assets/ornement-filet-2.png');
+  mask-image: url('../assets/ornement-filet-2.png');
+  height: 14px;
+  opacity: 0.4;
+}
+
+.ornement--cartouche {
+  -webkit-mask-image: url('../assets/ornement-cartouche.png');
+  mask-image: url('../assets/ornement-cartouche.png');
+  aspect-ratio: 420 / 324;
+}
+
+.ornement--coin {
+  -webkit-mask-image: url('../assets/ornement-coin-1.png');
+  mask-image: url('../assets/ornement-coin-1.png');
+  aspect-ratio: 348 / 358;
+}
+
+.ornement--rose {
+  -webkit-mask-image: url('../assets/ornement-rose-des-vents.png');
+  mask-image: url('../assets/ornement-rose-des-vents.png');
+  aspect-ratio: 1;
+}

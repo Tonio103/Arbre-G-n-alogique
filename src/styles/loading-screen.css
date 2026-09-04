@@ -32,16 +32,15 @@
   background:
     radial-gradient(60% 50% at 50% 42%, var(--ls-glow-field) 0%, transparent 70%),
     linear-gradient(
-      var(--lg-light),
+      168deg,
       transparent 8%,
-      var(--lg-sheen-edge) 26%,
-      var(--lg-sheen) 47%,
-      var(--lg-sheen-edge) 66%,
+      var(--pa-creux) 26%,
+      var(--pa-arete) 47%,
+      var(--pa-creux) 66%,
       transparent 88%
     ),
     linear-gradient(180deg, var(--ls-veil-a) 0%, var(--ls-veil-b) 58%, var(--ls-veil-a) 100%);
-  backdrop-filter: blur(34px) saturate(150%) brightness(var(--lg-brightness));
-  -webkit-backdrop-filter: blur(34px) saturate(150%) brightness(var(--lg-brightness));
+  background-color: var(--bg-mid);
   transition:
     opacity var(--dur-slow) var(--ease-out),
     filter var(--dur-slow) var(--ease-out);

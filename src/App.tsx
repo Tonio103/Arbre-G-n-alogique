@@ -4,7 +4,6 @@ import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { unionKey } from '@/domain/graph';
 import { useDataset } from '@/hooks/useDataset';
 import { useTheme } from '@/hooks/useTheme';
-import { useGlassLight } from '@/hooks/useGlassLight';
 import { useVisitor } from '@/hooks/useVisitor';
 import { useIsCompact } from '@/hooks/useMediaQuery';
 import { computeHighlight, relationPath, type HighlightMode } from '@/domain/relations';
@@ -30,7 +29,6 @@ import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { GlassFilters } from '@/components/GlassFilters';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
@@ -58,7 +56,7 @@ import { findGaps } from '@/domain/gaps';
 import { GenerationRail } from '@/components/GenerationRail';
 
 import '@/styles/base.css';
-import '@/styles/liquid-glass.css';
+import '@/styles/papier.css';
 import '@/styles/app.css';
 import '@/styles/avatar.css';
 import '@/styles/node.css';
@@ -143,8 +141,17 @@ export default function App() {
     },
     [toggleTheme],
   );
-  // Une seule source de lumière pour tout le verre de l'interface.
-  useGlassLight();
+  /*
+   * La lumière glissante a été retirée avec le verre.
+   *
+   * `useGlassLight` tenait une boucle d'animation permanente pour déplacer le
+   * reflet des surfaces au gré du pointeur, et son propre commentaire la
+   * décrivait comme « l'opération la plus chère de toute l'interface » :
+   * chaque écriture invalidait le style de toutes les surfaces de verre à la
+   * fois. Un papier n'a pas de reflet qui se déplace — sa lumière est celle
+   * du graveur, fixée une fois pour toutes en haut à gauche. La boucle
+   * n'avait donc plus rien à éclairer.
+   */
   const compact = useIsCompact();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -688,7 +695,6 @@ export default function App() {
         people={graph.people.size}
         generations={graph.generations.length}
       />
-      <GlassFilters />
       <Backdrop viewport={viewport} />
 
       <TopBar

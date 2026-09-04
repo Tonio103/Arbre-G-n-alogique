@@ -1,158 +1,163 @@
 /*
- * Jetons de design.
- * Le thème sombre est la référence ; le thème clair redéfinit les mêmes
- * variables. Aucun composant ne code une couleur en dur.
- */
+ * ============================================================================
+ *
+ *  LES PIGMENTS DE L'HERBIER
+ *
+ *  Cinq pigments, pas un de plus, et chacun a un emploi :
+ *
+ *    LE VERGÉ     le papier. Gris-pierre, jamais crème — la chaleur d'une
+ *                 planche ancienne vient de ses rousseurs, pas de son fond.
+ *    LE BISTRE    l'encre. Un noir de suie qui verdit en couche mince.
+ *    LE PRUSSE    l'accent. Le pigment d'Anna Atkins, celui du cyanotype :
+ *                 c'est lui qui devient le bain du thème sombre.
+ *    LA SANGUINE  les manques et les corrections. Rien d'autre, jamais du
+ *                 décor — une planche où le rouge décore ne sait plus dire
+ *                 qu'il manque quelque chose.
+ *    LA RÉSERVE   le blanc laissé par le burin, là où la lumière frappe.
+ *
+ *  Les noms de jetons sont ceux d'avant : `--accent`, `--glass-fill`,
+ *  `--bg-deep`… Seules les VALEURS changent. C'est ce qui permet à toute
+ *  l'application de changer de peau sans qu'un seul composant le sache.
+ *
+ * ==========================================================================*/
 
 :root {
-  color-scheme: dark;
+  /* ── Le papier ──────────────────────────────────────────────────────── */
+  --bg-deep: #CFC8B0;
+  --bg-mid: #D6D0BA;
+  --bg-base: #DCD6C1;
+  --bg-veil: rgba(46, 36, 24, 0.05);
 
-  /* Fond et profondeur */
-  --bg-deep: #070a14;
-  --bg-mid: #0c1428;
-  --bg-base: #080d1a;
-  --bg-veil: rgba(6, 10, 20, 0.55);
+  /* ── L'encre ────────────────────────────────────────────────────────── */
+  --text-primary: #2E2418;
+  --text-secondary: #5C4E3C;
+  --text-tertiary: #8A7C67;
+  --text-inverse: #EDE9DA;
 
-  /* Verre */
-  --glass-fill-faint: rgba(255, 255, 255, 0.032);
-  --glass-fill: rgba(255, 255, 255, 0.055);
-  --glass-fill-strong: rgba(255, 255, 255, 0.085);
-  --glass-fill-hover: rgba(255, 255, 255, 0.115);
-  --glass-border: rgba(255, 255, 255, 0.11);
-  --glass-border-strong: rgba(255, 255, 255, 0.2);
-  --glass-panel-solid: rgba(14, 19, 34, 0.86);
+  /* ── Le bleu de Prusse ──────────────────────────────────────────────── */
+  --accent: #1B3A5C;
+  --accent-strong: #12283F;
+  --accent-soft: rgba(27, 58, 92, 0.11);
+  --accent-ring: rgba(27, 58, 92, 0.34);
+  /* La sanguine : les manques, et eux seuls. */
+  --accent-warm: #9E4420;
+  /* Deux teintes de lavis, pour les portraits et la marque du titre. */
+  --accent-rose: #9E4420;
+  --accent-mint: #4A6350;
 
-  /* Texte */
-  --text-primary: rgba(255, 255, 255, 0.95);
-  --text-secondary: rgba(232, 238, 252, 0.66);
-  --text-tertiary: rgba(216, 226, 248, 0.44);
-  --text-inverse: #0a1020;
+  /* ── Les feuilles de papier posées ──────────────────────────────────── */
+  /* `--glass-*` gardent leur nom : ce ne sont plus des verres mais des
+     papiers, et rien dans l'application n'a besoin de le savoir. */
+  --glass-fill-faint: rgba(237, 233, 218, 0.42);
+  --glass-fill: rgba(237, 233, 218, 0.72);
+  --glass-fill-strong: rgba(240, 236, 223, 0.88);
+  --glass-fill-hover: rgba(244, 240, 228, 0.96);
+  --glass-panel-solid: #E9E4D2;
+  --glass-border: rgba(46, 36, 24, 0.16);
+  --glass-border-strong: rgba(46, 36, 24, 0.3);
 
-  /* Accents */
-  --accent: #7fb0ff;
-  --accent-strong: #a9c9ff;
-  --accent-soft: rgba(127, 176, 255, 0.16);
-  --accent-ring: rgba(127, 176, 255, 0.55);
-  --accent-warm: #ffc98a;
-  --accent-rose: #ff9fc4;
-  --accent-mint: #86e0c8;
+  /* ── Les traits gravés ──────────────────────────────────────────────── */
+  --link-node: rgba(46, 36, 24, 0.62);
+  --link-highlight: #1B3A5C;
+  --link-cross: rgba(158, 68, 32, 0.5);
+  /* Le halo d'encre qui boit dans le papier, autour d'un trait accentué. */
+  --star-glow: rgba(46, 36, 24, 0.24);
 
-  /* Médaillon : halo, plaque du nom, cerne des personnes disparues */
-  --node-halo-core: rgba(18, 28, 48, 0.5);
-  --node-halo-mid: rgba(18, 28, 48, 0.26);
-  --node-deceased-ring: rgba(255, 255, 255, 0.16);
+  /* ── Le grain du fond ───────────────────────────────────────────────── */
+  --motif-dot: rgba(46, 36, 24, 0.09);
+  --motif-dot-dim: rgba(46, 36, 24, 0.045);
+  --motif-nebula-a: rgba(158, 68, 32, 0.05);
+  --motif-nebula-b: rgba(27, 58, 92, 0.045);
 
-  --link-highlight: rgba(140, 176, 232, 0.85);
-  --link-cross: rgba(255, 201, 138, 0.42);
-  --link-node: rgba(190, 210, 245, 0.5);
+  /* ── Le médaillon ───────────────────────────────────────────────────── */
+  --node-halo-core: rgba(237, 233, 218, 0.62);
+  --node-halo-mid: rgba(237, 233, 218, 0.22);
+  --node-deceased-ring: rgba(46, 36, 24, 0.28);
 
-  /*
-   * Ciel de famille (thème sombre).
-   *
-   * Le ciel étoilé n'est pas un décor à part : c'est le thème sombre
-   * lui-même. `--motif-*` porte la trame d'étoiles du fond (voir app.css),
-   * `--star-*` la lueur portée par chaque carte et chaque lien — une seule
-   * palette, réutilisée partout plutôt que redéfinie composant par
-   * composant.
-   */
-  --motif-dot: rgba(255, 255, 255, 0.8);
-  --motif-dot-dim: rgba(200, 214, 255, 0.4);
-  --motif-nebula-a: rgba(120, 130, 220, 0.16);
-  --motif-nebula-b: rgba(200, 130, 220, 0.1);
-  --star-glow: rgba(255, 255, 255, 0.9);
+  --shadow-inset: inset 0 1px 0 rgba(255, 253, 246, 0.5);
 
-  /* Ombres */
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  /* ── Les écritures ──────────────────────────────────────────────────── */
+  /* Le graveur titre, l'imprimeur compose, le naturaliste annote. */
+  --font-display: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
+  --font-body: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-hand: 'Petit Formal Script', 'Cormorant Garamond', cursive;
 
-  /* Rayons */
-  --radius-card: 26px;
-  --radius-panel: 30px;
-  --radius-control: 16px;
-  --radius-pill: 999px;
+  /* ── Géométrie et durées, inchangées ────────────────────────────────── */
+  --radius-panel: 4px;
+  --radius-card: 3px;
+  --radius-control: 3px;
+  --radius-pill: 3px;
 
-  /* Mouvement */
+  --dur-fast: 130ms;
+  --dur-base: 220ms;
+  --dur-slow: 460ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-fast: 140ms;
-  --dur-base: 240ms;
-  --dur-slow: 420ms;
+  --ease-spring: cubic-bezier(0.34, 1.42, 0.64, 1);
 
-  /* Gabarit */
-  --topbar-height: 68px;
+  --topbar-height: 62px;
   --panel-width: 400px;
 
-  /*
-   * Zones sûres (encoche, barre de gestes, découpe de caméra…).
-   *
-   * `env()` vaut zéro sur tout appareil sans découpe — ces variables ne
-   * changent donc rien ailleurs qu'au bord d'un écran qui en a une. Un écran
-   * tenu à la verticale est justement le cas où ces bords comptent le plus :
-   * l'encoche est en haut, la barre de gestes en bas, sur toute la largeur.
-   */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
-
-  /* Typographie des titres — voir base.css : le thème sombre garde la
-     police du corps de texte, sa singularité tient à la lueur. */
-  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial,
-    sans-serif;
 }
 
-:root[data-theme='light'] {
-  color-scheme: light;
+/*
+ * ── LE CYANOTYPE ────────────────────────────────────────────────────────
+ *
+ * Le thème sombre n'est pas une inversion : c'est un autre procédé. La même
+ * planche, insolée au ferricyanure — le dessin passe en négatif, blanc sur
+ * bleu de Prusse. C'est le tirage d'Anna Atkins, « Photographs of British
+ * Algae » (1843), le premier livre illustré de photographies.
+ *
+ * Techniquement, c'est une bichromie : deux couleurs, aucun filtre, aucun
+ * coût. Le thème le plus riche visuellement est aussi le moins cher.
+ */
+:root[data-theme='dark'] {
+  --bg-deep: #081726;
+  --bg-mid: #0B1C2D;
+  --bg-base: #0E2234;
+  --bg-veil: rgba(222, 235, 246, 0.05);
 
-  /*
-   * Atlas généalogique (thème clair).
-   *
-   * Un document précieux plutôt qu'une page blanche : fond parchemin, encre
-   * sépia pour l'accent, verre teinté chaud. `--motif-*` porte le filigrane
-   * de courbes de niveau du fond (voir app.css) — même principe que le ciel
-   * étoilé du thème sombre, une palette, réutilisée partout.
-   */
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --text-primary: #E8F2FA;
+  /* Relevé après coup : sur le bleu de cuve, un secondaire à #A9C8DE rendait
+     les onglets et la frise presque illisibles. Un cyanotype garde ses
+     blancs francs — c'est un tirage à deux tons, pas un dégradé. */
+  --text-secondary: #C2DCEF;
+  --text-tertiary: #8FB4CE;
+  --text-inverse: #0B1C2D;
 
-  --bg-deep: #ecdfc0;
-  --bg-mid: #f8f1df;
-  --bg-base: #f4ecd8;
-  --bg-veil: rgba(250, 243, 227, 0.55);
+  --accent: #93C7E8;
+  --accent-strong: #C4E3F7;
+  --accent-soft: rgba(147, 199, 232, 0.13);
+  --accent-ring: rgba(147, 199, 232, 0.36);
+  --accent-warm: #E08A62;
+  --accent-rose: #E08A62;
+  --accent-mint: #7FB39A;
 
-  --glass-fill-faint: rgba(255, 251, 240, 0.42);
-  --glass-fill: rgba(255, 251, 240, 0.6);
-  --glass-fill-strong: rgba(255, 251, 240, 0.78);
-  --glass-fill-hover: rgba(255, 253, 246, 0.94);
-  --glass-border: rgba(94, 62, 24, 0.12);
-  --glass-border-strong: rgba(94, 62, 24, 0.2);
-  --glass-panel-solid: rgba(251, 245, 231, 0.93);
+  --glass-fill-faint: rgba(147, 199, 232, 0.05);
+  --glass-fill: rgba(147, 199, 232, 0.09);
+  --glass-fill-strong: rgba(147, 199, 232, 0.14);
+  --glass-fill-hover: rgba(147, 199, 232, 0.2);
+  --glass-panel-solid: #12304A;
+  --glass-border: rgba(222, 235, 246, 0.16);
+  --glass-border-strong: rgba(222, 235, 246, 0.3);
 
-  --text-primary: rgba(38, 26, 10, 0.92);
-  --text-secondary: rgba(58, 42, 20, 0.66);
-  --text-tertiary: rgba(64, 48, 26, 0.48);
-  --text-inverse: #fffaf0;
+  --link-node: rgba(222, 235, 246, 0.55);
+  --link-highlight: #93C7E8;
+  --link-cross: rgba(224, 138, 98, 0.5);
+  --star-glow: rgba(147, 199, 232, 0.3);
 
-  --accent: #9a5b23;
-  --accent-strong: #7a4419;
-  --accent-soft: rgba(154, 91, 35, 0.12);
-  --accent-ring: rgba(154, 91, 35, 0.42);
-  --accent-warm: #b5651d;
-  --accent-rose: #a8456e;
-  --accent-mint: #1c7a63;
+  --motif-dot: rgba(222, 235, 246, 0.11);
+  --motif-dot-dim: rgba(222, 235, 246, 0.05);
+  --motif-nebula-a: rgba(224, 138, 98, 0.05);
+  --motif-nebula-b: rgba(147, 199, 232, 0.06);
 
-  --node-halo-core: rgba(255, 251, 240, 0.82);
-  --node-halo-mid: rgba(255, 251, 240, 0.42);
-  --node-deceased-ring: rgba(64, 44, 20, 0.14);
+  --node-halo-core: rgba(147, 199, 232, 0.16);
+  --node-halo-mid: rgba(147, 199, 232, 0.06);
+  --node-deceased-ring: rgba(222, 235, 246, 0.26);
 
-  --link-highlight: rgba(122, 68, 25, 0.82);
-  --link-cross: rgba(184, 112, 28, 0.6);
-  --link-node: rgba(94, 68, 40, 0.6);
-
-  --motif-dot: rgba(94, 62, 24, 0.26);
-  --motif-dot-dim: rgba(94, 62, 24, 0.14);
-  --motif-nebula-a: rgba(180, 130, 60, 0.1);
-  --motif-nebula-b: rgba(120, 90, 50, 0.07);
-  --star-glow: rgba(154, 91, 35, 0.5);
-
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --shadow-inset: inset 0 1px 0 rgba(222, 235, 246, 0.12);
 }
