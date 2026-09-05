@@ -39,6 +39,37 @@ function tickStep(years: number): number {
 }
 
 /**
+ * Le pas des graduations PORTÉES, celles qui reçoivent une date.
+ *
+ * Une règle graduée ne chiffre pas chacun de ses traits — un double décimètre
+ * porte ses centimètres et tait ses millimètres. La frise faisait l'inverse :
+ * chaque graduation, quel qu'en fût le pas, portait son millésime et tirait un
+ * trait sur toute la hauteur. À treize traits pleins et treize dates, ce n'est
+ * plus une règle, c'est un quadrillage de tableur.
+ *
+ * On cherche donc le multiple du pas le plus FIN qui tienne encore : entre
+ * trois dates et sept, la première qui convient en montant. Le demi-siècle et
+ * le siècle arrivent naturellement les premiers, puisque c'est ainsi qu'on
+ * situe une famille.
+ *
+ * Les deux bornes ont chacune coûté un essai. Sans plancher, une famille
+ * couvrant cinquante ans se retrouvait avec UNE seule date sur toute la
+ * règle : le demi-siècle passait le plafond haut la main, et ne graduait plus
+ * rien. Puis, à retenir le plus GROS multiple valable plutôt que le plus fin,
+ * deux siècles et demi n'obtenaient que trois dates pour onze graduations —
+ * une règle qu'on ne peut plus lire sans compter les traits. Vérifié sur huit
+ * étendues, de quarante à huit cents ans.
+ */
+function labelStep(step: number, span: number): number {
+  for (const gros of [step, 50, 100, 200, 500]) {
+    if (gros % step !== 0) continue;
+    const dates = Math.floor(span / gros) + 1;
+    if (dates >= 3 && dates <= 7) return gros;
+  }
+  return step;
+}
+
+/**
  * La famille dans le temps.
  *
  * Une ligne par personne, dans l'ordre des naissances, toutes calées sur le
@@ -89,6 +120,7 @@ export function TimelineView({
 
   const ticks: number[] = [];
   for (let value = from; value <= to; value += step) ticks.push(value);
+  const gros = labelStep(step, span);
 
   const height = Math.max(120, timeline.spans.length * ROW_H + TOP + 22);
   const alive = year !== null ? livingIn(timeline, year) : [];
@@ -133,14 +165,49 @@ export function TimelineView({
       <div className="timeline-stage lg lg--thick">
         <svg viewBox={`0 0 ${width} ${height}`} className="timeline-svg" role="img"
              aria-label={`${timeline.spans.length} vies de ${timeline.from} à ${timeline.to}`}>
-          {ticks.map((value) => (
-            <g key={value} className="timeline-tick">
-              <line x1={xOf(value)} y1={TOP - 8} x2={xOf(value)} y2={height - 10} />
-              <text x={xOf(value)} y={TOP - 14}>
-                {value}
-              </text>
-            </g>
-          ))}
+          {/*
+            LA RÈGLE DES SIÈCLES.
+            
+            Un filet horizontal, et les graduations qui y pendent : courtes et
+            muettes pour le pas courant, longues et chiffrées pour le
+            demi-siècle ou le siècle. Seules ces dernières prolongent leur
+            trait sur toute la hauteur, et très pâle — un repère qu'on suit du
+            regard quand on en a besoin, pas un quadrillage qu'on subit.
+          */}
+          <line
+            className="timeline-rule"
+            x1={LEFT}
+            y1={TOP - 8}
+            x2={xOf(to)}
+            y2={TOP - 8}
+          />
+          {ticks.map((value) => {
+            const porte = value % gros === 0;
+            return (
+              <g key={value} className="timeline-tick" data-porte={porte || undefined}>
+                {porte && (
+                  <line
+                    className="timeline-guide"
+                    x1={xOf(value)}
+                    y1={TOP - 8}
+                    x2={xOf(value)}
+                    y2={height - 10}
+                  />
+                )}
+                <line
+                  x1={xOf(value)}
+                  y1={TOP - 8}
+                  x2={xOf(value)}
+                  y2={TOP - 8 + (porte ? 11 : 5)}
+                />
+                {porte && (
+                  <text x={xOf(value)} y={TOP - 14}>
+                    {value}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
           {year !== null && (
             <line className="timeline-cursor" x1={xOf(year)} y1={TOP - 12} x2={xOf(year)} y2={height - 10} />

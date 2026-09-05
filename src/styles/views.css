@@ -631,14 +631,41 @@
   height: auto;
 }
 
+/*
+ * La règle et ses graduations.
+ *
+ * Le filet porteur est franc — c'est lui qu'on suit. Les graduations muettes
+ * sont fines, les graduations chiffrées plus grasses, et les guides verticaux
+ * assez pâles pour qu'on ne les voie qu'en les cherchant. La hiérarchie est
+ * dans l'ÉPAISSEUR autant que dans la longueur : c'est ainsi qu'est faite une
+ * règle gravée, et c'est ce qui permet de lire un siècle sans compter.
+ */
+.timeline-rule {
+  stroke: var(--text-secondary);
+  stroke-width: 1.1;
+}
+
 .timeline-tick line {
+  stroke: var(--text-tertiary);
+  stroke-width: 0.9;
+}
+
+.timeline-tick[data-porte] line {
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+}
+
+.timeline-tick .timeline-guide {
   stroke: var(--glass-border);
   stroke-width: 1;
 }
 
 .timeline-tick text {
-  fill: var(--text-tertiary);
-  font-size: 11px;
+  fill: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
   text-anchor: middle;
 }
 
