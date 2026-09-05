@@ -30,16 +30,24 @@ const DISPLAY_MS = 2800;
 const EXIT_MS = 620;
 
 /**
- * Rideau d'ouverture.
+ * Rideau d'ouverture : la page de garde de l'album.
  *
- * Une seule chose bouge : l'emblème de la famille — le même losange à trois
- * points que la barre du haut, agrandi et posé au milieu d'un halo qui
- * respire. Une version précédente y ajoutait un éventail de trente et un
- * médaillons, des étincelles courant sur chaque lien et de la poussière
- * flottante ; le résultat donnait moins l'impression d'un accueil que d'un
- * feu d'artifice, et coûtait cher à faire tourner pour ce que ça disait. Un
- * seul repère qui respire, un nom, un trait de progression : c'est tout ce
- * qu'un écran d'attente a besoin de dire.
+ * Un papier marbré de relieur en fond — la vraie garde d'un volume relié —,
+ * et par-dessus un cartouche gravé qui porte le nom de la famille. Le titre
+ * est posé dans la RÉSERVE du cartouche, jamais sur le marbré : un motif de
+ * cuve est trop actif pour qu'on lise par-dessus, et c'est exactement pour ça
+ * qu'un relieur colle une étiquette de papier uni sur ses plats.
+ *
+ * Ce qu'il y avait avant : un losange à coins arrondis, rempli d'un dégradé
+ * bleu vers rose, qui respirait. C'était l'icône d'une application moderne au
+ * milieu d'une planche d'herbier — la dernière pièce de l'ancienne identité,
+ * et la première chose que voyait quiconque ouvrait l'arbre.
+ *
+ * Une version antérieure y ajoutait un éventail de trente et un médaillons,
+ * des étincelles courant sur chaque lien et de la poussière flottante ; le
+ * résultat donnait moins l'impression d'un accueil que d'un feu d'artifice.
+ * Ici rien ne respire : le cartouche s'encre une fois, en s'approchant, comme
+ * une planche qu'on vient de tirer.
  */
 export function LoadingScreen({
   ready,
@@ -99,18 +107,15 @@ export function LoadingScreen({
       role="status"
       aria-live="polite"
     >
-      <div className="ls-emblem">
-        <span className="ls-emblem-glow" aria-hidden="true" />
-        <span className="ls-emblem-mark" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
+      {/* Le cartouche : la gravure en masque, la réserve de papier dessous,
+          et le titre au centre de l'ovale. */}
+      <div className="ls-plaque">
+        <span className="ls-reserve" aria-hidden="true" />
+        <span className="ls-cartouche ornement ornement--cartouche" aria-hidden="true" />
+        <h1 className="ls-title">{title || 'Arbre généalogique'}</h1>
       </div>
 
       <div className="ls-titles">
-        <h1 className="ls-title">{title || 'Arbre généalogique'}</h1>
-
         {(names.length > 0 || caption) && (
           <div className="ls-names" aria-hidden="true">
             {names.length > 0
@@ -130,6 +135,8 @@ export function LoadingScreen({
               )}
           </div>
         )}
+
+        <span className="ls-filet ornement ornement--filet-fort" aria-hidden="true" />
 
         <div className="ls-progress" aria-hidden="true">
           <span className="ls-progress-fill" />

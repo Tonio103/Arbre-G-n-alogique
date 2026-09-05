@@ -7,17 +7,19 @@
  */
 
 /*
- * Le rideau est lui aussi une plaque de verre — la première qu'on voit, et la
- * seule qui couvre tout l'écran.
+ * LA PAGE DE GARDE.
  *
- * Il était auparavant un aplat dégradé, parfaitement opaque : la seule surface
- * de l'application à ne pas être faite de la matière que l'application passe
- * ensuite son temps à montrer. Frosté, il annonce ce qui suit, et il gagne
- * surtout une chose que l'opacité lui interdisait : l'arbre existe derrière
- * lui, flou, et il se révèle en même temps que le rideau se lève au lieu
- * d'apparaître d'un coup une fois le rideau parti.
+ * Un papier marbré de relieur — peigné à la cuve, bleu de Prusse, sanguine et
+ * bistre sur crème : la vraie garde d'un volume relié, et la seule image de
+ * toute l'application. Tout le reste est calculé ; le marbré ne se calcule
+ * pas proprement, alors il est là.
  *
- * La teinte reste très couvrante. Ce n'est pas un panneau qu'on lit par-dessus
+ * Le motif est très actif, ce qui est une qualité au bord et un défaut au
+ * centre : un voile de papier, en dégradé radial, l'apaise là où le cartouche
+ * se pose et le laisse entier vers les angles. C'est le plat d'un livre — du
+ * marbré partout, une étiquette de papier uni au milieu.
+ *
+ * Le rideau reste très couvrant. Ce n'est pas un panneau qu'on lit par-dessus
  * une scène installée : à cet instant l'arbre n'est pas encore cadré, et
  * laisser deviner un enchevêtrement de traits en train de se placer donnerait
  * une impression de chargement bancal, pas de profondeur.
@@ -28,28 +30,41 @@
   z-index: 120;
   display: grid;
   place-items: center;
-  gap: 28px;
+  align-content: center;
+  gap: 26px;
   background:
-    radial-gradient(60% 50% at 50% 42%, var(--ls-glow-field) 0%, transparent 70%),
-    linear-gradient(
-      168deg,
-      transparent 8%,
-      var(--pa-creux) 26%,
-      var(--pa-arete) 47%,
-      var(--pa-creux) 66%,
-      transparent 88%
+    radial-gradient(
+      68% 58% at 50% 46%,
+      var(--ls-voile) 0%,
+      var(--ls-voile) 34%,
+      color-mix(in srgb, var(--ls-voile) 55%, transparent) 62%,
+      transparent 100%
     ),
-    linear-gradient(180deg, var(--ls-veil-a) 0%, var(--ls-veil-b) 58%, var(--ls-veil-a) 100%);
+    url('../assets/marbre-planche.jpg') center / 420px repeat;
   background-color: var(--bg-mid);
   transition:
     opacity var(--dur-slow) var(--ease-out),
     filter var(--dur-slow) var(--ease-out);
 
-  --ls-glow-field: rgba(127, 176, 255, 0.1);
-  /* Le même dégradé qu'avant, à peine ouvert : assez pour que le flou ait
-     quelque chose à flouter, pas assez pour qu'on y lise une forme. */
-  --ls-veil-a: color-mix(in srgb, var(--bg-deep) 94%, transparent);
-  --ls-veil-b: color-mix(in srgb, var(--bg-mid) 92%, transparent);
+  --ls-voile: color-mix(in srgb, var(--bg-base) 93%, transparent);
+}
+
+/*
+ * Le marbré du cyanotype est un autre tirage, pas le même papier reteinté :
+ * les mêmes veines, insolées au ferricyanure.
+ */
+:root[data-theme='dark'] .loading-screen {
+  background:
+    radial-gradient(
+      68% 58% at 50% 46%,
+      var(--ls-voile) 0%,
+      var(--ls-voile) 34%,
+      color-mix(in srgb, var(--ls-voile) 55%, transparent) 62%,
+      transparent 100%
+    ),
+    url('../assets/marbre-cyanotype.jpg') center / 420px repeat;
+
+  --ls-voile: color-mix(in srgb, var(--bg-deep) 92%, transparent);
 }
 
 .loading-screen[data-leaving] {
@@ -58,80 +73,69 @@
   pointer-events: none;
 }
 
-/* ------------------------------- L'emblème ------------------------------- */
+/* ------------------------------ Le cartouche ------------------------------ */
 
-.ls-emblem {
+/*
+ * Le cartouche, sa réserve et son titre.
+ *
+ * Trois calques superposés dans la même grille : le papier uni dessous, la
+ * gravure au-dessus, le nom au centre. Les proportions ne sont pas estimées —
+ * l'ouverture de l'ovale a été MESURÉE dans l'alpha du fichier : elle va de
+ * 18,8 % à 81 % en largeur, de 27,5 % à 79 % en hauteur, centrée à (49,9 % ;
+ * 53,25 %). Le titre s'inscrit dans ce rectangle-là, réduit encore d'un quart
+ * parce qu'un ovale ne remplit pas le rectangle qui le borne.
+ */
+.ls-plaque {
   position: relative;
   display: grid;
   place-items: center;
-  width: 84px;
-  height: 84px;
-}
-
-/* Le halo : une seule respiration, lente, derrière l'emblème. */
-.ls-emblem-glow {
-  position: absolute;
-  inset: -30%;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 72%);
-  animation: ls-breathe 3.2s var(--ease-inout) infinite;
-}
-
-@keyframes ls-breathe {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: scale(0.92);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
+  width: min(78vw, 520px);
+  aspect-ratio: 420 / 324;
+  color: var(--text-primary);
 }
 
 /*
- * Le même losange à trois points que la barre du haut (`.topbar-mark`),
- * agrandi. Reprendre l'emblème déjà en place plutôt qu'en inventer un nouveau
- * fait reconnaître, dès le rideau, l'application qu'on s'apprête à ouvrir.
+ * La réserve : l'étiquette de papier collée sur le plat marbré.
+ *
+ * Elle déborde l'ouverture de deux points seulement, de quoi glisser sous le
+ * trait intérieur du cadre. Plus large — le premier essai lui donnait cinq
+ * points de marge —, elle réapparaissait par-dessus les volutes les plus
+ * fines et doublait le contour d'un second ovale, plus pâle : on voyait
+ * l'étiquette AUTOUR du cadre, ce qu'aucun relieur n'a jamais laissé passer.
  */
-.ls-emblem-mark {
-  position: relative;
-  display: grid;
-  width: 64px;
-  height: 64px;
-  border-radius: 22px;
-  background: linear-gradient(148deg, var(--accent), var(--accent-rose));
-  box-shadow:
-    0 0 0 1px var(--glass-border-strong),
-    0 10px 28px rgba(0, 0, 0, 0.32);
-  animation: ls-breathe 3.2s var(--ease-inout) infinite;
-}
-
-.ls-emblem-mark i {
+.ls-reserve {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  left: 16.8%;
+  top: 25.5%;
+  width: 66.4%;
+  height: 55.5%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  font-style: normal;
+  background: var(--glass-panel-solid);
+  box-shadow: 0 1px 16px color-mix(in srgb, var(--text-primary) 20%, transparent);
 }
 
-.ls-emblem-mark i:nth-child(1) {
-  top: 30%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.ls-cartouche {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* `.ornement` peint `currentColor` : le cartouche prend donc l'encre du
+     thème, bistre sur la planche et bleu pâle au cyanotype. */
+  opacity: 0.86;
+  animation: ls-encrer 900ms var(--ease-out) both;
 }
 
-.ls-emblem-mark i:nth-child(2) {
-  top: 66%;
-  left: 32%;
-  transform: translate(-50%, -50%);
-}
-
-.ls-emblem-mark i:nth-child(3) {
-  top: 66%;
-  left: 68%;
-  transform: translate(-50%, -50%);
+/* Le cartouche s'encre une fois : il s'approche et prend sa densité, comme
+   une planche qu'on vient de tirer. Rien ne respire ensuite. */
+@keyframes ls-encrer {
+  from {
+    opacity: 0;
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 0.86;
+    transform: scale(1);
+  }
 }
 
 /* ------------------------------- Le texte -------------------------------- */
@@ -144,14 +148,55 @@
   text-align: center;
 }
 
+/*
+ * Le titre, au centre de l'ovale.
+ *
+ * `46%` de large : l'ouverture mesure 62 % du cartouche, et l'inscrit d'un
+ * ovale vaut environ les trois quarts de sa boîte. Le titre s'y coupe en deux
+ * lignes plutôt que de venir toucher les volutes — un titre gravé se compose
+ * dans son cadre, il ne le déborde jamais.
+ */
 .ls-title {
+  position: absolute;
+  left: 50%;
+  top: 53.25%;
+  width: 46%;
+  transform: translate(-50%, -50%);
   margin: 0;
-  font-size: clamp(19px, 3vw, 26px);
+  font-family: var(--font-display);
+  font-size: clamp(20px, 3.4vw, 32px);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: 1.14;
+  letter-spacing: 0.005em;
+  /* Sans quoi le titre s'aligne à gauche de sa boîte et le premier nom un peu
+     long sort de l'ovale par la droite — vu à l'écran avant d'être corrigé.
+     `.ls-titles` portait le centrage ; le titre n'y est plus. */
+  text-align: center;
+  text-wrap: balance;
   color: var(--text-primary);
   opacity: 0;
-  animation: ls-rise 620ms var(--ease-out) 120ms forwards;
+  animation: ls-titre-rise 620ms var(--ease-out) 420ms forwards;
+}
+
+/*
+ * La montée du titre porte SON PROPRE centrage, et il le faut absolument.
+ *
+ * `ls-rise` n'anime qu'un `translateY`. Or une `transform` animée remplace la
+ * `transform` de la règle — elle ne s'y ajoute pas. Le `translate(-50%, -50%)`
+ * qui centre le titre dans l'ovale disparaissait donc dès la première image de
+ * l'animation, et le titre se posait cent vingt pixels à droite de son cadre,
+ * à cheval sur les volutes. Vu à l'écran, mesuré ensuite : la boîte partait de
+ * 600 px là où elle devait partir de 480.
+ */
+@keyframes ls-titre-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
 }
 
 @keyframes ls-rise {
@@ -193,6 +238,33 @@
   opacity: 1;
 }
 
+/* Le filet gravé : il sépare les noms du trait de progression, comme sur une
+   planche où une vignette sépare le titre de sa légende. */
+/*
+ * La règle générale des filets les veut discrets, séparant deux blocs de
+ * texte ; celui-ci est seul sur une page de garde. Il a donc sa propre montée
+ * — et il lui FAUT sa propre montée : une animation en `forwards` l'emporte
+ * sur toute déclaration normale, si bien qu'une règle `opacity` posée à côté
+ * de `ls-rise` n'aurait jamais rien changé.
+ */
+.ls-filet {
+  width: 264px;
+  color: var(--text-primary);
+  opacity: 0;
+  animation: ls-filet-rise 620ms var(--ease-out) 320ms forwards;
+}
+
+@keyframes ls-filet-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
+}
+
 /*
  * Un simple trait de progression.
  *
@@ -231,13 +303,17 @@
 
 /* --------------------------- Mouvement réduit ---------------------------- */
 
-.loading-screen[data-reduced] .ls-emblem-glow,
-.loading-screen[data-reduced] .ls-emblem-mark,
 .loading-screen[data-reduced] .ls-progress-fill {
   animation: none;
 }
 
+.loading-screen[data-reduced] .ls-cartouche {
+  animation: none;
+  opacity: 0.86;
+}
+
 .loading-screen[data-reduced] .ls-title,
+.loading-screen[data-reduced] .ls-filet,
 .loading-screen[data-reduced] .ls-names,
 .loading-screen[data-reduced] .ls-progress,
 .loading-screen[data-reduced] .ls-name {
@@ -252,9 +328,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ls-emblem-glow,
-  .ls-emblem-mark,
   .ls-progress-fill {
     animation: none;
+  }
+
+  .ls-cartouche {
+    animation: none;
+    opacity: 0.86;
   }
 }

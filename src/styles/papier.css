@@ -324,11 +324,23 @@
   pointer-events: none;
 }
 
+/*
+ * Trois filets, du plus fin au plus gras — et ce n'est pas une gradation
+ * décorative : plus le filet est petit à l'écran, plus il lui faut de matière
+ * pour rester une gravure. Le fin, réduit à deux cents pixels, redevient une
+ * simple règle ; le gras y garde sa coquille centrale et ses fleurons.
+ */
 .ornement--filet {
   -webkit-mask-image: url('../assets/ornement-filet-2.png');
   mask-image: url('../assets/ornement-filet-2.png');
   height: 14px;
   opacity: 0.4;
+}
+
+.ornement--filet-fort {
+  -webkit-mask-image: url('../assets/ornement-filet-3.png');
+  mask-image: url('../assets/ornement-filet-3.png');
+  aspect-ratio: 420 / 36;
 }
 
 .ornement--cartouche {
