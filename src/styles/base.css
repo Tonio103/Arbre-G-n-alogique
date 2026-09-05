@@ -107,7 +107,7 @@ ol {
 
 .scroll-area::-webkit-scrollbar-thumb {
   background: var(--glass-border-strong);
-  border-radius: 999px;
+  border-radius: 2px;
 }
 
 .scroll-area::-webkit-scrollbar-track {

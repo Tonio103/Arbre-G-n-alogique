@@ -219,7 +219,7 @@
 
 .scope-choice {
   padding: 6px 12px;
-  border-radius: 11px;
+  border-radius: var(--radius-control);
   color: var(--text-secondary);
   font-size: 12.5px;
   font-weight: 550;
@@ -1100,9 +1100,23 @@
   to { opacity: 1; transform: none; }
 }
 
+/* ---------------------------------------------------------------------------
+ * LE GUIDE, DESSINÉ COMME L'ARBRE QU'IL EXPLIQUE
+ *
+ * Ses six vignettes montraient des ronds bleus cerclés de bleu, reliés par
+ * des traits, sur un lavis bleu — l'ancienne identité, restée intacte parce
+ * que le guide ne s'ouvre qu'à la toute première visite et qu'on ne le revoit
+ * jamais ensuite. C'est pourtant la PREMIÈRE chose que voit qui découvre
+ * l'arbre, et elle ne ressemblait plus à l'arbre.
+ *
+ * Les vignettes reprennent donc exactement le dessin de la planche :
+ * médaillons de papier cernés d'un trait d'encre, branches à l'encre franche.
+ * Une explication qui ne ressemble pas à ce qu'elle explique n'explique rien.
+ * ------------------------------------------------------------------------- */
+
 /* La scène : une bande illustrée en haut de la carte. */
 .tour-scene {
-  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  background: linear-gradient(180deg, var(--bg-veil), transparent);
   padding: 6px 10px 0;
 }
 
@@ -1113,15 +1127,16 @@
 }
 
 .tour-dot {
-  fill: var(--accent-soft);
-  stroke: var(--accent);
-  stroke-width: 1.6;
+  fill: var(--glass-panel-solid);
+  stroke: var(--text-primary);
+  stroke-width: 1.4;
   animation: tour-pop 2.6s var(--ease-out) infinite;
 }
 
-/* La personne dont on remonte la lignée : elle se distingue des autres. */
+/* La personne dont on remonte la lignée : un médaillon PLEIN, comme la
+   vignette pleine d'un imprimeur — pas une pastille d'une autre couleur. */
 .tour-dot[data-self] {
-  fill: var(--accent);
+  fill: var(--text-primary);
 }
 
 .tour-dot--new {
@@ -1146,7 +1161,7 @@
 }
 
 .tour-link--new {
-  stroke: var(--accent);
+  stroke: var(--text-secondary);
   stroke-dasharray: 4 3;
 }
 
@@ -1158,7 +1173,7 @@
 
 /* Le pointeur qui vient cliquer, puis la fiche qui s'ouvre. */
 .tour-pointer {
-  fill: var(--accent-strong);
+  fill: var(--accent);
   opacity: 0;
   animation: tour-tap 2.8s var(--ease-out) infinite;
 }
@@ -1171,8 +1186,8 @@
 }
 
 .tour-panel {
-  fill: var(--glass-fill);
-  stroke: var(--glass-border);
+  fill: var(--glass-panel-solid);
+  stroke: var(--glass-border-strong);
   stroke-width: 1;
   opacity: 0;
   animation: tour-panel 2.8s var(--ease-out) infinite;
@@ -1195,21 +1210,24 @@
 }
 
 .tour-arrow {
-  stroke: var(--accent);
+  stroke: var(--text-secondary);
   stroke-width: 1.6;
   fill: none;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .tour-tab {
-  fill: var(--glass-fill);
-  stroke: var(--glass-border);
+  fill: none;
+  stroke: var(--glass-border-strong);
   stroke-width: 1;
 }
 
+/* L'onglet courant se marque comme dans la barre du haut : par l'encre, pas
+   par un aplat. */
 .tour-tab[data-active] {
-  fill: var(--accent-soft);
-  stroke: var(--accent);
+  fill: var(--bg-veil);
+  stroke: var(--text-primary);
+  stroke-width: 1.4;
   animation: tour-pop 2.8s var(--ease-out) infinite;
 }
 
@@ -1226,17 +1244,20 @@
 
 .tour-step {
   margin: 0 0 6px;
+  font-family: var(--font-display);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
 .tour-title {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 22px;
   font-weight: 600;
+  letter-spacing: 0.005em;
   color: var(--text-primary);
 }
 
@@ -1260,23 +1281,37 @@
   padding: 16px 22px 0;
 }
 
+/*
+ * L'avancement en GRADUATIONS, et non en pastilles.
+ *
+ * C'est déjà la langue du rail des générations et de la règle de la
+ * Chronologie : un trait court pour chaque cran, un trait long et gras pour
+ * celui où l'on se trouve. Trois endroits de l'application disent « vous êtes
+ * ici » ; il n'y a aucune raison qu'ils le disent de trois façons.
+ */
 .tour-dots {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
+  height: 12px;
 }
 
 .tour-bullet {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+  width: 9px;
+  height: 1px;
+  border-radius: 0;
   background: var(--glass-border-strong);
-  transition: background var(--dur-fast) var(--ease-out), width var(--dur-fast) var(--ease-out);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    height var(--dur-fast) var(--ease-out),
+    width var(--dur-fast) var(--ease-out);
 }
 
 .tour-bullet[data-active] {
-  width: 18px;
-  border-radius: 4px;
-  background: var(--accent);
+  width: 16px;
+  height: 1.8px;
+  border-radius: 0;
+  background: var(--text-primary);
 }
 
 .tour-actions {
@@ -1287,8 +1322,9 @@
 
 .tour-skip,
 .tour-back {
-  padding: 7px 12px;
-  border-radius: 10px;
+  padding: 7px 4px;
+  border-radius: 0;
+  font-family: var(--font-display);
   color: var(--text-tertiary);
   font-size: 13px;
   transition: color var(--dur-fast) var(--ease-out);
@@ -1299,13 +1335,17 @@
   color: var(--text-primary);
 }
 
+/* Le seul aplat de couleur de la planche, et il est mérité : c'est le geste
+   qu'on attend. Mais à angles droits — un cachet imprimé, pas une pilule. */
 .tour-next {
   padding: 8px 16px;
-  border-radius: 11px;
+  border-radius: var(--radius-control);
   background: var(--accent);
   color: var(--text-inverse);
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: 13.5px;
   font-weight: 600;
+  letter-spacing: 0.03em;
   transition: filter var(--dur-fast) var(--ease-out);
 }
 

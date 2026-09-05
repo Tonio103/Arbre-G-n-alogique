@@ -376,12 +376,20 @@
   }
 }
 
+/*
+ * Le halo de la sélection : de l'encre diluée, pas un bleu d'interface.
+ *
+ * Il était en `--accent-soft`, du bleu de Prusse à 11 % — la seule tache
+ * colorée de la planche, et elle apparaissait sous la personne qu'on regarde
+ * le plus. Un halo de bistre très pâle dit la même chose et ressemble à ce
+ * que fait l'encre autour d'un trait sur du papier humide.
+ */
 .node[data-selected] .node-halo {
   opacity: 1;
   background: radial-gradient(
     circle at 50% 42%,
-    var(--accent-soft) 0%,
-    var(--accent-soft) 40%,
+    color-mix(in srgb, var(--text-primary) 9%, transparent) 0%,
+    color-mix(in srgb, var(--text-primary) 9%, transparent) 40%,
     transparent 72%
   );
   /*
@@ -550,7 +558,7 @@
   min-width: 150px;
   max-width: 230px;
   padding: 10px 13px;
-  border-radius: 16px;
+  border-radius: var(--radius-panel);
   text-align: left;
   pointer-events: none;
   opacity: 0;

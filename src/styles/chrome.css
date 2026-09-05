@@ -320,7 +320,7 @@
   left: 0;
   right: 0;
   padding: 8px;
-  border-radius: 22px;
+  border-radius: var(--radius-panel);
   z-index: 30;
   /* L'apparition est portée par `lg--liquid`, dans le matériau de verre. */
 }
@@ -394,7 +394,7 @@
   gap: 11px;
   width: 100%;
   padding: 7px 9px;
-  border-radius: 15px;
+  border-radius: var(--radius-control);
   text-align: left;
   transition: background var(--dur-fast) var(--ease-out);
 }
@@ -430,7 +430,7 @@
 .search-result-gen {
   flex: none;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--glass-fill);
   font-size: 10.5px;
   font-variant-numeric: tabular-nums;
@@ -471,9 +471,16 @@
     opacity var(--dur-base) var(--ease-out);
 }
 
-/* Le rail s'écarte pour laisser la place à la fiche plutôt que de passer dessous. */
+/*
+ * Le rail s'écarte pour laisser la place à la fiche.
+ *
+ * Il se posait alors en plein milieu de l'arbre, où sa bande de papier
+ * flottait sans rien contre quoi se caler — une marge au milieu d'une page
+ * n'est plus une marge. Il se colle donc au bord de la fiche, dont il devient
+ * la graduation : deux surfaces qui se touchent se lisent comme une seule.
+ */
 .app[data-panel-open] .rail {
-  right: calc(var(--panel-width) + 12px);
+  right: var(--panel-width);
 }
 
 /* Le filet porteur, à gauche des graduations : c'est lui qu'on suit. */
@@ -611,7 +618,7 @@
       'identity controls'
       'search search';
     gap: 10px;
-    border-radius: 26px;
+    border-radius: var(--radius-panel);
   }
 
   .topbar-identity {
@@ -729,7 +736,7 @@
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--text-secondary);
   font: inherit;
@@ -892,7 +899,7 @@
 .welcome-identify select {
   height: 32px;
   padding: 0 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--glass-border);
   background: var(--glass-fill);
   color: var(--text-primary);
