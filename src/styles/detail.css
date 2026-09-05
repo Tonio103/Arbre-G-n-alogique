@@ -165,11 +165,13 @@
   align-items: center;
   gap: 6px;
   height: 32px;
-  padding: 0 12px;
+  padding: 0 13px;
   border-radius: var(--radius-pill);
   border: 1px solid transparent;
-  font-size: 12.5px;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
   white-space: nowrap;
   transition:
@@ -747,33 +749,89 @@
   flex: 1 1 0;
 }
 
+/* ---------------------------------------------------------------------------
+ * LE FORMULAIRE EST UN REGISTRE
+ *
+ * C'était une pile de champs en boîtes remplies à coins ronds, avec leurs
+ * étiquettes grises : le formulaire web par défaut. Or c'est LA surface qui
+ * sert à remplir l'arbre — celle qui fait éclore les bourgeons en feuilles —
+ * et la seule où l'on écrit vraiment.
+ *
+ * On n'écrit pas dans une boîte, on écrit SUR UNE LIGNE. Un acte d'état
+ * civil, un bordereau d'herbier, un registre paroissial : partout la même
+ * réglure, l'intitulé en petites capitales au-dessus, et la mention portée
+ * dessus. C'est déjà la langue de la recherche en haut de l'écran ; le
+ * formulaire la parle à son tour.
+ *
+ * Une seule exception, et elle est de bon sens : un TEXTE LONG garde son
+ * cadre. Sur un vrai formulaire aussi, les réponses courtes vont sur une
+ * ligne et les réponses longues dans un cadre — la ligne ne dit plus où
+ * s'arrête la réponse dès qu'elle en occupe plusieurs.
+ * ------------------------------------------------------------------------- */
+
 .edit-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 12px;
+  gap: 3px;
+}
+
+/* L'intitulé : petites capitales espacées, comme la mention imprimée d'un
+   registre — celle qui est là avant qu'on écrive quoi que ce soit. */
+.edit-field > span,
+.edit-list-field > span {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
 .edit-field input,
-.edit-field select,
-.edit-field textarea {
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  font: inherit;
-  font-size: 13px;
+.edit-field select {
+  padding: 5px 2px;
+  border-radius: 0;
+  background: none;
+  border: none;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border-strong);
+  font-family: var(--font-display);
+  font-size: 15px;
   color: var(--text-primary);
-  resize: vertical;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
 }
 
+/* Le texte long garde son cadre — mais un cadre de graveur : un filet, des
+   angles droits, et le papier pour fond. */
+.edit-field textarea {
+  padding: 8px 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--glass-panel-solid) 55%, transparent);
+  border: 1px solid var(--glass-border-strong);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.edit-field input::placeholder,
+.edit-field textarea::placeholder {
+  font-style: italic;
+  color: var(--text-tertiary);
+}
+
+/* La réglure s'épaissit et passe au bleu de Prusse là où l'on écrit : la même
+   marque que la ligne de recherche, et la même information. */
 .edit-field input:focus,
-.edit-field select:focus,
+.edit-field select:focus {
+  outline: none;
+  box-shadow: inset 0 -1.6px 0 0 var(--accent);
+}
+
 .edit-field textarea:focus {
   outline: none;
-  border-color: var(--accent-ring);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
 }
 
 /*
@@ -793,15 +851,19 @@
   list-style: none;
 }
 
+/* Une mention portée sur la ligne, et non une pilule : ce sont des choses
+   qu'on a ÉCRITES, elles doivent en avoir l'air. */
 .edit-chip {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 6px 4px 11px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 12px;
-  color: var(--text-secondary);
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 2px 3px;
+  border-radius: 0;
+  border: none;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  color: var(--text-primary);
 }
 
 .edit-chip-remove {
@@ -830,36 +892,47 @@
 
 .edit-list-add-row input {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  font: inherit;
-  font-size: 13px;
+  padding: 5px 2px;
+  border-radius: 0;
+  background: none;
+  border: none;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border-strong);
+  font-family: var(--font-display);
+  font-size: 15px;
   color: var(--text-primary);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.edit-list-add-row input::placeholder {
+  font-style: italic;
+  color: var(--text-tertiary);
 }
 
 .edit-list-add-row input:focus {
   outline: none;
-  border-color: var(--accent-ring);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: inset 0 -1.6px 0 0 var(--accent);
 }
 
+/* « Ajouter » : une mention soulignée, comme les renvois du bordereau. Le
+   contour en pointillés disait « emplacement vide » dans le vocabulaire des
+   maquettes ; sur une page, rien ne se dessine en pointillés. */
 .edit-list-add {
-  align-self: flex-start;
-  padding: 6px 13px;
-  border-radius: 999px;
-  border: 1px dashed var(--glass-border-strong);
-  font-size: 12px;
+  align-self: flex-end;
+  padding: 4px 2px;
+  border-radius: 0;
+  border: none;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border-strong);
+  font-family: var(--font-display);
+  font-size: 13px;
   color: var(--text-secondary);
   transition:
-    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
 
 .edit-list-add:hover:not(:disabled) {
-  border-color: var(--accent-ring);
   color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 var(--accent);
 }
 
 .edit-list-add:disabled {
@@ -876,19 +949,20 @@
 .edit-list-row textarea {
   flex: 1;
   padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  font: inherit;
-  font-size: 13px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--glass-panel-solid) 55%, transparent);
+  border: 1px solid var(--glass-border-strong);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--text-primary);
   resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .edit-list-row textarea:focus {
   outline: none;
-  border-color: var(--accent-ring);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .edit-list-remove {
@@ -987,7 +1061,7 @@
 }
 
 .edit-form-delete:hover {
-  color: #d64c3c;
+  color: var(--accent-warm);
 }
 
 .relative-form {
@@ -1154,7 +1228,7 @@
   background: var(--accent-soft);
   font-size: 11.5px;
   font-weight: 550;
-  color: #d64c3c;
+  color: var(--accent-warm);
 }
 
 .relation-editor-cancel {
@@ -1267,15 +1341,17 @@
   color: #fff;
 }
 
+/* La sanguine, et non un rouge d'alerte hors palette : la planche a un
+   pigment pour ce qui coupe une branche, c'est celui-là. */
 .action-button--danger {
-  background: rgba(214, 76, 60, 0.14);
-  border-color: rgba(214, 76, 60, 0.4);
-  color: #d64c3c;
+  background: color-mix(in srgb, var(--accent-warm) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-warm) 42%, transparent);
+  color: var(--accent-warm);
 }
 
 .action-button--danger:hover {
-  background: rgba(214, 76, 60, 0.22);
-  color: #d64c3c;
+  background: color-mix(in srgb, var(--accent-warm) 20%, transparent);
+  color: var(--accent-warm);
 }
 
 /* L'avertissement qui précède une suppression. */
