@@ -73,7 +73,14 @@ export function TopBar({
   return (
     <header className="topbar lg lg--thick lg--bar">
       <div className="topbar-identity">
-        <span className="topbar-mark" aria-hidden="true" />
+        {/*
+          La marque : un cachet d'ex-libris plutôt qu'une icône d'application.
+          L'initiale sort du titre de l'arbre — c'est la famille qui signe sa
+          planche, pas le logiciel qui signe sa fenêtre.
+        */}
+        <span className="topbar-mark" aria-hidden="true">
+          {(graph.title || 'A').trim().charAt(0).toUpperCase()}
+        </span>
         <span className="topbar-titles">
           <h1 className="topbar-title">{graph.title}</h1>
           <span className="topbar-subtitle">

@@ -49,29 +49,58 @@
   min-width: 0;
 }
 
-/* Petite marque : trois points reliés, comme un fragment d'arbre. */
+/*
+ * LE CACHET D'EX-LIBRIS.
+ *
+ * C'était un carré à coins arrondis rempli d'un dégradé bleu vers rose, avec
+ * trois points blancs — l'icône d'une application moderne, et la dernière
+ * pièce de l'ancienne identité encore à l'écran. Elle était visible en
+ * permanence, en haut à gauche de chaque vue.
+ *
+ * Elle devient le cachet que la famille appose sur sa planche : un médaillon
+ * rond, l'initiale du titre gravée dedans, et le DOUBLE FILET du graveur —
+ * un trait franc, un blanc de réserve, un trait plus fin. Exactement le cerne
+ * des cinquante camées de l'arbre (voir `avatar.css`) : la barre du haut et
+ * les médaillons portent enfin la même bordure, ce qui n'était pas le cas.
+ *
+ * Un cachet ne se dessine pas à trente pixels avec des volutes : le cartouche
+ * gravé, réduit à cette taille, n'aurait plus été qu'une tache. Ce qui se lit
+ * à trente pixels, c'est un cercle, un cerne et une lettre.
+ */
 .topbar-mark {
   position: relative;
+  display: grid;
+  place-items: center;
   width: 30px;
   height: 30px;
   flex: none;
-  border-radius: 11px;
-  background: linear-gradient(148deg, var(--accent), var(--accent-rose));
+  border-radius: 50%;
+  background-color: var(--glass-panel-solid);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  user-select: none;
   box-shadow:
-    0 0 0 1px var(--glass-border-strong),
-    0 6px 16px rgba(0, 0, 0, 0.3);
+    0 0 0 1px var(--text-primary),
+    0 0 0 2.5px var(--glass-panel-solid),
+    0 0 0 3.5px var(--glass-border-strong);
 }
 
+/* Le creux du bord, comme sur un camée : une gravure s'assombrit contre son
+   cerne. */
 .topbar-mark::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.95) 1.7px, transparent 2.2px),
-    radial-gradient(circle at 30% 70%, rgba(255, 255, 255, 0.95) 1.7px, transparent 2.2px),
-    radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.95) 1.7px, transparent 2.2px),
-    linear-gradient(transparent, transparent);
+  background: radial-gradient(
+    closest-side,
+    transparent 58%,
+    color-mix(in srgb, var(--text-primary) 18%, transparent) 100%
+  );
 }
 
 .topbar-titles {
