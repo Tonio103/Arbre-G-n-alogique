@@ -167,9 +167,10 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     ? params.unions.filter((union) => union.id !== growingId)
     : params.unions;
 
-  // Trois passes, une par teinte : changer de couleur rompt le chemin, et un
-  // millier de chemins d'un seul segment coûte bien plus que trois chemins
-  // d'un millier de segments.
+  // Deux teintes au plus, et un seul `Path2D` par teinte : `encrer` accumule
+  // tous les traits d'un groupe dans le même chemin, puis le remplit trois
+  // fois. Séparer les couleurs plus finement voudrait dire un chemin par
+  // union — un millier de chemins là où deux suffisent.
   const groups: Array<{ list: LayoutUnion[]; color: string; weight: number }> = hasSelection
     ? [
         {
@@ -185,24 +186,29 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ]
     : [{ list: drawableUnions, color: palette.line, weight: 1.7 }];
 
-  // L'ombre du trait suit l'échelle comme son épaisseur, sinon la lueur du
-  // ciel ou le bavure de l'encre grossirait avec le zoom au lieu de rester
-  // une propriété du trait lui-même.
-  ctx.shadowColor = palette.glow.color;
-  ctx.shadowBlur = palette.glow.blur / density;
+  /*
+   * L'encre.
+   *
+   * Le trait n'est plus « strocké » à épaisseur constante : chaque segment est
+   * une forme remplie, plus grasse à son attaque qu'à sa sortie. C'est ce
+   * dégradé — épais au tronc, effilé au rameau — qui fait lire un arbre là où
+   * un vecteur d'épaisseur égale ne donnait qu'un organigramme.
+   *
+   * L'unité reste le pixel d'écran : un trait de filiation ne grossit pas avec
+   * le zoom, sans quoi il finirait par masquer les cartes.
+   */
+  const unit = 1 / density;
+  ctx.shadowBlur = 0;
 
   for (const group of groups) {
     if (group.list.length === 0) continue;
-    ctx.beginPath();
-    // Un divorce garde son trait de descente plein — se séparer ne défait
-    // pas la filiation — mais pas son trait d'alliance : celui-là se
-    // dessine à part, plus bas, en pointillé.
-    for (const union of group.list) traceUnion(ctx, union, union.status !== 'divorced');
-    ctx.strokeStyle = group.color;
-    // L'épaisseur est donnée en pixels d'écran : un trait de liaison ne
-    // grossit pas avec le zoom, sans quoi il finit par masquer les cartes.
-    ctx.lineWidth = group.weight / density;
-    ctx.stroke();
+    // Un divorce garde sa descente pleine — se séparer ne défait pas la
+    // filiation — mais son trait d'alliance se dessine à part, plus bas.
+    const traits: Trait[] = [];
+    for (const union of group.list) {
+      for (const trait of unionSegments(union, union.status !== 'divorced')) traits.push(trait);
+    }
+    encrer(ctx, traits, group.color, group.weight * unit, unit);
   }
 
   /*
@@ -219,20 +225,31 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     for (const group of groups) {
       const list = group.list.filter((union) => union.status === 'divorced');
       if (list.length === 0) continue;
-      ctx.beginPath();
+      /*
+       * Un pointillé de plume, et non un `setLineDash`.
+       *
+       * Une ligne pointillée de logiciel a des tirets rigoureusement égaux ;
+       * une plume qui saute laisse des traits inégaux, chacun avec sa propre
+       * attaque et sa propre sortie. On découpe donc l'alliance en cinq
+       * fragments effilés aux deux bouts.
+       */
+      const traits: Trait[] = [];
       for (const union of list) {
         const alliance = allianceSegment(union);
         if (!alliance) continue;
         const [x1, y1, x2, y2] = alliance;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        for (let i = 0; i < 5; i += 1) {
+          const a = i / 5;
+          const b = a + 0.13;
+          traits.push({
+            seg: [x1 + (x2 - x1) * a, y1 + (y2 - y1) * a, x1 + (x2 - x1) * b, y1 + (y2 - y1) * b],
+            from: 0.5,
+            to: 0.5,
+          });
+        }
       }
-      ctx.setLineDash([5 / density, 4 / density]);
-      ctx.strokeStyle = group.color;
-      ctx.lineWidth = group.weight / density;
-      ctx.stroke();
+      encrer(ctx, traits, group.color, group.weight * unit, unit);
     }
-    ctx.setLineDash([]);
   }
 
   // Le chemin de parenté, par-dessus tout le reste : c'est la réponse à la
@@ -240,11 +257,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   if (params.pathUnions && params.pathUnions.size > 0) {
     const onPath = params.unions.filter((union) => params.pathUnions!.has(union.id));
     if (onPath.length > 0) {
-      ctx.beginPath();
-      for (const union of onPath) traceUnion(ctx, union);
-      ctx.strokeStyle = palette.strong;
-      ctx.lineWidth = 3.2 / density;
-      ctx.stroke();
+      encrer(ctx, traitsDe(onPath), palette.strong, 3.2 * unit, unit);
     }
   }
 
@@ -252,22 +265,33 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   // même ordre de lecture que le reste de l'arbre (alliance, descente, bus,
   // puis chaque enfant) — la même technique de révélation par longueur de
   // trait que le rideau d'ouverture, portée ici sur le canevas via
-  // `setLineDash`/`lineDashOffset` plutôt que `stroke-dashoffset` en SVG.
+  // plume qui avance sur le papier plutôt que trait qui se découvre.
   if (params.growth) {
     const growing = params.unions.find((union) => union.id === params.growth!.unionId);
     const length = growing ? unionPathLength(growing) : 0;
     if (growing && length > 0) {
       const progress = Math.min(1, Math.max(0, params.growth.progress));
-      ctx.beginPath();
-      traceUnion(ctx, growing);
-      ctx.setLineDash([length, length]);
-      ctx.lineDashOffset = length * (1 - progress);
-      ctx.strokeStyle = palette.strong;
-      ctx.lineWidth = 3 / density;
-      ctx.shadowColor = palette.glow.color;
-      ctx.shadowBlur = (palette.glow.blur + 5) / density;
-      ctx.stroke();
-      ctx.setLineDash([]);
+      let reste = length * progress;
+      const traits: Trait[] = [];
+      for (const trait of unionSegments(growing)) {
+        if (reste <= 0) break;
+        const [x1, y1, x2, y2] = trait.seg;
+        const l = Math.hypot(x2 - x1, y2 - y1);
+        if (l <= reste) {
+          traits.push(trait);
+          reste -= l;
+        } else {
+          // Le trait en cours, coupé là où la plume en est.
+          const f = reste / l;
+          traits.push({
+            seg: [x1, y1, x1 + (x2 - x1) * f, y1 + (y2 - y1) * f],
+            from: trait.from,
+            to: trait.from + (trait.to - trait.from) * f,
+          });
+          reste = 0;
+        }
+      }
+      encrer(ctx, traits, palette.strong, 3 * unit, unit);
     }
   }
 
@@ -353,7 +377,147 @@ function unionHub(union: LayoutUnion): { x: number; y: number } | undefined {
 type Segment = readonly [number, number, number, number];
 
 /**
- * Les segments d'une union, source commune au tracé normal (`traceUnion`) et
+ * Un trait de plume : un segment, et l'épaisseur qu'il porte à chaque bout.
+ *
+ * Les deux valeurs sont des MULTIPLES de l'épaisseur de base, pas des
+ * pixels : c'est ce qui permet à la sélection d'épaissir tout le réseau d'un
+ * coup sans que le rapport entre un tronc et un rameau ne bouge.
+ */
+interface Trait {
+  seg: Segment;
+  from: number;
+  to: number;
+}
+
+/**
+ * Le frémis de la main.
+ *
+ * Une plume ne trace pas droit — elle ondule très lentement, au rythme du
+ * poignet. Ce qu'il faut, c'est un bruit LISSÉ : un tirage au hasard à chaque
+ * point donnerait un zigzag de sismographe, qui se lit comme un défaut de
+ * rendu et non comme une main.
+ *
+ * Déterministe, et c'est essentiel : la même union doit frémir exactement
+ * pareil à chaque redessin, sinon l'arbre entier tremblote dès qu'on le
+ * déplace.
+ */
+function fremis(graine: number): (t: number) => number {
+  const table: number[] = [];
+  let x = graine * 2654435761 % 4294967296;
+  for (let i = 0; i < 64; i += 1) {
+    x = (x * 1664525 + 1013904223) % 4294967296;
+    table.push(x / 4294967296);
+  }
+  return (t: number): number => {
+    const i = Math.floor(t);
+    const f = t - i;
+    const a = table[((i % 64) + 64) % 64];
+    const b = table[((i + 1) % 64 + 64) % 64];
+    // Lissage en marche d'escalier adoucie : la dérivée s'annule aux nœuds,
+    // donc pas d'angle au passage d'un intervalle à l'autre.
+    return a + (b - a) * (f * f * (3 - 2 * f));
+  };
+}
+
+/** Une graine stable, tirée de la position : le même trait frémit toujours
+ *  de la même façon, où qu'on en soit dans le déplacement. */
+const graineDe = ([x1, y1]: Segment): number => Math.abs(Math.round(x1 * 7.3 + y1 * 13.1));
+
+/**
+ * Le tracé d'un trait à la plume.
+ *
+ * On ne « strokes » pas une ligne : on REMPLIT la forme comprise entre deux
+ * bords décalés de part et d'autre de l'axe. C'est la seule façon de faire
+ * varier l'épaisseur le long de la course — et c'est ce qui distingue une
+ * plume d'un feutre, qui pose partout la même largeur.
+ *
+ * `gonfle` sert à la bavure : le même tracé, élargi, très pâle, posé dessous.
+ */
+function plume(path: Path2D, trait: Trait, base: number, gonfle: number, unit: number): void {
+  const [x1, y1, x2, y2] = trait.seg;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.01) return;
+
+  const nx = -dy / len;
+  const ny = dx / len;
+  const bruit = fremis(graineDe(trait.seg));
+
+  /*
+   * Le frémis se mesure à l'ÉCRAN, pas à l'épaisseur du trait.
+   *
+   * Premier essai : une amplitude proportionnelle à `base`, sur la foi que
+   * l'ondulation était « une propriété du trait ». Un trait fait deux pixels :
+   * l'ondulation en faisait un demi, et la mesure des pixels rendus l'a
+   * confirmé — parfaitement invisible. Une main ne tremble pas plus fort parce
+   * qu'elle tient une plume plus grasse ; elle dévie de la même fraction de
+   * millimètre. L'unité, donc, est le pixel d'écran.
+   *
+   * Et la période aussi : à fréquence fixe par segment, une barre courte
+   * ondulait autant qu'une longue descente et se lisait comme un défaut. Une
+   * ondulation tous les ~70 px de course, et le geste redevient le même
+   * partout.
+   */
+  const courseEcran = len / unit;
+  const periodes = Math.max(1.2, courseEcran / 70);
+  // Assez de points pour que chaque ondulation soit décrite, pas au point de
+  // payer un millier de sommets par union.
+  const N = Math.min(24, Math.max(6, Math.round(periodes * 5)));
+  const gauche: number[] = [];
+  const droite: number[] = [];
+
+  for (let i = 0; i <= N; i += 1) {
+    const t = i / N;
+    const demi = (base * (trait.from + (trait.to - trait.from) * t)) / 2 + gonfle;
+    const ecart = (bruit(t * periodes) - 0.5) * unit * 1.5;
+    const px = x1 + dx * t + nx * ecart;
+    const py = y1 + dy * t + ny * ecart;
+    gauche.push(px + nx * demi, py + ny * demi);
+    droite.push(px - nx * demi, py - ny * demi);
+  }
+
+  path.moveTo(gauche[0], gauche[1]);
+  for (let i = 2; i < gauche.length; i += 2) path.lineTo(gauche[i], gauche[i + 1]);
+  for (let i = droite.length - 2; i >= 0; i -= 2) path.lineTo(droite[i], droite[i + 1]);
+  path.closePath();
+}
+
+/**
+ * Encrer une liste de traits.
+ *
+ * Trois passes, et l'ordre compte : la bavure d'abord — le papier boit
+ * l'encre bien au-delà du tracé —, le trait ensuite. La bavure est obtenue
+ * en élargissant la même forme plutôt qu'en floutant, ce qui évite un
+ * `ctx.filter` par groupe : un flou de canevas coûte cher, deux remplissages
+ * de plus ne coûtent presque rien.
+ */
+function encrer(
+  ctx: CanvasRenderingContext2D,
+  traits: Trait[],
+  couleur: string,
+  base: number,
+  unit: number,
+): void {
+  if (traits.length === 0) return;
+
+  for (const [gonfle, alpha] of [[2.6, 0.05] as const, [1.1, 0.07] as const]) {
+    const bavure = new Path2D();
+    for (const trait of traits) plume(bavure, trait, base, gonfle * unit, unit);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = couleur;
+    ctx.fill(bavure);
+  }
+
+  ctx.globalAlpha = 1;
+  const encre = new Path2D();
+  for (const trait of traits) plume(encre, trait, base, 0, unit);
+  ctx.fillStyle = couleur;
+  ctx.fill(encre);
+}
+
+/**
+ * Les traits d'une union, source commune au tracé normal (`traitsDe`) et
  * au calcul de longueur pour son animation d'apparition (`unionPathLength`) :
  * une seule géométrie, jamais deux versions qui pourraient diverger.
  *
@@ -377,18 +541,36 @@ function allianceSegment(union: LayoutUnion): Segment | undefined {
   return [cardCenterX(first.x), y, cardCenterX(last.x), y];
 }
 
-function unionSegments(union: LayoutUnion, includeAlliance = true): Segment[] {
+/*
+ * Les épaisseurs, en multiples de l'épaisseur de base.
+ *
+ * Elles disent la botanique : un arbre est épais au tronc et effilé aux
+ * rameaux. Le trait qui descend d'un couple part donc plus gras que celui qui
+ * rejoint un enfant, et chaque descente s'amincit vers la carte qu'elle
+ * atteint. C'est ce dégradé, plus qu'aucun ornement, qui fait lire un arbre
+ * plutôt qu'un organigramme.
+ */
+const EP_ALLIANCE = 1;
+const EP_DESCENTE_HAUT = 1.4;
+const EP_DESCENTE_BAS = 1.05;
+const EP_BUS = 1;
+const EP_RAMEAU_HAUT = 0.95;
+const EP_RAMEAU_BAS = 0.5;
+
+function unionSegments(union: LayoutUnion, includeAlliance = true): Trait[] {
   const { partners, children } = union;
   if (partners.length === 0) return [];
 
-  const segments: Segment[] = [];
+  const segments: Trait[] = [];
   const sorted = [...partners].sort((a, b) => a.x - b.x);
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
 
   if (includeAlliance) {
     const alliance = allianceSegment(union);
-    if (alliance) segments.push(alliance);
+    // Le trait d'alliance unit deux égaux : il ne s'effile ni d'un côté ni
+    // de l'autre.
+    if (alliance) segments.push({ seg: alliance, from: EP_ALLIANCE, to: EP_ALLIANCE });
   }
 
   if (children.length === 0) return segments;
@@ -427,19 +609,27 @@ function unionSegments(union: LayoutUnion, includeAlliance = true): Segment[] {
   // Enfant unique à l'aplomb du couple : un simple trait droit. Le bus n'aurait
   // rien à distribuer, et son coude se lirait comme un détour.
   if (children.length === 1 && Math.abs(leftMost - startX) < 1) {
-    segments.push([startX, startY, leftMost, childTop]);
+    segments.push({
+      seg: [startX, startY, leftMost, childTop],
+      from: EP_DESCENTE_HAUT,
+      to: EP_RAMEAU_BAS,
+    });
     return segments;
   }
 
-  // La descente depuis le couple.
-  segments.push([startX, startY, startX, busY]);
+  // La descente depuis le couple : le tronc de cette famille.
+  segments.push({
+    seg: [startX, startY, startX, busY],
+    from: EP_DESCENTE_HAUT,
+    to: EP_DESCENTE_BAS,
+  });
 
   // Le distributeur. Il couvre les enfants et rejoint l'aplomb du couple, même
   // quand celui-ci tombe hors de la fratrie — cas d'un enfant unique décalé.
   const busLeft = Math.min(leftMost, startX);
   const busRight = Math.max(rightMost, startX);
   if (busRight - busLeft > 0.5) {
-    segments.push([busLeft, busY, busRight, busY]);
+    segments.push({ seg: [busLeft, busY, busRight, busY], from: EP_BUS, to: EP_BUS });
   }
 
   // Une descente par enfant : un simple trait droit depuis le bus. Aucun
@@ -449,24 +639,30 @@ function unionSegments(union: LayoutUnion, includeAlliance = true): Segment[] {
   for (const child of children) {
     const centre = cardCenterX(child.x);
     const top = cardTop(child.y);
-    segments.push([centre, busY, centre, top]);
+    segments.push({
+      seg: [centre, busY, centre, top],
+      from: EP_RAMEAU_HAUT,
+      to: EP_RAMEAU_BAS,
+    });
   }
 
   return segments;
 }
 
-function traceUnion(ctx: CanvasRenderingContext2D, union: LayoutUnion, includeAlliance = true): void {
-  for (const [x1, y1, x2, y2] of unionSegments(union, includeAlliance)) {
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+/** Tous les traits d'une liste d'unions, prêts à être encrés d'un coup. */
+function traitsDe(unions: LayoutUnion[], includeAlliance = true): Trait[] {
+  const out: Trait[] = [];
+  for (const union of unions) {
+    for (const trait of unionSegments(union, includeAlliance)) out.push(trait);
   }
+  return out;
 }
 
 /** Longueur totale du trait d'une union — voir `growth` dans `DrawLinksParams`. */
 function unionPathLength(union: LayoutUnion): number {
   let total = 0;
-  for (const [x1, y1, x2, y2] of unionSegments(union)) {
-    total += Math.hypot(x2 - x1, y2 - y1);
+  for (const { seg } of unionSegments(union)) {
+    total += Math.hypot(seg[2] - seg[0], seg[3] - seg[1]);
   }
   return total;
 }
