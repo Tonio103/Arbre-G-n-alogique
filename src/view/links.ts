@@ -387,6 +387,16 @@ interface Trait {
   seg: Segment;
   from: number;
   to: number;
+  /**
+   * Le nœud : un renflement LOCAL au départ du trait, en pixels d'écran.
+   *
+   * Une branche ne quitte pas sa mère par un embranchement net — elle en
+   * sort par un bourrelet, et c'est ce bourrelet qui fait qu'on la lit comme
+   * ATTACHÉE plutôt que posée dessus. L'effilement linéaire de `from` à `to`
+   * ne peut pas le dire : il n'a qu'une pente, là où un nœud est une bosse
+   * qui s'éteint en quelques pixels.
+   */
+  noeud?: number;
 }
 
 /**
@@ -461,6 +471,10 @@ function plume(path: Path2D, trait: Trait, base: number, gonfle: number, unit: n
    */
   const courseEcran = len / unit;
   const periodes = Math.max(1.2, courseEcran / 70);
+  // Le nœud s'éteint en six pixels d'écran, quelle que soit la longueur du
+  // trait : c'est un accident de l'attache, pas une proportion de la branche.
+  const noeud = trait.noeud ?? 0;
+  const portee = 6 / courseEcran;
   // Assez de points pour que chaque ondulation soit décrite, pas au point de
   // payer un millier de sommets par union.
   const N = Math.min(24, Math.max(6, Math.round(periodes * 5)));
@@ -469,7 +483,8 @@ function plume(path: Path2D, trait: Trait, base: number, gonfle: number, unit: n
 
   for (let i = 0; i <= N; i += 1) {
     const t = i / N;
-    const demi = (base * (trait.from + (trait.to - trait.from) * t)) / 2 + gonfle;
+    const bosse = noeud > 0 ? noeud * unit * Math.exp(-(t / portee) * (t / portee)) : 0;
+    const demi = (base * (trait.from + (trait.to - trait.from) * t)) / 2 + gonfle + bosse;
     const ecart = (bruit(t * periodes) - 0.5) * unit * 1.5;
     const px = x1 + dx * t + nx * ecart;
     const py = y1 + dy * t + ny * ecart;
@@ -551,6 +566,9 @@ function allianceSegment(union: LayoutUnion): Segment | undefined {
  * plutôt qu'un organigramme.
  */
 const EP_ALLIANCE = 1;
+/** Le renflement d'attache, en pixels d'écran. Voir `Trait.noeud`. */
+const NOEUD = 0.9;
+
 const EP_DESCENTE_HAUT = 1.4;
 const EP_DESCENTE_BAS = 1.05;
 const EP_BUS = 1;
@@ -643,6 +661,7 @@ function unionSegments(union: LayoutUnion, includeAlliance = true): Trait[] {
       seg: [centre, busY, centre, top],
       from: EP_RAMEAU_HAUT,
       to: EP_RAMEAU_BAS,
+      noeud: NOEUD,
     });
   }
 
