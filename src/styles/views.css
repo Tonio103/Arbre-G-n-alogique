@@ -143,6 +143,32 @@
 }
 
 /*
+ * OUVRIR UNE VUE, C'EST TOURNER LA PAGE.
+ *
+ * Les trois autres vues se posaient sur un fond transparent : l'arbre restait
+ * visible dessous, en clair, sur toute la surface que la vue ne remplissait
+ * pas. Il ne se déplaçait pourtant plus — la vue capte les gestes — et c'est
+ * précisément ce qu'on lui demande en le voyant : « on ne peut pas bouger
+ * l'arbre derrière ». Un décor qu'on voit et qu'on ne peut pas toucher n'est
+ * pas de la profondeur, c'est une panne.
+ *
+ * La vue porte donc son propre papier, opaque. Le `z-index` négatif la place
+ * derrière son contenu mais devant l'arbre : `.view` crée son propre contexte
+ * d'empilement, la couche ne peut donc pas redescendre plus bas que lui.
+ */
+.view::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(0deg, var(--motif-dot-dim) 0 0.5px, transparent 0.5px 5px),
+    repeating-linear-gradient(90deg, var(--motif-dot-dim) 0 0.5px, transparent 0.5px 31px),
+    radial-gradient(120% 90% at 50% 42%, var(--bg-base) 0%, var(--bg-mid) 58%, var(--bg-deep) 100%);
+  pointer-events: none;
+}
+
+/*
  * `.view` est une colonne flex : sans cette règle, ses enfants se laissent
  * écraser pour tenir dans la hauteur, et la frise se retrouvait comprimée à
  * 178 px avec un ascenseur interne. Chacun garde sa hauteur naturelle, et
@@ -231,17 +257,24 @@
 /* ── Carte ───────────────────────────────────────────────────────────────── */
 
 /*
- * La carte prend la place, la colonne des lieux prend le reste.
+ * LA PLANCHE ET SA LÉGENDE, CÔTE À CÔTE ET CENTRÉES.
  *
- * Elle valait 1,35 contre 0,8 : à peine plus de la moitié de la largeur pour
- * le dessin, alors que la colonne de droite ne contient que des listes de
- * noms, qui se lisent très bien sur trois cents pixels. La carte est le sujet
- * de cette vue ; elle doit s'y voir.
+ * Les colonnes étaient élastiques — deux parts pour la carte, 0,62 pour les
+ * lieux. Sur un écran large et court, c'est la HAUTEUR qui borne la carte :
+ * elle s'arrêtait à six cents pixels au milieu d'une colonne qui en faisait
+ * quatorze cents, et les sept cents restants s'ouvraient en trou entre les
+ * deux panneaux. Signalé tel quel : « au milieu y'a du vide ».
+ *
+ * La carte prend donc sa taille propre (`max-content`), la légende une
+ * largeur de lecture, et l'ensemble se centre. L'espace qui reste passe aux
+ * marges, où il ne se lit plus comme un manque mais comme la marge d'une
+ * planche.
  */
 .map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(260px, 0.62fr);
-  gap: 18px;
+  grid-template-columns: max-content minmax(260px, 400px);
+  justify-content: center;
+  gap: 22px;
   align-items: start;
 }
 

@@ -1,11 +1,20 @@
 /* Barre supérieure, recherche, contrôles, rail des générations, mot d'accueil. */
 
+/*
+ * La barre reste AU-DESSUS des vues.
+ *
+ * Elle partageait leur `z-index` de 20, et l'emportait par le seul fait
+ * d'être écrite avant elles dans le composant. Tant que les vues étaient
+ * transparentes, personne ne s'en apercevait ; du jour où elles ont porté
+ * leur propre papier, la barre a disparu sous la Carte — c'est-à-dire aussi
+ * le moyen d'en sortir.
+ */
 .topbar {
   position: absolute;
   top: calc(14px + var(--safe-top));
   left: calc(14px + var(--safe-left));
   right: calc(14px + var(--safe-right));
-  z-index: 20;
+  z-index: 26;
   display: grid;
   grid-template-columns: minmax(160px, 1fr) minmax(280px, 720px) minmax(150px, 1fr);
   align-items: center;
