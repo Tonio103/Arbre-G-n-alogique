@@ -253,13 +253,51 @@
   animation-delay: 370ms;
 }
 
+/*
+ * Les sections se séparent par un FILET, pas par un trait.
+ *
+ * C'était un `border-bottom` d'un pixel, d'un bord à l'autre — le séparateur
+ * d'une interface, dans une fiche qui se veut une page. Un imprimeur pose à
+ * cet endroit une vignette : plus courte que la justification, centrée,
+ * gravée.
+ *
+ * Le filet le plus FIN des trois, et étroit : à pleine largeur, son rapport
+ * (quinze pour un) lui donnerait vingt-trois pixels de haut, soit un
+ * séparateur plus lourd que les lignes qu'il sépare. À 58 % il en fait douze,
+ * et le panneau garde son rythme.
+ *
+ * `mask-size: contain` et non `100% 100%` : étirer une gravure sur la largeur
+ * disponible en déformerait les fleurons, ce qu'aucune vignette de fonderie
+ * n'a jamais eu à subir.
+ */
 .detail-section {
+  position: relative;
   padding: 16px 0;
-  border-bottom: 1px solid var(--glass-border);
 }
 
-.detail-section:last-of-type {
-  border-bottom: none;
+.detail-section::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 58%;
+  margin-inline: auto;
+  aspect-ratio: 420 / 27;
+  background-color: var(--text-primary);
+  opacity: 0.3;
+  -webkit-mask-image: url('../assets/ornement-filet-1.png');
+  mask-image: url('../assets/ornement-filet-1.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.detail-section:last-of-type::after {
+  content: none;
 }
 
 .detail-section-title {
