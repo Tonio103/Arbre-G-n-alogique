@@ -472,15 +472,22 @@
 }
 
 /*
- * Le rail s'écarte pour laisser la place à la fiche.
+ * LA FICHE OUVERTE FAIT TAIRE LE RAIL.
  *
- * Il se posait alors en plein milieu de l'arbre, où sa bande de papier
- * flottait sans rien contre quoi se caler — une marge au milieu d'une page
- * n'est plus une marge. Il se colle donc au bord de la fiche, dont il devient
- * la graduation : deux surfaces qui se touchent se lisent comme une seule.
+ * Il s'écartait pour se coller au bord de la fiche plutôt que de flotter en
+ * plein milieu de l'arbre. Mais collé là, il retombait EN PLEIN SUR les
+ * cartes qui restent visibles à gauche du panneau — une bande de graduations
+ * posée par-dessus une fiche de famille, signalé tel quel. Une fiche est
+ * ouverte pour qu'on lise UNE personne ; le rail répond à une question
+ * différente (« à quelle époque suis-je ? ») qui n'a plus sa place au même
+ * instant.
+ *
+ * Il se retire donc, comme sur mobile où la place manquait déjà : les deux
+ * cas ont fini par vouloir la même chose, pour deux raisons différentes.
  */
 .app[data-panel-open] .rail {
-  right: var(--panel-width);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Le filet porteur, à gauche des graduations : c'est lui qu'on suit. */
