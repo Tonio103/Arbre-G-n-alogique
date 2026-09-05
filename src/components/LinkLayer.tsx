@@ -113,8 +113,34 @@ function readPalette(theme: string): LinkPalette {
  * légère perte de netteté pendant un geste rapide ne se voit de toute façon
  * pas : l'œil ne résout pas un trait fin au milieu d'un mouvement qu'il ne
  * peut lui-même pas suivre.
+ *
+ * Ce raisonnement était juste PENDANT le geste, et faux après : le geste
+ * s'arrête, et le canevas reste étiré jusqu'au prochain franchissement de
+ * seuil. Mesuré : après un zoom de deux crans, un tampon de 2600 px
+ * s'affichait sur 5200 — un raster au double de sa résolution, indéfiniment.
+ * Les traits, épais et sombres, y survivaient ; les feuilles, tracées au
+ * cheveu, devenaient des taches. Signalé tel quel : « les feuilles de
+ * botanique sont floues ».
+ *
+ * Deux corrections, et la seconde est la vraie.
+ *
+ * D'ABORD, LA TOLÉRANCE EST ASYMÉTRIQUE. Zoomer EN AVANT étire le tampon et
+ * le brouille ; zoomer en arrière ne fait que le sous-échantillonner, ce qui
+ * ne coûte rien à l'œil. Il n'y avait aucune raison de traiter les deux sens
+ * de la même façon.
  */
-const SCALE_DRIFT = 2.2;
+const SCALE_DRIFT_AVANT = 1.5;
+const SCALE_DRIFT_ARRIERE = 2.2;
+
+/**
+ * Le délai après lequel on considère que le geste est fini.
+ *
+ * ENSUITE, ET SURTOUT : dès que la vue se pose, le canevas est redessiné à
+ * l'échelle exacte, quelle que soit la dérive. C'est ce qui préserve les deux
+ * choses à la fois — on ne redessine toujours pas pendant le mouvement, et on
+ * n'est jamais laissé sur une image étirée une fois immobile.
+ */
+const REPOS_MS = 180;
 
 /**
  * Les traits de filiation, sur un canevas unique.
@@ -243,7 +269,8 @@ export function LinkLayer({
         visible.right > committed.rect.right ||
         visible.top < committed.rect.top ||
         visible.bottom > committed.rect.bottom;
-      const scaleStale = scaleDrift > SCALE_DRIFT || scaleDrift < 1 / SCALE_DRIFT;
+      const scaleStale =
+        scaleDrift > SCALE_DRIFT_AVANT || scaleDrift < 1 / SCALE_DRIFT_ARRIERE;
       if (outOfBounds || scaleStale) redraw();
     };
 
@@ -271,12 +298,32 @@ export function LinkLayer({
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(stage);
-    const unsubscribe = viewport.subscribe(() => schedule(false));
+
+    /*
+     * Le rattrapage de netteté, quand la vue se pose.
+     *
+     * Pendant le geste on laisse dériver : c'est tout l'intérêt de ne pas
+     * redessiner à chaque image. Mais le geste finit toujours par s'arrêter,
+     * et c'est LÀ qu'on regarde vraiment — donc là que la moindre dilatation
+     * du tampon se voit. Un seul redessin, à l'échelle exacte, une fois le
+     * calme revenu.
+     */
+    let repos = 0;
+    const surMouvement = (): void => {
+      schedule(false);
+      window.clearTimeout(repos);
+      repos = window.setTimeout(() => {
+        if (committed && viewport.transform.scale !== committed.density) schedule(true);
+      }, REPOS_MS);
+    };
+
+    const unsubscribe = viewport.subscribe(surMouvement);
     forceRef.current = () => schedule(true);
 
     return () => {
       observer.disconnect();
       unsubscribe();
+      window.clearTimeout(repos);
       forceRef.current = null;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       frameRef.current = 0;
