@@ -355,8 +355,64 @@
   aspect-ratio: 348 / 358;
 }
 
+/*
+ * LES QUATRE ANGLES D'UNE PLANCHE.
+ *
+ * Un seul dessin, retourné par CSS. La planche source en portait quatre ;
+ * vérification faite, ce ne sont que deux modèles, chacun employé deux fois en
+ * miroir — l'écart quadratique entre les deux premiers vaut 0,057 contre 0,25
+ * entre les deux modèles. Les retourner ici donne donc une symétrie EXACTE là
+ * où quatre découpes séparées n'auraient été symétriques qu'à peu près, et
+ * épargne trois fichiers.
+ *
+ * Le conteneur ne peint rien et n'intercepte rien : il ne fait qu'offrir aux
+ * quatre coins un repère de position.
+ */
+.coins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--text-primary);
+}
+
+.coins[data-modele='bas'] .ornement--coin {
+  -webkit-mask-image: url('../assets/ornement-coin-2.png');
+  mask-image: url('../assets/ornement-coin-2.png');
+  aspect-ratio: 330 / 248;
+}
+
+.coins .ornement--coin {
+  position: absolute;
+  width: var(--coin-taille, 58px);
+  height: auto;
+  opacity: var(--coin-force, 0.3);
+}
+
+.coins .ornement--coin[data-angle='ho'] {
+  left: var(--coin-marge, 0px);
+  top: var(--coin-marge, 0px);
+}
+
+.coins .ornement--coin[data-angle='hd'] {
+  right: var(--coin-marge, 0px);
+  top: var(--coin-marge, 0px);
+  transform: scaleX(-1);
+}
+
+.coins .ornement--coin[data-angle='bo'] {
+  left: var(--coin-marge, 0px);
+  bottom: var(--coin-marge, 0px);
+  transform: scaleY(-1);
+}
+
+.coins .ornement--coin[data-angle='bd'] {
+  right: var(--coin-marge, 0px);
+  bottom: var(--coin-marge, 0px);
+  transform: scale(-1);
+}
+
 .ornement--rose {
   -webkit-mask-image: url('../assets/ornement-rose-des-vents.png');
   mask-image: url('../assets/ornement-rose-des-vents.png');
-  aspect-ratio: 1;
+  aspect-ratio: 252 / 255;
 }

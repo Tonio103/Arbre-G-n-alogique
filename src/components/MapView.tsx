@@ -20,6 +20,7 @@ import { useGlassScrollSuspend } from '@/hooks/useGlassScrollSuspend';
 import { ScopeBar } from './ScopeBar';
 import { IconButton } from './TopBar';
 import { FitIcon, MinusIcon, PlusIcon } from './icons';
+import { CoinsGraves } from './Ornements';
 
 export interface MapViewProps {
   graph: FamilyGraph;
@@ -425,6 +426,16 @@ export function MapView({
               })}
             </svg>
 
+            {/*
+              La rose des vents, posée dans l'angle haut-gauche du dessin.
+              À droite elle aurait disputé sa place aux boutons de zoom, en bas
+              à l'attribution — l'angle haut-gauche est le seul que la carte
+              n'utilise pour rien, et c'est traditionnellement le sien.
+            */}
+            <span className="map-rose" aria-hidden="true">
+              <span className="ornement ornement--rose" />
+            </span>
+
             <div className="map-zoom control-group lg lg--control lg--bar">
               <IconButton label="Dézoomer" onClick={() => zoomTo(-1)}>
                 <MinusIcon />
@@ -450,6 +461,10 @@ export function MapView({
             >
               © OpenStreetMap contributors
             </a>
+
+            {/* Les angles de la planche, dans la marge du panneau : la carte
+                est une gravure encadrée, pas une vignette posée sur du blanc. */}
+            <CoinsGraves />
           </div>
 
           <aside className="map-side">

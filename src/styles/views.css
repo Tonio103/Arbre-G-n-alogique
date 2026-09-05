@@ -213,13 +213,62 @@
  * gauche et à droite. `fit-content` le fait se refermer sur ce qu'il
  * contient.
  */
+/*
+ * La planche cartographique.
+ *
+ * La marge passe de dix à vingt-deux pixels : c'est là que vivent les quatre
+ * angles gravés, qui ont besoin d'un blanc autour d'eux pour se lire comme un
+ * encadrement plutôt que comme une salissure sur le bord de la carte.
+ */
 .map-stage {
   position: relative;
   width: fit-content;
   max-width: 100%;
   border-radius: var(--radius-panel, 18px);
-  padding: 10px;
+  padding: 28px;
   overflow: hidden;
+
+  --coin-taille: 44px;
+  --coin-marge: 1px;
+  /* Sur du papier, un ornement à 0,26 n'est plus qu'une salissure : la marge
+     de la planche est claire, il faut de l'encre pour s'y lire. */
+  --coin-force: 0.44;
+}
+
+/*
+ * La rose des vents, et sa réserve.
+ *
+ * Deux éléments et non un seul, parce qu'un `mask-image` masque aussi ce que
+ * l'élément peint DERRIÈRE le dessin : impossible de lui donner un halo sans
+ * un conteneur qui, lui, n'est pas masqué. Le halo n'est pas un ornement de
+ * plus — posée à nu, à un quart d'opacité, sur des tuiles photographiques, la
+ * rose était rigoureusement invisible. Un cartographe qui pose une rose sur
+ * une zone chargée épargne d'abord le fond sous elle.
+ *
+ * Angle haut-gauche : à droite elle disputerait sa place aux boutons de zoom,
+ * en bas à l'attribution. C'est aussi, traditionnellement, le sien.
+ */
+.map-rose {
+  position: absolute;
+  left: 40px;
+  top: 40px;
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--glass-panel-solid) 82%, transparent) 0%,
+    color-mix(in srgb, var(--glass-panel-solid) 62%, transparent) 58%,
+    transparent 100%
+  );
+}
+
+.map-rose .ornement--rose {
+  width: 54px;
+  color: var(--text-primary);
+  opacity: 0.62;
 }
 
 /*
