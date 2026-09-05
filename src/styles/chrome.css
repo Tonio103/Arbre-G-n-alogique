@@ -639,24 +639,23 @@
     display: none;
   }
 
+  /*
+   * LE RAIL DISPARAÎT SUR PETIT ÉCRAN.
+   *
+   * Il gardait ses graduations une fois les dates masquées (`.rail-label`
+   * ci-dessous) — mais une graduation par génération, sur une planche qui en
+   * couvre onze, ça reste une bande de papier de plusieurs centaines de
+   * pixels de haut, posée en plein milieu de l'écran. Elle n'est pas
+   * translucide : `lg--clear` est un papier à 82 % d'opacité, pas du verre.
+   * Sur un téléphone, elle cachait donc une bonne moitié de l'arbre sans
+   * rendre le service qu'elle rend sur grand écran — sauter d'une époque à
+   * l'autre a moins de sens quand on navigue au doigt qu'à la molette.
+   *
+   * Signalé tel quel : « on voit rien ». Elle se retire entièrement ; le
+   * pincement et le glissé restent la façon de parcourir l'arbre au doigt.
+   */
   .rail {
-    right: calc(8px + var(--safe-right));
-    padding: 8px 5px;
-  }
-
-  /* En feuille basse, la fiche occupe le bas de l'écran : le rail s'efface. */
-  .app[data-panel-open] .rail {
-    right: calc(8px + var(--safe-right));
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .rail-label {
     display: none;
-  }
-
-  .rail-item {
-    padding: 6px;
   }
 }
 
