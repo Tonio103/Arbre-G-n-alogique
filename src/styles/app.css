@@ -58,21 +58,63 @@
   pointer-events: none;
   contain: layout paint style;
   background:
-    /* rousseurs */
-    radial-gradient(9px 6px at 148px 92px, var(--motif-nebula-a), transparent 70%) 0 0 / 900px 900px repeat,
-    radial-gradient(6px 8px at 604px 188px, var(--motif-nebula-a), transparent 70%) 0 0 / 900px 900px repeat,
-    radial-gradient(11px 7px at 331px 402px, var(--motif-nebula-b), transparent 72%) 0 0 / 900px 900px repeat,
-    radial-gradient(7px 9px at 792px 466px, var(--motif-nebula-a), transparent 70%) 0 0 / 900px 900px repeat,
-    radial-gradient(8px 5px at 88px 651px, var(--motif-nebula-b), transparent 70%) 0 0 / 900px 900px repeat,
-    radial-gradient(12px 8px at 512px 744px, var(--motif-nebula-a), transparent 74%) 0 0 / 900px 900px repeat,
-    radial-gradient(6px 6px at 715px 848px, var(--motif-nebula-b), transparent 70%) 0 0 / 900px 900px repeat,
-    /* vergeures et pontuseaux */
+    /*
+     * LES NUÉES.
+     *
+     * Sept petites rousseurs de dix pixels, répétées toutes les 900 px : à
+     * l'échelle d'un écran, on voyait la TUILE — les mêmes sept taches, aux
+     * mêmes sept places, encore et encore. Un papier ne se salit pas
+     * périodiquement.
+     *
+     * Ce sont donc de grandes nuées très lentes, de deux à cinq cents pixels,
+     * sur trois tuiles de tailles PREMIÈRES entre elles (1130, 1490, 1870) :
+     * le motif combiné ne se referme qu'après plus de trois millions de
+     * pixels, soit jamais à l'écran.
+     */
+    radial-gradient(420px 300px at 18% 26%, var(--motif-nebula-a), transparent 68%) 0 0 / 1130px 1130px repeat,
+    radial-gradient(300px 380px at 72% 64%, var(--motif-nebula-b), transparent 70%) 0 0 / 1130px 1130px repeat,
+    radial-gradient(500px 260px at 46% 82%, var(--motif-nebula-a), transparent 66%) 0 0 / 1490px 1490px repeat,
+    radial-gradient(260px 300px at 84% 14%, var(--motif-nebula-b), transparent 72%) 0 0 / 1490px 1490px repeat,
+    radial-gradient(360px 420px at 28% 58%, var(--motif-nebula-b), transparent 70%) 0 0 / 1870px 1870px repeat,
+    /* La trame du papier : à peine visible, elle donne l'échelle. */
     repeating-linear-gradient(0deg, var(--motif-dot-dim) 0 0.5px, transparent 0.5px 5px),
     repeating-linear-gradient(90deg, var(--motif-dot-dim) 0 0.5px, transparent 0.5px 31px),
     /* la cuve */
     radial-gradient(120% 90% at 50% 42%, var(--bg-base) 0%, var(--bg-mid) 58%, var(--bg-deep) 100%);
   will-change: transform;
   transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+/*
+ * LA CUVETTE — le creux de la plaque dans le papier.
+ *
+ * Deux traits, et rien d'autre : un blanc de lumière au bord extérieur, une
+ * ombre au bord intérieur. C'est ainsi qu'un creux se lit — pas par une
+ * bordure, qui dirait « cadre », mais par un accident d'éclairage, qui dit
+ * « le papier est enfoncé ici ».
+ *
+ * Fixe, sous l'arbre, sans coût : deux `box-shadow` sur un élément vide, que
+ * le compositeur peint une fois et ne repeint jamais.
+ */
+.cuvette {
+  position: fixed;
+  inset: 14px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--text-primary) 11%, transparent),
+    0 0 0 2.5px color-mix(in srgb, #fffdf6 55%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #fffdf6 30%, transparent),
+    inset 0 1px 5px color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
+:root[data-theme='dark'] .cuvette {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--text-inverse) 22%, transparent),
+    0 0 0 2.5px color-mix(in srgb, var(--text-primary) 12%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 10%, transparent),
+    inset 0 1px 5px rgba(0, 0, 0, 0.28);
 }
 
 /*

@@ -86,5 +86,22 @@ export function Backdrop({ viewport }: BackdropProps) {
     };
   }, [viewport]);
 
-  return <div ref={layerRef} className="backdrop" aria-hidden="true" />;
+  return (
+    <>
+      <div ref={layerRef} className="backdrop" aria-hidden="true" />
+      {/*
+        LA CUVETTE.
+        
+        Le creux que la plaque de cuivre imprime dans le papier humide, tout
+        autour de la gravure. C'est la marque la plus reconnaissable d'une
+        taille-douce — celle qui distingue au premier coup d'œil une estampe
+        d'une reproduction — et la planche de référence la porte franchement.
+        
+        Elle est FIXE, et posée entre le fond et l'arbre : la cuvette est un
+        accident du papier, l'arbre est ce qu'on a imprimé dessus. Au-dessus,
+        elle couperait les cartes ; en dessous du fond, on ne la verrait pas.
+      */}
+      <div className="cuvette" aria-hidden="true" />
+    </>
+  );
 }

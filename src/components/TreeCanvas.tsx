@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { NodePosition, TreeLayout } from '@/domain/layout';
 import type { HighlightSet, RelationPath } from '@/domain/relations';
@@ -7,6 +7,7 @@ import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
 import type { HoverStore } from '@/view/hover-store';
 import { LOD_COMPACT, LOD_FULL } from '@/view/metrics';
+import { etatBotanique, type EtatBotanique } from '@/domain/gaps';
 import { PersonNode, type NodeDetail } from './PersonNode';
 import { LinkLayer } from './LinkLayer';
 import { PathFlow } from './PathFlow';
@@ -493,6 +494,20 @@ export function TreeCanvas({
 
   const detail = visible.detail;
 
+  /*
+   * L'état botanique de chaque fiche, pour feuiller les branches.
+   *
+   * Calculé ici, en une fois pour tout l'arbre, et non dans `drawLinks` :
+   * cette couche est redessinée à chaque recadrage du canevas, et le tracé ne
+   * doit rien savoir du contenu des fiches. `graph.people` ne change qu'à une
+   * modification réelle des données.
+   */
+  const etats = useMemo(() => {
+    const table = new Map<string, EtatBotanique>();
+    for (const [id, person] of graph.people) table.set(id, etatBotanique(person));
+    return table;
+  }, [graph.people]);
+
   return (
     <div
       ref={stageRef}
@@ -513,6 +528,7 @@ export function TreeCanvas({
           theme={theme}
           pathUnions={pathUnions}
           growingUnionId={growingUnionId}
+          etats={etats}
         />
 
         <PathFlow layout={layout} relation={relation} />

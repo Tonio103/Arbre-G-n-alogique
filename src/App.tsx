@@ -60,7 +60,6 @@ import '@/styles/papier.css';
 import '@/styles/app.css';
 import '@/styles/avatar.css';
 import '@/styles/node.css';
-import '@/styles/botanique.css';
 import '@/styles/chrome.css';
 import '@/styles/detail.css';
 import '@/styles/loading-screen.css';

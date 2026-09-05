@@ -1,10 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo } from 'react';
 import type React from 'react';
 import type { Person } from '@/data/schema';
 import type { RelationRole } from '@/domain/relations';
 import { formatLifespan } from '@/domain/dates';
 import { etatBotanique } from '@/domain/gaps';
-import { hashString } from '@/domain/text';
 import { Avatar } from './Avatar';
 import { CARD_HEIGHT, CARD_WIDTH } from '@/view/metrics';
 
@@ -100,30 +99,19 @@ export const PersonNode = memo(function PersonNode({
   const compact = detail === 'compact';
 
   /*
-   * L'état de la fiche, et son éclosion.
+   * L'état de la fiche ne se DESSINE plus ici.
    *
-   * On ne garde l'état précédent que pour repérer le passage du bourgeon à la
-   * feuille : c'est le seul changement qui mérite d'être vu, parce que c'est
-   * le seul que quelqu'un vient de provoquer en renseignant un champ.
+   * La marque botanique était posée en marge du médaillon, en masque CSS de
+   * seize pixels. Verdict de qui regarde l'arbre : « la botanique ne se voit
+   * pas assez ». C'était juste — une marque posée à côté d'un portrait est un
+   * badge, et un badge se lit comme une décoration d'interface, pas comme un
+   * arbre. Elle a rejoint les branches, à même le canevas, là où une feuille
+   * pousse (voir `feuiller` dans `view/links.ts`).
+   *
+   * Elle reste ici dans l'étiquette d'accessibilité : ce qui se voit à l'écran
+   * doit s'entendre à la lecture, et la feuille peinte sur le canevas n'a pas
+   * de texte.
    */
-  const etat = etatBotanique(person);
-  const precedent = useRef(etat);
-  const [eclos, setEclos] = useState(false);
-
-  useEffect(() => {
-    const avant = precedent.current;
-    precedent.current = etat;
-    if (avant === etat) return;
-    if (avant !== 'bourgeon' && avant !== 'rameau-nu') return;
-    if (etat !== 'feuille' && etat !== 'feuille-seche') return;
-    setEclos(true);
-    const fin = window.setTimeout(() => setEclos(false), 900);
-    return () => window.clearTimeout(fin);
-  }, [etat]);
-
-  // Aucune planche n'a deux spécimens identiques : l'inclinaison vient de
-  // l'identifiant, donc elle ne bouge jamais pour une même personne.
-  const angle = (hashString(person.id) % 23) - 11;
 
   return (
     <button
@@ -176,18 +164,9 @@ export const PersonNode = memo(function PersonNode({
           size={compact ? 44 : 50}
           className="node-avatar"
         />
-        {/* La marque botanique : ce que cette fiche montre de cette vie.
-            Voir `etatBotanique` et `styles/botanique.css`. */}
-        <span
-          className="node-etat"
-          data-etat={etat}
-          data-eclos={eclos || undefined}
-          style={{ '--marque-angle': `${angle}deg` } as React.CSSProperties}
-          aria-hidden="true"
-        />
       </span>
 
-      <span className="node-plate lg lg--plate">
+      <span className="node-plate">
         <span className="node-first">{person.firstName}</span>
         {!compact && <span className="node-last">{person.lastName}</span>}
         {!compact && lifespan && <span className="node-years">{lifespan}</span>}

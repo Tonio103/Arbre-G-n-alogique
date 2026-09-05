@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import type { TreeLayout } from '@/domain/layout';
 import type { Rect, SpatialIndex } from '@/view/spatial';
+import type { EtatBotanique } from '@/domain/gaps';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
 import { drawLinks, type LinkPalette } from '@/view/links';
@@ -20,6 +21,8 @@ export interface LinkLayerProps {
   /** Union tout juste créée (nouveau proche ajouté) : son trait se dessine
    *  au lieu d'apparaître d'un coup — voir `GROWTH_MS` plus bas. */
   growingUnionId?: string | null;
+  /** L'état botanique de chaque fiche, pour feuiller les branches. */
+  etats: Map<string, EtatBotanique>;
 }
 
 /** Durée de l'apparition d'un trait tout juste créé. */
@@ -86,6 +89,7 @@ export function LinkLayer({
   pathUnions,
   theme,
   growingUnionId,
+  etats,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
@@ -93,8 +97,8 @@ export function LinkLayer({
   const forceRef = useRef<(() => void) | null>(null);
   const growthRef = useRef<{ unionId: string; start: number } | null>(null);
 
-  const stateRef = useRef({ highlightUnions, hasSelection, pathUnions });
-  stateRef.current = { highlightUnions, hasSelection, pathUnions };
+  const stateRef = useRef({ highlightUnions, hasSelection, pathUnions, etats });
+  stateRef.current = { highlightUnions, hasSelection, pathUnions, etats };
 
   useEffect(() => {
     paletteRef.current = readPalette(theme);
@@ -148,6 +152,7 @@ export function LinkLayer({
         highlighted: stateRef.current.highlightUnions,
         hasSelection: stateRef.current.hasSelection,
         pathUnions: stateRef.current.pathUnions,
+        etats: stateRef.current.etats,
         growth: growthRef.current
           ? {
               unionId: growthRef.current.unionId,

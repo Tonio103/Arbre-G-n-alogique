@@ -2,17 +2,15 @@
  *
  *  MÉDAILLON D'UNE PERSONNE
  *
- *  Le portrait est l'élément principal ; le nom l'accompagne. Il n'y a pas de
- *  cadre : sur un arbre, une grille de rectangles écraserait la ramure. Ce qui
- *  détache le médaillon de son fond, c'est un halo très doux et l'anneau qui
- *  cercle le portrait — pas une boîte.
+ *  Un cercle cerné d'un trait, et le nom composé dessous. Rien d'autre : ni
+ *  cadre, ni plaque, ni fond. Sur un arbre, une grille de rectangles
+ *  écraserait la ramure — et sur une planche gravée, une légende n'a pas de
+ *  support : elle est composée, et le papier lui suffit.
  *
- *  Le médaillon est fait de la même matière que le reste de l'interface, et
- *  il l'est en permanence : sa plaque de nom est une vraie plaque de verre —
- *  mince (voir `lg--plate`), mais avec son flou, sa réfraction, sa nappe, son
- *  arête et sa tranche, éclairée par la même source que la barre supérieure.
- *  Le survol et la sélection ne font que l'épaissir ; ils n'ajoutent aucune
- *  couche qui n'était pas déjà là au repos.
+ *  Toute la hiérarchie est donc TYPOGRAPHIQUE, comme sur une légende de
+ *  planche : le prénom en romaine de titre, le patronyme plus petit et plus
+ *  pâle, les dates en italique. Le survol ne change rien de la forme ; il fait
+ *  seulement remonter l'encre du patronyme.
  *
  * ========================================================================== */
 
@@ -196,17 +194,18 @@
 /* -------------------------------- Le nom -------------------------------- */
 
 /*
- * Le nom repose sur une plaque de verre.
+ * LE NOM EST POSÉ À MÊME LE PAPIER.
  *
- * Elle portait autrefois un simple aplat teinté (`--node-plate`) et ne prenait
- * un peu de matière qu'au survol. C'était la seule surface de l'application à
- * ne pas être faite de verre — et, à cinquante exemplaires à l'écran, de loin
- * la plus visible : l'arbre entier se lisait comme des étiquettes de papier
- * posées sous une interface de verre.
+ * Il reposait sur une plaque — un rectangle de matière, avec son fond, son
+ * cerne et son ombre portée. À cinquante exemplaires à l'écran, c'était la
+ * chose la plus visible de l'arbre : on lisait une grille d'étiquettes, pas
+ * une planche. Sur une planche gravée, une légende n'a pas de support. Elle
+ * est composée, et le papier lui suffit.
  *
- * Elle porte donc `lg lg--plate`, qui lui donne tout le matériau. Il ne reste
- * ici que sa géométrie et ce qui lui est propre — le rayon, la teinte et la
- * lentille viennent de la variante.
+ * La plaque garde son nom de classe et sa géométrie de colonne — elle ne
+ * porte simplement plus de matériau. La hiérarchie passe entièrement dans la
+ * TYPOGRAPHIE, comme sur une légende de planche : le prénom en romaine, le
+ * patronyme plus petit et plus pâle, les dates en italique.
  */
 .node-plate {
   z-index: 1;
@@ -214,20 +213,18 @@
   flex-direction: column;
   align-items: center;
   gap: 0;
-  margin-top: 6px;
+  margin-top: 7px;
   max-width: 100%;
-  padding: 3px 7px 4px;
-  transition:
-    background-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+  padding: 0 2px;
+  transition: transform var(--dur-base) var(--ease-spring);
 }
 
 .node-first {
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  letter-spacing: 0.004em;
+  line-height: 1.15;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -236,21 +233,27 @@
 }
 
 .node-last {
-  font-size: 10px;
-  font-weight: 450;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   line-height: 1.2;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
 }
 
+/* Les dates en italique : c'est la convention des légendes de planches, et
+   c'est ce qui les distingue du nom sans avoir à les encadrer. */
 .node-years {
-  margin-top: 1px;
-  font-size: 9px;
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-style: italic;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
   color: var(--text-tertiary);
   transition:
     opacity var(--dur-base) var(--ease-out),
@@ -302,25 +305,12 @@
 }
 
 /*
- * Au survol, la plaque ne change pas de nature : elle s'épaissit. Plus de
- * masse, un flou un peu plus long, un reflet plus vif, un décollement plus
- * net — les mêmes jetons que partout ailleurs, poussés d'un cran.
+ * Au survol, le nom n'a plus de plaque à épaissir : c'est l'ENCRE qui prend.
+ * Le patronyme remonte du gris au bistre, ce qui suffit à dire « celui-ci ».
  */
-.node:hover .node-plate,
-.node:focus-visible .node-plate {
-  background-color: var(--glass-fill-hover);
-  --lg-blur: 14px;
-  --lg-glare: rgba(255, 255, 255, 0.4);
-  box-shadow:
-    0 1px 2px rgba(46, 36, 24, 0.1),
-    0 5px 14px rgba(46, 36, 24, 0.12),
-    inset 0 1px 0 0 var(--pa-arete),
-    0 0 0 0.5px var(--pa-bord);
-}
-
-:root[data-theme='dark'] .node:hover .node-plate,
-:root[data-theme='dark'] .node:focus-visible .node-plate {
-  background-color: var(--glass-fill-hover);
+.node:hover .node-last,
+.node:focus-visible .node-last {
+  color: var(--text-secondary);
 }
 
 .node:hover .node-years,

@@ -39,21 +39,20 @@ export const Avatar = memo(function Avatar({
   // au-delà de 2³¹, donc une couleur invalide et un portrait sans fond.
   const hash = hashString(id);
   const hue = HUES[hash % HUES.length];
-  // L'angle du burin varie d'une planche à l'autre : deux camées voisins ne
-  // doivent pas avoir exactement la même trame, sinon l'œil y voit un motif
-  // au lieu d'un dessin.
-  const taille = 9 + ((hash >>> 7) % 11);
 
   const style = {
     width: size,
     height: size,
-    // Le lavis : une touche, pas un aplat. Au-delà de 0,2 d'opacité la
-    // couleur reprend le dessus sur la gravure et le camée redevient une
-    // pastille colorée.
-    '--avatar-lavis': `hsl(${hue} 32% 46% / 0.16)`,
-    '--avatar-taille': 'var(--text-primary)',
-    '--avatar-angle': `${taille}deg`,
-    fontSize: Math.round(size * 0.34),
+    /*
+     * Le lavis : un souffle, pas une touche.
+     *
+     * Il valait 0,16 quand le disque était couvert de hachure et qu'il fallait
+     * passer par-dessus. Sur du papier nu, la même valeur redonne une pastille
+     * colorée — le médaillon de la maquette est BLANC. À 0,055 il ne reste
+     * qu'une différence entre voisins, que l'œil enregistre sans la nommer.
+     */
+    '--avatar-lavis': `hsl(${hue} 30% 45% / 0.055)`,
+    fontSize: Math.round(size * 0.36),
   } as React.CSSProperties;
 
   if (photo && !failed) {

@@ -32,7 +32,6 @@
  *      <div class="lg lg--thick">…</div>       feuille plus épaisse, opaque
  *      <div class="lg lg--clear">…</div>       simple bristol, léger
  *      <div class="lg lg--control">…</div>     petite pièce
- *      <div class="lg lg--plate">…</div>       l'étiquette d'un médaillon
  *
  * ========================================================================== */
 
@@ -198,27 +197,6 @@
   background-image: var(--grain);
 }
 
-/* L'étiquette d'un médaillon : le papier collé sous un portrait. */
-.lg--plate {
-  --lg-radius: 2px;
-  background-color: color-mix(in srgb, var(--pa-feuille-epaisse) 94%, transparent);
-  background-image: none;
-  box-shadow:
-    0 1px 1px rgba(46, 36, 24, 0.08),
-    0 3px 7px rgba(46, 36, 24, 0.07),
-    inset 0 1px 0 0 var(--pa-arete),
-    0 0 0 0.5px var(--pa-bord);
-}
-
-:root[data-theme='dark'] .lg--plate {
-  box-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.3),
-    0 3px 8px rgba(0, 0, 0, 0.26),
-    inset 0 1px 0 0 var(--pa-arete),
-    0 0 0 0.5px var(--pa-bord);
-}
-
-.lg--plate::after { display: none; }
 
 /*
  * Ces trois-là ne veulent plus rien dire sur du papier — une feuille n'a ni

@@ -22,10 +22,22 @@
  * ==========================================================================*/
 
 :root {
-  /* ── Le papier ──────────────────────────────────────────────────────── */
-  --bg-deep: #CFC8B0;
-  --bg-mid: #D6D0BA;
-  --bg-base: #DCD6C1;
+  /*
+   * ── Le papier ──────────────────────────────────────────────────────────
+   *
+   * Ces trois valeurs ne sont pas choisies : elles sont RELEVÉES sur la
+   * planche de référence, au compte-gouttes, en trois endroits — le champ
+   * vide au centre (#F0E7D7), la moyenne du papier clair (#EAE0D2), le bord
+   * usé de la feuille (#E0D4BE).
+   *
+   * Ce qu'il y avait avant tirait vers le gris-vert : #DCD6C1 au plus clair,
+   * soit vingt points de rouge et vingt-deux de bleu en moins. Sur toute la
+   * surface de l'écran, cet écart-là ne se lit pas comme une nuance mais
+   * comme une AUTRE matière — du carton d'archive plutôt que du vélin.
+   */
+  --bg-deep: #E0D4BE;
+  --bg-mid: #EAE0D2;
+  --bg-base: #F0E7D7;
   --bg-veil: rgba(46, 36, 24, 0.05);
 
   /* ── L'encre ────────────────────────────────────────────────────────── */
@@ -48,24 +60,42 @@
   /* ── Les feuilles de papier posées ──────────────────────────────────── */
   /* `--glass-*` gardent leur nom : ce ne sont plus des verres mais des
      papiers, et rien dans l'application n'a besoin de le savoir. */
-  --glass-fill-faint: rgba(237, 233, 218, 0.42);
-  --glass-fill: rgba(237, 233, 218, 0.72);
-  --glass-fill-strong: rgba(240, 236, 223, 0.88);
-  --glass-fill-hover: rgba(244, 240, 228, 0.96);
-  --glass-panel-solid: #E9E4D2;
+  --glass-fill-faint: rgba(248, 242, 230, 0.42);
+  --glass-fill: rgba(248, 242, 230, 0.72);
+  --glass-fill-strong: rgba(250, 245, 235, 0.9);
+  --glass-fill-hover: rgba(253, 249, 240, 0.96);
+  --glass-panel-solid: #F6EFDF;
   --glass-border: rgba(46, 36, 24, 0.16);
   --glass-border-strong: rgba(46, 36, 24, 0.3);
 
-  /* ── Les traits gravés ──────────────────────────────────────────────── */
-  --link-node: rgba(46, 36, 24, 0.62);
+  /*
+   * ── Les traits gravés ─────────────────────────────────────────────────
+   *
+   * `--link`, `--link-dim`, `--row-band` et `--row-label` n'existaient PAS.
+   * `readPalette` (voir `LinkLayer.tsx`) les lit tous les quatre, et retombait
+   * donc sur ses valeurs de secours — celles de l'ancien thème « ciel »,
+   * `rgba(122, 138, 168, …)`. Toutes les branches de l'arbre étaient peintes
+   * en gris-bleu de nuit sur du papier ivoire, et l'ont été pendant toute la
+   * refonte : on refaisait l'encre d'un trait dont la couleur ne venait pas
+   * d'ici. `--link-node` existait bien, mais personne ne le lisait.
+   *
+   * Une branche gravée est FRANCHE : sur la planche, le rameau est le trait le
+   * plus noir de la feuille.
+   */
+  --link: rgba(42, 34, 24, 0.88);
+  --link-node: rgba(42, 34, 24, 0.88);
   --link-highlight: #1B3A5C;
+  --link-dim: rgba(42, 34, 24, 0.24);
   --link-cross: rgba(158, 68, 32, 0.5);
+  /* La bande d'une rangée sur deux, et sa décennie dans la marge. */
+  --row-band: rgba(46, 36, 24, 0.028);
+  --row-label: rgba(46, 36, 24, 0.3);
   /* Le halo d'encre qui boit dans le papier, autour d'un trait accentué. */
   --star-glow: rgba(46, 36, 24, 0.24);
 
   /* ── Le grain du fond ───────────────────────────────────────────────── */
-  --motif-dot: rgba(46, 36, 24, 0.09);
-  --motif-dot-dim: rgba(46, 36, 24, 0.045);
+  --motif-dot: rgba(46, 36, 24, 0.055);
+  --motif-dot-dim: rgba(46, 36, 24, 0.03);
   --motif-nebula-a: rgba(158, 68, 32, 0.05);
   --motif-nebula-b: rgba(27, 58, 92, 0.045);
 
@@ -145,9 +175,13 @@
   --glass-border: rgba(222, 235, 246, 0.16);
   --glass-border-strong: rgba(222, 235, 246, 0.3);
 
-  --link-node: rgba(222, 235, 246, 0.55);
+  --link: rgba(226, 240, 251, 0.82);
+  --link-node: rgba(226, 240, 251, 0.82);
   --link-highlight: #93C7E8;
+  --link-dim: rgba(226, 240, 251, 0.22);
   --link-cross: rgba(224, 138, 98, 0.5);
+  --row-band: rgba(147, 199, 232, 0.035);
+  --row-label: rgba(222, 235, 246, 0.32);
   --star-glow: rgba(147, 199, 232, 0.3);
 
   --motif-dot: rgba(222, 235, 246, 0.11);

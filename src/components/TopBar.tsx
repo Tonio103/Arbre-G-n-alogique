@@ -106,17 +106,30 @@ export function TopBar({
       </div>
 
       <div className="topbar-controls">
-        <div className="control-group lg lg--control lg--bar">
-          <IconButton label="Voir l’arbre entier" onClick={onFit}>
-            <FitIcon />
-          </IconButton>
-          <IconButton label="Dézoomer" onClick={onZoomOut}>
-            <MinusIcon />
-          </IconButton>
-          <IconButton label="Zoomer" onClick={onZoomIn}>
-            <PlusIcon />
-          </IconButton>
-        </div>
+        {/*
+          Le cadrage et le zoom ne pilotent QUE l'arbre.
+          
+          Ils restaient affichés sur la Carte, la Chronologie et « À
+          compléter », où ils déplaçaient un arbre que personne ne regardait :
+          on cliquait, rien ne bougeait. Signalé comme « le bouton pour mettre
+          en grand écran la carte ne marche pas » — et c'est bien la lecture
+          qu'on en fait, puisque son icône est celle d'un plein écran. La
+          Carte a ses propres boutons, en bas à droite du dessin, qui eux
+          agissent sur elle.
+        */}
+        {viewMode === 'tree' && (
+          <div className="control-group lg lg--control lg--bar">
+            <IconButton label="Voir l’arbre entier" onClick={onFit}>
+              <FitIcon />
+            </IconButton>
+            <IconButton label="Dézoomer" onClick={onZoomOut}>
+              <MinusIcon />
+            </IconButton>
+            <IconButton label="Zoomer" onClick={onZoomIn}>
+              <PlusIcon />
+            </IconButton>
+          </div>
+        )}
 
         <div className="control-group lg lg--control lg--bar">
           <IconButton

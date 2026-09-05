@@ -1,30 +1,20 @@
 /* ============================================================================
  *
- *  LE CAMÉE
+ *  LE MÉDAILLON
  *
- *  Le portrait était un disque à dégradés — deux halos colorés sur un fond
- *  incliné, une couleur par personne. Sur une planche gravée, c'est la seule
- *  chose qui restait d'une application moderne, et elle suffisait à tout
- *  démentir.
+ *  Un cercle de papier nu, cerné d'un trait, et l'initiale gravée dedans.
+ *  Rien d'autre.
  *
- *  Il devient donc une taille-douce, obtenue sans une seule image :
+ *  Il y a eu, entre-temps, une version en taille-douce : taille, contre-taille
+ *  masquée dans le quart d'ombre, réserve de lumière, cerne en double filet.
+ *  C'était juste techniquement — et faux à l'usage. La hachure remplissait le
+ *  disque d'un gris uniforme, si bien que cinquante médaillons se
+ *  ressemblaient tous : exactement ce que la couleur par personne était censée
+ *  éviter. Sur une planche, ce qui se remarque n'est pas la trame, c'est le
+ *  BLANC qu'on lui laisse.
  *
- *    LA TAILLE        un dégradé répété — des traits parallèles, l'outil de
- *                     base du burin
- *    LA RÉSERVE       un dégradé radial de la couleur du papier, posé en haut
- *                     à gauche : là où le graveur n'a pas creusé, la lumière
- *                     frappe
- *    LA CONTRE-TAILLE une seconde trame, à un autre angle, MASQUÉE dans le
- *                     seul quart d'ombre — c'est elle qui donne le volume
- *    LE LAVIS         la teinte propre à chaque personne, réduite à une
- *                     ombre colorée très pâle
- *
- *  La couleur par personne est conservée — sans elle, cent portraits se
- *  ressemblent — mais elle passe de l'aplat saturé au lavis du coloriste :
- *  une touche posée à la main par-dessus le noir, jamais à la place.
- *
- *  Tout cela est en dégradés : peint une fois, jamais recalculé, et net à
- *  toutes les tailles.
+ *  Le lavis propre à chaque personne subsiste, réduit à un souffle : assez
+ *  pour que deux voisins diffèrent, pas assez pour qu'on lise une couleur.
  *
  * ========================================================================== */
 
@@ -37,12 +27,17 @@
   overflow: hidden;
   isolation: isolate;
   background-color: var(--glass-panel-solid);
-  /* Le double filet du graveur : un trait franc, un blanc de réserve, un
-     trait plus fin. Jamais un simple cerne d'un pixel. */
-  box-shadow:
-    0 0 0 1px var(--text-primary),
-    0 0 0 2.5px var(--glass-panel-solid),
-    0 0 0 3.5px var(--glass-border-strong);
+  /*
+   * UN SEUL CERNE.
+   *
+   * Il y en avait trois, en double filet, autour d'un intérieur entièrement
+   * couvert de taille et de contre-taille. Sur la maquette, le médaillon est
+   * un CERCLE DE PAPIER NU cerné d'un trait, et l'initiale seule le remplit :
+   * c'est ce qui fait respirer une planche. La hachure remplissait le disque
+   * d'un gris uniforme, et cinquante disques gris se ressemblent tous — c'est
+   * exactement ce que la couleur par personne était censée éviter.
+   */
+  box-shadow: 0 0 0 1.4px var(--avatar-cerne, rgba(42, 34, 24, 0.82));
 }
 
 /* Une vraie photographie doit entrer dans la planche : on la ramène au bistre
@@ -61,72 +56,32 @@
 }
 
 /*
- * Le portrait gravé.
+ * Le portrait sans photographie : du papier, et rien.
  *
- * L'ordre des couches compte : la réserve est AU-DESSUS de la taille, puisque
- * c'est le papier qu'on voit là où le burin n'est pas passé.
+ * Le lavis propre à chaque personne reste, mais réduit à un souffle — assez
+ * pour que deux médaillons voisins ne soient pas identiques, pas assez pour
+ * qu'on lise une couleur. La distinction se fait par l'INITIALE, comme sur la
+ * maquette ; la teinte n'est qu'un rappel.
  */
 .avatar-generated {
-  background-image:
-    /* La réserve est SERRÉE : elle marque la lumière, elle ne blanchit pas
-       tout le camée. Trop large, la taille disparaît et le portrait n'est
-       plus qu'un disque de la couleur du papier — c'est ce qui s'est produit
-       au premier essai, où les cinquante médaillons étaient présents dans la
-       page mais parfaitement invisibles à l'écran. */
-    radial-gradient(
-      closest-side at 32% 26%,
-      var(--glass-panel-solid) 0%,
-      color-mix(in srgb, var(--glass-panel-solid) 55%, transparent) 24%,
-      transparent 62%
-    ),
-    repeating-linear-gradient(
-      var(--avatar-angle, 13deg),
-      color-mix(in srgb, var(--avatar-taille) 80%, transparent) 0 0.9px,
-      transparent 0.9px 2.7px
-    ),
-    linear-gradient(0deg, var(--avatar-lavis), var(--avatar-lavis));
+  background-image: linear-gradient(0deg, var(--avatar-lavis), var(--avatar-lavis));
   background-color: var(--glass-panel-solid);
 }
 
-/* La contre-taille, cantonnée au quart d'ombre par son masque. */
-.avatar-generated::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    calc(var(--avatar-angle, 13deg) - 78deg),
-    color-mix(in srgb, var(--avatar-taille) 62%, transparent) 0 0.8px,
-    transparent 0.8px 3.4px
-  );
-  -webkit-mask-image: radial-gradient(closest-side at 76% 80%, #000 6%, transparent 74%);
-  mask-image: radial-gradient(closest-side at 76% 80%, #000 6%, transparent 74%);
-}
-
-/* Le creux du bord : une gravure s'assombrit contre son cerne. */
-.avatar-generated::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(
-    closest-side,
-    transparent 62%,
-    color-mix(in srgb, var(--text-primary) 22%, transparent) 100%
-  );
-}
-
+/*
+ * L'initiale, seule habitante du médaillon.
+ *
+ * Elle portait un triple halo de papier pour se détacher de la hachure ; il
+ * n'y a plus de hachure, et un halo sur du papier nu ne fait qu'empâter la
+ * lettre. Elle est simplement gravée : caractère de titre, franche, un peu
+ * espacée comme une capitale d'inscription.
+ */
 .avatar-initials {
   position: relative;
   z-index: 1;
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.045em;
   color: var(--text-primary);
-  /* Le blanc de réserve autour de la lettre : le graveur épargne le papier
-     pour que la capitale se détache de la trame. */
-  text-shadow:
-    0 0 3px var(--glass-panel-solid),
-    0 0 6px var(--glass-panel-solid),
-    0 1px 0 var(--glass-panel-solid);
   user-select: none;
 }

@@ -1,4 +1,5 @@
 import type { GenerationRow, LayoutUnion } from '@/domain/layout';
+import type { EtatBotanique } from '@/domain/gaps';
 import {
   CARD_HEIGHT,
   ROW_HEIGHT,
@@ -82,6 +83,14 @@ export interface DrawLinksParams {
    * souligner au lieu de le révéler.
    */
   growth?: { unionId: string; progress: number };
+  /**
+   * L'état de chaque fiche, pour la feuillaison des branches.
+   *
+   * Passé plutôt que calculé ici : `drawLinks` ne connaît que la géométrie, et
+   * doit continuer à ne connaître que ça. C'est `TreeCanvas` qui sait ce que
+   * contiennent les fiches.
+   */
+  etats?: Map<string, EtatBotanique>;
 }
 
 /**
@@ -176,15 +185,15 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
         {
           list: drawableUnions.filter((union) => !highlighted.has(union.id)),
           color: palette.dim,
-          weight: 1.4,
+          weight: 2.0,
         },
         {
           list: drawableUnions.filter((union) => highlighted.has(union.id)),
           color: palette.strong,
-          weight: 2.6,
+          weight: 3.6,
         },
       ]
-    : [{ list: drawableUnions, color: palette.line, weight: 1.7 }];
+    : [{ list: drawableUnions, color: palette.line, weight: 2.6 }];
 
   /*
    * L'encre.
@@ -209,6 +218,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       for (const trait of unionSegments(union, union.status !== 'divorced')) traits.push(trait);
     }
     encrer(ctx, traits, group.color, group.weight * unit, unit);
+    if (params.etats) feuiller(ctx, group.list, params.etats, group.color, unit);
   }
 
   /*
@@ -531,6 +541,187 @@ function encrer(
   ctx.fill(encre);
 }
 
+/* ---------------------------------------------------------------------------
+ * LA FEUILLAISON
+ *
+ * Les quatre états d'une fiche (voir `etatBotanique` dans `domain/gaps.ts`)
+ * étaient posés en marge des médaillons, en masques CSS de seize pixels.
+ * Verdict de qui regarde l'arbre : « la botanique ne se voit pas assez ».
+ * C'était juste — une marque posée à côté d'un portrait est un badge, et un
+ * badge se lit comme une décoration d'interface, pas comme un arbre.
+ *
+ * Elles passent donc SUR LES BRANCHES, à même le canevas, là où une feuille
+ * pousse. Et l'état le plus grave devient le plus évident sans qu'on dessine
+ * rien : un rameau nu est une branche SANS FEUILLE.
+ *
+ *   FEUILLE        un limbe plein, encré comme la branche
+ *   FEUILLE SÈCHE  le même limbe, en contour seul, plus étroit et recourbé
+ *   BOURGEON       une petite goutte close, sans nervure
+ *   RAMEAU NU      rien
+ *
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Le repère local d'une feuille : `u` court le long, `v` en travers.
+ */
+function repere(x: number, y: number, angle: number) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return (u: number, v: number): [number, number] => [
+    x + u * cos - v * sin,
+    y + u * sin + v * cos,
+  ];
+}
+
+/**
+ * Le limbe : deux arcs qui se rejoignent EN POINTE aux deux bouts.
+ *
+ * Premier essai, les points de contrôle voisins de la pointe étaient posés en
+ * travers de l'axe : les deux arcs y arrivaient tangents l'un à l'autre, donc
+ * la feuille se fermait en rond. À l'écran, ce n'était pas une feuille mais
+ * une tache — et une tache reste une tache quelle que soit sa taille.
+ *
+ * Ils sont maintenant ramenés vers l'axe (0,72 L pour un écart de 0,8 l) : les
+ * deux arcs y arrivent en biais, ils se coupent, et la feuille a sa pointe.
+ * C'est la seule chose qui distingue un limbe d'un pâté.
+ *
+ * `creux` cambre la feuille : nul elle est symétrique, fort elle s'enroule —
+ * c'est ce qui fait la feuille sèche.
+ */
+function limbe(path: Path2D, x: number, y: number, angle: number, taille: number, creux: number): void {
+  const px = repere(x, y, angle);
+  const L = taille;
+  const l = taille * 0.34;
+  const [bx, by] = px(0, 0);
+  const [tx, ty] = px(L, 0);
+  path.moveTo(bx, by);
+  path.bezierCurveTo(...px(L * 0.16, l), ...px(L * 0.72, l * 0.8), tx, ty);
+  path.bezierCurveTo(...px(L * 0.72, -l * (0.8 - creux)), ...px(L * 0.16, -l * (1 - creux)), bx, by);
+}
+
+/** La nervure, qui suit la cambrure du limbe. */
+function nervure(path: Path2D, x: number, y: number, angle: number, taille: number, creux: number): void {
+  const px = repere(x, y, angle);
+  const L = taille;
+  const [bx, by] = px(L * 0.08, 0);
+  path.moveTo(bx, by);
+  path.bezierCurveTo(
+    ...px(L * 0.4, taille * 0.06 * creux),
+    ...px(L * 0.7, taille * 0.04 * creux),
+    ...px(L * 0.9, 0),
+  );
+}
+
+/** Le pétiole : la feuille est ATTACHÉE à sa branche, elle n'y flotte pas. */
+function petiole(path: Path2D, x: number, y: number, angle: number, longueur: number): void {
+  const px = repere(x, y, angle);
+  path.moveTo(x, y);
+  path.lineTo(...px(longueur, 0));
+}
+
+/** La goutte close du bourgeon : courte, large, sans pointe ni nervure. */
+function goutte(path: Path2D, x: number, y: number, angle: number, taille: number): void {
+  const px = repere(x, y, angle);
+  const L = taille;
+  const l = taille * 0.42;
+  const [bx, by] = px(0, 0);
+  const [tx, ty] = px(L, 0);
+  path.moveTo(bx, by);
+  path.bezierCurveTo(...px(L * 0.12, l), ...px(L * 0.86, l * 0.62), tx, ty);
+  path.bezierCurveTo(...px(L * 0.86, -l * 0.62), ...px(L * 0.12, -l), bx, by);
+}
+
+/**
+ * Feuiller les branches d'un groupe d'unions.
+ *
+ * Quatre chemins pour tout l'arbre — les pétioles, les limbes pleins, les
+ * limbes secs, les bourgeons — tracés ou remplis une fois chacun. Le même
+ * principe que `encrer` : ce qui coûte, ce n'est pas la quantité de dessin,
+ * c'est le nombre d'appels.
+ */
+function feuiller(
+  ctx: CanvasRenderingContext2D,
+  unions: LayoutUnion[],
+  etats: Map<string, EtatBotanique>,
+  couleur: string,
+  unit: number,
+): void {
+  const tiges = new Path2D();
+  const pleines = new Path2D();
+  const seches = new Path2D();
+  const nervures = new Path2D();
+  const bourgeons = new Path2D();
+  let quelquechose = false;
+
+  for (const union of unions) {
+    const { partners, children } = union;
+    if (partners.length === 0 || children.length === 0) continue;
+    const busY = cardTop(children[0].y) - BUS_LIFT;
+
+    for (const child of children) {
+      const etat = etats.get(child.id);
+      if (!etat || etat === 'rameau-nu') continue;
+
+      const centre = cardCenterX(child.x);
+      const haut = cardTop(child.y);
+      // Aux deux cinquièmes de la descente : assez bas pour ne pas se perdre
+      // dans le nœud d'attache, assez haut pour ne pas toucher la carte.
+      const yb = busY + (haut - busY) * 0.42;
+      // Le côté alterne selon la position, jamais au hasard : une même branche
+      // doit porter sa feuille du même côté à chaque redessin.
+      const cote = Math.round(centre) % 2 === 0 ? 1 : -1;
+      // La feuille part de la branche et s'en écarte vers le haut : c'est le
+      // sens dans lequel pousse un rameau.
+      const angle = cote > 0 ? -0.68 : Math.PI + 0.68;
+      const taille = 24 * unit;
+      const tige = 5 * unit;
+      const px = repere(centre, yb, angle);
+      const [bx, by] = px(tige, 0);
+
+      quelquechose = true;
+      petiole(tiges, centre, yb, angle, tige);
+      if (etat === 'feuille') {
+        limbe(pleines, bx, by, angle, taille, 0);
+        nervure(nervures, bx, by, angle, taille, 0);
+      } else if (etat === 'feuille-seche') {
+        limbe(seches, bx, by, angle, taille * 0.92, 0.5);
+        nervure(nervures, bx, by, angle, taille * 0.92, 0.5);
+      } else {
+        goutte(bourgeons, bx, by, angle, taille * 0.42);
+      }
+    }
+  }
+
+  if (!quelquechose) return;
+
+  ctx.fillStyle = couleur;
+  ctx.strokeStyle = couleur;
+  ctx.lineWidth = 1.3 * unit;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  ctx.globalAlpha = 0.85;
+  ctx.stroke(tiges);
+
+  /*
+   * Le limbe est TRACÉ, pas rempli.
+   *
+   * Rempli, il devenait un aplat noir de la taille d'une capitale : sur une
+   * planche gravée, où tout est trait, c'était la seule masse pleine de la
+   * feuille, et elle attirait l'œil plus que les noms. Un botaniste dessine le
+   * contour et la nervure, puis laisse le papier.
+   */
+  ctx.stroke(pleines);
+  ctx.globalAlpha = 0.72;
+  ctx.stroke(seches);
+  ctx.globalAlpha = 0.6;
+  ctx.stroke(nervures);
+  // Le bourgeon, lui, est plein : c'est ce qui dit qu'il est CLOS.
+  ctx.globalAlpha = 0.88;
+  ctx.fill(bourgeons);
+  ctx.globalAlpha = 1;
+}
+
 /**
  * Les traits d'une union, source commune au tracé normal (`traitsDe`) et
  * au calcul de longueur pour son animation d'apparition (`unionPathLength`) :
@@ -573,7 +764,7 @@ const EP_DESCENTE_HAUT = 1.4;
 const EP_DESCENTE_BAS = 1.05;
 const EP_BUS = 1;
 const EP_RAMEAU_HAUT = 0.95;
-const EP_RAMEAU_BAS = 0.5;
+const EP_RAMEAU_BAS = 0.72;
 
 function unionSegments(union: LayoutUnion, includeAlliance = true): Trait[] {
   const { partners, children } = union;
