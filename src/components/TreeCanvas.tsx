@@ -6,7 +6,7 @@ import type { SpatialIndex } from '@/view/spatial';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
 import type { HoverStore } from '@/view/hover-store';
-import { LOD_COMPACT, LOD_FULL } from '@/view/metrics';
+import { LOD_COMPACT, LOD_FULL, cardCenterX, portraitCenterY } from '@/view/metrics';
 import { etatBotanique, type EtatBotanique } from '@/domain/gaps';
 import { PersonNode, type NodeDetail } from './PersonNode';
 import { LinkLayer } from './LinkLayer';
@@ -502,6 +502,21 @@ export function TreeCanvas({
    * doit rien savoir du contenu des fiches. `graph.people` ne change qu'à une
    * modification réelle des données.
    */
+  /*
+   * D'où part la sève.
+   *
+   * Le centre du PORTRAIT, et non celui de la carte : c'est là que les traits
+   * d'alliance viennent se rattacher, donc le point que le réseau de branches
+   * touche réellement. Partir du centre de la carte ferait chercher au front
+   * son entrée dans le réseau à côté de la personne qu'on vient de choisir.
+   */
+  const source = useMemo(() => {
+    if (!selectedId) return null;
+    const position = layout.positions.get(selectedId);
+    if (!position) return null;
+    return { x: cardCenterX(position.x), y: portraitCenterY(position.y) };
+  }, [selectedId, layout]);
+
   const etats = useMemo(() => {
     const table = new Map<string, EtatBotanique>();
     for (const [id, person] of graph.people) table.set(id, etatBotanique(person));
@@ -529,6 +544,7 @@ export function TreeCanvas({
           pathUnions={pathUnions}
           growingUnionId={growingUnionId}
           etats={etats}
+          source={source}
         />
 
         <PathFlow layout={layout} relation={relation} />

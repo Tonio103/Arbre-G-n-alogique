@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import type { TreeLayout } from '@/domain/layout';
 import type { Rect, SpatialIndex } from '@/view/spatial';
+import { planterLaSeve, type PlanDeSeve } from '@/view/links';
 import type { EtatBotanique } from '@/domain/gaps';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
@@ -23,10 +24,52 @@ export interface LinkLayerProps {
   growingUnionId?: string | null;
   /** L'état botanique de chaque fiche, pour feuiller les branches. */
   etats: Map<string, EtatBotanique>;
+  /**
+   * D'où part la sève : le point de la personne choisie.
+   *
+   * `null` quand rien n'est sélectionné — l'arbre est alors tout entier à sa
+   * teinte normale, et il n'y a pas de front à faire courir.
+   */
+  source: { x: number; y: number } | null;
 }
 
 /** Durée de l'apparition d'un trait tout juste créé. */
 const GROWTH_MS = 640;
+
+/*
+ * LA MONTÉE DE SÈVE.
+ *
+ * La durée ne peut pas être fixe : la même seconde ferait ramper le front sur
+ * la parenté d'un enfant de trois cartes et le ferait filer sur une lignée de
+ * onze générations. Elle ne peut pas être proportionnelle non plus — une
+ * lignée dix fois plus longue n'a pas à durer dix fois plus longtemps, on
+ * attendrait quinze secondes.
+ *
+ * Elle suit donc la RACINE de la portée : une branche quatre fois plus longue
+ * prend deux fois plus de temps. C'est la même loi que celle qu'on applique
+ * d'instinct à un geste — allonger le trajet allonge le geste, mais de moins
+ * en moins.
+ */
+const SEVE_MIN_MS = 480;
+const SEVE_MAX_MS = 1500;
+const seveDuree = (portee: number): number =>
+  Math.max(SEVE_MIN_MS, Math.min(SEVE_MAX_MS, 380 + Math.sqrt(Math.max(0, portee)) * 26));
+
+/** Le reste de l'arbre s'estompe vite : c'est un fond, pas un sujet. */
+const ESTOMPE_MS = 260;
+
+/**
+ * L'avancée du front dans le temps.
+ *
+ * Un `smoothstep` : la sève démarre, coule, puis se pose. À vitesse
+ * rigoureusement constante le front partirait et s'arrêterait d'un coup, ce
+ * qui se remarque bien plus qu'on ne le croit — rien ne démarre à pleine
+ * vitesse, pas même un liquide sous pression.
+ */
+const avance = (p: number): number => {
+  const t = Math.max(0, Math.min(1, p));
+  return t * t * (3 - 2 * t);
+};
 
 function readPalette(theme: string): LinkPalette {
   const styles = getComputedStyle(document.documentElement);
@@ -100,12 +143,14 @@ export function LinkLayer({
   theme,
   growingUnionId,
   etats,
+  source,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
   const paletteRef = useRef<LinkPalette | null>(null);
   const forceRef = useRef<(() => void) | null>(null);
   const growthRef = useRef<{ unionId: string; start: number } | null>(null);
+  const seveRef = useRef<{ plan: PlanDeSeve; start: number; duree: number } | null>(null);
 
   const stateRef = useRef({ highlightUnions, hasSelection, pathUnions, etats });
   stateRef.current = { highlightUnions, hasSelection, pathUnions, etats };
@@ -163,6 +208,15 @@ export function LinkLayer({
         hasSelection: stateRef.current.hasSelection,
         pathUnions: stateRef.current.pathUnions,
         etats: stateRef.current.etats,
+        seve: seveRef.current
+          ? {
+              plan: seveRef.current.plan,
+              front:
+                seveRef.current.plan.portee *
+                avance((performance.now() - seveRef.current.start) / seveRef.current.duree),
+              estompe: Math.min(1, (performance.now() - seveRef.current.start) / ESTOMPE_MS),
+            }
+          : undefined,
         growth: growthRef.current
           ? {
               unionId: growthRef.current.unionId,
@@ -238,6 +292,62 @@ export function LinkLayer({
   useEffect(() => {
     forceRef.current?.();
   }, [highlightUnions, hasSelection, pathUnions, theme]);
+
+  /*
+   * LA SÈVE MONTE.
+   *
+   * Le plan se calcule sur TOUTES les unions de l'arbre, pas sur celles qui
+   * sont à l'écran : le front doit garder le même temps de parcours qu'on
+   * regarde la branche ou non, sinon déplacer la vue pendant l'animation
+   * changerait la vitesse de ce qu'on est en train de regarder.
+   *
+   * Une seule fois par sélection : la géométrie ne bouge pas pendant que
+   * l'animation court, et Dijkstra n'a donc aucune raison de tourner soixante
+   * fois par seconde.
+   */
+  useEffect(() => {
+    if (!hasSelection || !source || highlightUnions.size === 0) {
+      seveRef.current = null;
+      forceRef.current?.();
+      return undefined;
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      seveRef.current = null;
+      forceRef.current?.();
+      return undefined;
+    }
+
+    const plan = planterLaSeve(layout.unions, highlightUnions, source);
+    if (!plan || plan.portee <= 0) {
+      seveRef.current = null;
+      forceRef.current?.();
+      return undefined;
+    }
+
+    const duree = seveDuree(plan.portee);
+    seveRef.current = { plan, start: performance.now(), duree };
+
+    let frame = 0;
+    const tick = (): void => {
+      forceRef.current?.();
+      const seve = seveRef.current;
+      if (seve && performance.now() - seve.start < seve.duree) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      // Le plan retiré, le tracé revient de lui-même à son état final : c'est
+      // la même image, sans le coût d'un chemin recoupé à chaque trait.
+      seveRef.current = null;
+      forceRef.current?.();
+    };
+    frame = requestAnimationFrame(tick);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      seveRef.current = null;
+    };
+  }, [highlightUnions, hasSelection, source, layout]);
 
   // L'apparition d'un trait tout juste créé : redessine à chaque image
   // pendant `GROWTH_MS`, puis relâche — le reste du temps, `LinkLayer` ne

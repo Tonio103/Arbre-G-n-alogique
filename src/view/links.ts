@@ -91,6 +91,15 @@ export interface DrawLinksParams {
    * contiennent les fiches.
    */
   etats?: Map<string, EtatBotanique>;
+  /**
+   * La sève en train de monter, quand une sélection vient de changer.
+   *
+   * `front` est la distance déjà parcourue depuis la personne choisie, dans
+   * les unités du monde — la même mesure que `PlanDeSeve.portee`. `estompe`
+   * va de 0 (le reste de l'arbre est encore noir) à 1 (il a fini de griser).
+   * Absent : tout est à son état final, sans animation.
+   */
+  seve?: { plan: PlanDeSeve; front: number; estompe: number };
 }
 
 /**
@@ -180,20 +189,27 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   // tous les traits d'un groupe dans le même chemin, puis le remplit trois
   // fois. Séparer les couleurs plus finement voudrait dire un chemin par
   // union — un millier de chemins là où deux suffisent.
-  const groups: Array<{ list: LayoutUnion[]; color: string; weight: number }> = hasSelection
+  const groups: Array<{
+    role: 'seul' | 'estompe' | 'accent';
+    list: LayoutUnion[];
+    color: string;
+    weight: number;
+  }> = hasSelection
     ? [
         {
+          role: 'estompe',
           list: drawableUnions.filter((union) => !highlighted.has(union.id)),
           color: palette.dim,
           weight: 2.0,
         },
         {
+          role: 'accent',
           list: drawableUnions.filter((union) => highlighted.has(union.id)),
           color: palette.strong,
           weight: 3.6,
         },
       ]
-    : [{ list: drawableUnions, color: palette.line, weight: 2.6 }];
+    : [{ role: 'seul', list: drawableUnions, color: palette.line, weight: 2.6 }];
 
   /*
    * L'encre.
@@ -209,16 +225,104 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
   const unit = 1 / density;
   ctx.shadowBlur = 0;
 
+  const seve = params.seve;
+
   for (const group of groups) {
     if (group.list.length === 0) continue;
+
     // Un divorce garde sa descente pleine — se séparer ne défait pas la
     // filiation — mais son trait d'alliance se dessine à part, plus bas.
     const traits: Trait[] = [];
-    for (const union of group.list) {
-      for (const trait of unionSegments(union, union.status !== 'divorced')) traits.push(trait);
+    /** Le point exact où la plume en est, sur chaque trait en cours. */
+    const gouttes: Array<[number, number]> = [];
+    /** Par union, la part déjà encrée : c'est elle qui ouvre les feuilles. */
+    let avancements: Map<string, number> | undefined;
+
+    if (group.role === 'accent' && seve) {
+      avancements = new Map();
+      for (const union of group.list) {
+        const plan = seve.plan.traits.get(union.id);
+        let atteint = 0;
+        let total = 0;
+        unionSegments(union, union.status !== 'divorced').forEach((trait, rang) => {
+          const arrivee = plan?.[rang];
+          // Un trait que le plan ne connaît pas — de longueur nulle, donc
+          // écarté à la construction : il n'a rien à révéler.
+          if (!arrivee) {
+            traits.push(trait);
+            return;
+          }
+          total += arrivee.longueur;
+          const f = Math.max(
+            0,
+            Math.min(1, (seve.front - arrivee.depart) / arrivee.longueur),
+          );
+          atteint += arrivee.longueur * f;
+          if (f <= 0) return;
+          if (f >= 1) {
+            traits.push(trait);
+            return;
+          }
+          traits.push(couper(trait, f, arrivee.parLeDebut));
+          const [x1, y1, x2, y2] = trait.seg;
+          gouttes.push(
+            arrivee.parLeDebut
+              ? [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]
+              : [x2 + (x1 - x2) * f, y2 + (y1 - y2) * f],
+          );
+        });
+        avancements.set(union.id, total > 0 ? atteint / total : 1);
+      }
+    } else {
+      for (const union of group.list) {
+        for (const trait of unionSegments(union, union.status !== 'divorced')) traits.push(trait);
+      }
     }
+
     encrer(ctx, traits, group.color, group.weight * unit, unit);
-    if (params.etats) feuiller(ctx, group.list, params.etats, group.color, unit);
+
+    /*
+     * Le reste de l'arbre ne grise pas d'un coup : son encre pleine se retire
+     * par-dessus le gris déjà posé.
+     *
+     * Un fondu croisé, donc deux remplissages superposés pendant deux
+     * dixièmes de seconde — ce qui assombrit très légèrement le trait à
+     * mi-parcours. On pourrait l'éviter en n'animant que l'alpha d'une seule
+     * teinte, puisque `--link` et `--link-dim` ne diffèrent aujourd'hui que
+     * par là. Ce serait construire sur un accident : le jour où l'une des
+     * deux change de pigment, le fondu deviendrait faux sans que rien ne le
+     * dise. Le fondu croisé, lui, reste juste pour n'importe quel couple de
+     * couleurs.
+     */
+    if (group.role === 'estompe' && seve && seve.estompe < 1) {
+      encrer(ctx, traits, palette.line, 2.6 * unit, unit, 1 - seve.estompe);
+    }
+
+    /*
+     * La goutte au front.
+     *
+     * C'est le détail qui fait la différence entre « un trait qui s'allonge »
+     * et « quelque chose qui coule » : une plume qui avance porte toujours un
+     * peu plus d'encre à sa pointe qu'elle n'en laisse derrière elle. Deux
+     * cercles — un halo large et pâle, un cœur plus dense — et le mouvement
+     * cesse d'être une simple longueur qui change.
+     */
+    if (gouttes.length > 0) {
+      for (const [rayon, alpha] of [[3.4, 0.14] as const, [1.6, 0.5] as const]) {
+        const perles = new Path2D();
+        const r = rayon * unit;
+        for (const [gx, gy] of gouttes) {
+          perles.moveTo(gx + r, gy);
+          perles.arc(gx, gy, r, 0, Math.PI * 2);
+        }
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = group.color;
+        ctx.fill(perles);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    if (params.etats) feuiller(ctx, group.list, params.etats, group.color, unit, avancements);
   }
 
   /*
@@ -523,22 +627,24 @@ function encrer(
   couleur: string,
   base: number,
   unit: number,
+  opacite = 1,
 ): void {
-  if (traits.length === 0) return;
+  if (traits.length === 0 || opacite <= 0) return;
 
   for (const [gonfle, alpha] of [[2.6, 0.05] as const, [1.1, 0.07] as const]) {
     const bavure = new Path2D();
     for (const trait of traits) plume(bavure, trait, base, gonfle * unit, unit);
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = alpha * opacite;
     ctx.fillStyle = couleur;
     ctx.fill(bavure);
   }
 
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = opacite;
   const encre = new Path2D();
   for (const trait of traits) plume(encre, trait, base, 0, unit);
   ctx.fillStyle = couleur;
   ctx.fill(encre);
+  ctx.globalAlpha = 1;
 }
 
 /* ---------------------------------------------------------------------------
@@ -639,12 +745,28 @@ function goutte(path: Path2D, x: number, y: number, angle: number, taille: numbe
  * principe que `encrer` : ce qui coûte, ce n'est pas la quantité de dessin,
  * c'est le nombre d'appels.
  */
+/**
+ * L'éclosion : la feuille s'ouvre un peu au-delà de sa taille, puis revient.
+ *
+ * Ce dépassement de dix pour cent est tout ce qui sépare une feuille qui
+ * s'ouvre d'une feuille qu'on agrandit. Rien de vivant n'atteint sa taille en
+ * ralentissant : ça dépasse, puis ça se pose.
+ */
+function eclot(p: number): number {
+  const t = Math.max(0, Math.min(1, p));
+  const c = 1.70158;
+  const u = t - 1;
+  return 1 + (c + 1) * u * u * u + c * u * u;
+}
+
 function feuiller(
   ctx: CanvasRenderingContext2D,
   unions: LayoutUnion[],
   etats: Map<string, EtatBotanique>,
   couleur: string,
   unit: number,
+  /** Par union, la part de son trait déjà encrée. Absent : tout est ouvert. */
+  avancements?: Map<string, number>,
 ): void {
   const tiges = new Path2D();
   const pleines = new Path2D();
@@ -657,6 +779,10 @@ function feuiller(
     const { partners, children } = union;
     if (partners.length === 0 || children.length === 0) continue;
     const busY = cardTop(children[0].y) - BUS_LIFT;
+
+    // Une feuille ne pousse pas sur une branche que la sève n'a pas atteinte.
+    const pousse = avancements ? eclot(avancements.get(union.id) ?? 1) : 1;
+    if (pousse <= 0.02) continue;
 
     for (const child of children) {
       const etat = etats.get(child.id);
@@ -673,8 +799,8 @@ function feuiller(
       // La feuille part de la branche et s'en écarte vers le haut : c'est le
       // sens dans lequel pousse un rameau.
       const angle = cote > 0 ? -0.68 : Math.PI + 0.68;
-      const taille = 24 * unit;
-      const tige = 5 * unit;
+      const taille = 24 * unit * pousse;
+      const tige = 5 * unit * pousse;
       const px = repere(centre, yb, angle);
       const [bx, by] = px(tige, 0);
 
@@ -745,6 +871,221 @@ function allianceSegment(union: LayoutUnion): Segment | undefined {
   const last = sorted[sorted.length - 1];
   const y = portraitCenterY(Math.min(first.y, last.y));
   return [cardCenterX(first.x), y, cardCenterX(last.x), y];
+}
+
+/* ---------------------------------------------------------------------------
+ * LA SÈVE
+ *
+ * Quand on choisit quelqu'un, sa parenté s'encre et le reste s'estompe. Faire
+ * apparaître les deux d'un coup donne un changement d'état — vrai, mais mort.
+ * Ce qu'on veut voir, c'est l'encre PARTIR de la personne choisie et gagner
+ * les branches de proche en proche, comme la sève monte.
+ *
+ * Deux façons de s'y prendre, et une seule est bonne.
+ *
+ * Par SAUTS DE GÉNÉRATION : chaque union s'allume un cran après la
+ * précédente. C'est simple, et c'est faux — la longueur des branches ne
+ * compte plus, si bien qu'un rameau de trente pixels et une descente de trois
+ * cents mettent le même temps. L'œil le voit tout de suite : ça ne coule pas,
+ * ça clignote en cascade.
+ *
+ * Par DISTANCE PARCOURUE : le front avance à vitesse constante le long du
+ * réseau de traits, exactement comme un liquide dans des veines. Une longue
+ * descente met plus longtemps qu'un court rameau, deux branches parties
+ * ensemble se séparent puis se rejoignent, et un détour se voit. C'est la
+ * seule des deux qui ressemble à quelque chose de vivant, et c'est celle-ci.
+ *
+ * Le plan se calcule UNE FOIS par sélection (voir `LinkLayer`), pas à chaque
+ * image : il ne dépend que de la géométrie, qui ne bouge pas pendant que
+ * l'animation court.
+ * ------------------------------------------------------------------------- */
+
+/** Ce que le front doit parcourir pour atteindre un trait, et par quel bout. */
+export interface ArriveeDeSeve {
+  /** Distance à laquelle le front touche ce trait, en unités du monde. */
+  depart: number;
+  longueur: number;
+  /** L'encre entre-t-elle par le début du segment, ou par sa fin ? */
+  parLeDebut: boolean;
+}
+
+export interface PlanDeSeve {
+  /** Par union accentuée, dans l'ordre exact de `unionSegments`. */
+  traits: Map<string, Array<ArriveeDeSeve | undefined>>;
+  /** La course entière : du départ jusqu'au trait le plus lointain. */
+  portee: number;
+}
+
+/**
+ * Deux pas par unité de monde pour recoller les extrémités.
+ *
+ * Les segments d'une union partagent leurs extrémités par construction — mais
+ * ce sont des nombres flottants, et deux valeurs qui se lisent pareil ne sont
+ * pas forcément égales au bit près. Sans arrondi, le réseau se retrouverait
+ * coupé en morceaux à chaque embranchement, et la sève n'irait nulle part.
+ */
+const PAS_GRILLE = 2;
+
+/**
+ * Le réseau des branches accentuées, mesuré depuis la personne choisie.
+ *
+ * `null` s'il n'y a rien à parcourir — une personne seule, sans union.
+ */
+export function planterLaSeve(
+  unions: LayoutUnion[],
+  accentuees: Set<string>,
+  source: { x: number; y: number },
+): PlanDeSeve | null {
+  const index = new Map<string, number>();
+  const px: number[] = [];
+  const py: number[] = [];
+  const voisins: Array<Array<{ vers: number; longueur: number }>> = [];
+
+  const noeud = (x: number, y: number): number => {
+    const cle = `${Math.round(x * PAS_GRILLE)}:${Math.round(y * PAS_GRILLE)}`;
+    const connu = index.get(cle);
+    if (connu !== undefined) return connu;
+    const n = px.length;
+    index.set(cle, n);
+    px.push(x);
+    py.push(y);
+    voisins.push([]);
+    return n;
+  };
+
+  const inscrits: Array<{
+    unionId: string;
+    rang: number;
+    a: number;
+    b: number;
+    longueur: number;
+  }> = [];
+
+  for (const union of unions) {
+    if (!accentuees.has(union.id)) continue;
+    // Le MÊME appel que le tracé, sans quoi les rangs ne désigneraient pas
+    // les mêmes traits : une union divorcée n'a pas son alliance dans la
+    // liste, et tout serait décalé d'un cran pour elle seule.
+    unionSegments(union, union.status !== 'divorced').forEach((trait, rang) => {
+      const [x1, y1, x2, y2] = trait.seg;
+      const longueur = Math.hypot(x2 - x1, y2 - y1);
+      if (longueur < 0.01) return;
+      const a = noeud(x1, y1);
+      const b = noeud(x2, y2);
+      voisins[a].push({ vers: b, longueur });
+      voisins[b].push({ vers: a, longueur });
+      inscrits.push({ unionId: union.id, rang, a, b, longueur });
+    });
+  }
+
+  if (inscrits.length === 0) return null;
+
+  // Le départ : le point du réseau le plus proche de la personne choisie. La
+  // sève part de là où elle est, pas d'une extrémité arbitraire de l'arbre.
+  let depart = 0;
+  let meilleur = Infinity;
+  for (let n = 0; n < px.length; n += 1) {
+    const d = (px[n] - source.x) ** 2 + (py[n] - source.y) ** 2;
+    if (d < meilleur) {
+      meilleur = d;
+      depart = n;
+    }
+  }
+
+  /*
+   * Dijkstra, en O(n²) et sans tas.
+   *
+   * Le réseau compte quelques centaines de nœuds au plus — quatre par union
+   * accentuée — et ce calcul n'a lieu qu'une fois par sélection. Un tas
+   * binaire ferait gagner des microsecondes sur une opération qui n'a pas
+   * lieu pendant l'animation, au prix de trente lignes de plus.
+   */
+  const dist = new Float64Array(px.length).fill(Infinity);
+  const vu = new Uint8Array(px.length);
+  dist[depart] = 0;
+  for (;;) {
+    let u = -1;
+    let d = Infinity;
+    for (let n = 0; n < dist.length; n += 1) {
+      if (!vu[n] && dist[n] < d) {
+        d = dist[n];
+        u = n;
+      }
+    }
+    if (u < 0) break;
+    vu[u] = 1;
+    for (const arete of voisins[u]) {
+      const candidat = d + arete.longueur;
+      if (candidat < dist[arete.vers]) dist[arete.vers] = candidat;
+    }
+  }
+
+  const traits = new Map<string, Array<ArriveeDeSeve | undefined>>();
+  let portee = 0;
+
+  for (const inscrit of inscrits) {
+    const da = dist[inscrit.a];
+    const db = dist[inscrit.b];
+    let arrivee: number;
+    let parLeDebut: boolean;
+
+    if (Number.isFinite(da) || Number.isFinite(db)) {
+      parLeDebut = da <= db;
+      arrivee = Math.min(da, db);
+    } else {
+      /*
+       * Une branche que le réseau n'atteint pas.
+       *
+       * La famille d'un conjoint, par exemple : elle est accentuée, mais
+       * l'union qui l'y rattache ne l'est pas, si bien qu'aucun trait ne mène
+       * jusqu'à elle. Elle prend alors son rang à vol d'oiseau — la sève ne
+       * l'atteint pas vraiment, mais elle apparaît au moment où le front
+       * passe à sa hauteur, ce qui suffit à ne pas la voir surgir.
+       */
+      const va = Math.hypot(px[inscrit.a] - source.x, py[inscrit.a] - source.y);
+      const vb = Math.hypot(px[inscrit.b] - source.x, py[inscrit.b] - source.y);
+      parLeDebut = va <= vb;
+      arrivee = Math.min(va, vb);
+    }
+
+    let liste = traits.get(inscrit.unionId);
+    if (!liste) {
+      liste = [];
+      traits.set(inscrit.unionId, liste);
+    }
+    liste[inscrit.rang] = { depart: arrivee, longueur: inscrit.longueur, parLeDebut };
+    portee = Math.max(portee, arrivee + inscrit.longueur);
+  }
+
+  return { traits, portee };
+}
+
+/**
+ * Un trait coupé là où le front en est, entré par l'un ou l'autre bout.
+ *
+ * Entrer par la fin retourne le segment ET son épaisseur : un trait effilé
+ * parcouru à l'envers doit rester effilé du même côté, sinon la branche
+ * s'épaissit en s'éloignant du tronc.
+ */
+function couper(trait: Trait, f: number, parLeDebut: boolean): Trait {
+  const [x1, y1, x2, y2] = trait.seg;
+  if (parLeDebut) {
+    return {
+      seg: [x1, y1, x1 + (x2 - x1) * f, y1 + (y2 - y1) * f],
+      from: trait.from,
+      to: trait.from + (trait.to - trait.from) * f,
+      noeud: trait.noeud,
+    };
+  }
+  return {
+    seg: [x2, y2, x2 + (x1 - x2) * f, y2 + (y1 - y2) * f],
+    from: trait.to,
+    to: trait.to + (trait.from - trait.to) * f,
+    // Le renflement d'attache est au DÉPART du trait d'origine : en venant de
+    // l'autre bout, on ne l'a pas encore atteint. Il revient quand le trait
+    // est complet et rendu tel quel.
+    noeud: undefined,
+  };
 }
 
 /*
