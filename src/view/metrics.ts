@@ -44,11 +44,21 @@ export const MAX_SCALE = 2.4;
 /**
  * Marge de dézoom au-delà du cadrage complet.
  *
- * À 1, on ne pourrait pas reculer d'un pixel de plus que l'arbre entier —
- * un mur, juste au moment où l'on cherche à prendre du recul. À 0,55, il
- * reste de quoi respirer autour sans jamais perdre l'arbre de vue.
+ * À 1, on ne pourrait pas reculer d'un pixel de plus que l'arbre entier — un
+ * mur, juste au moment où l'on cherche à prendre du recul. Il faut donc un
+ * peu de rab.
+ *
+ * Ce rab valait 0,55, c'est-à-dire quarante-cinq pour cent de recul EN PLUS
+ * d'un cadrage qui réserve déjà 120 px de marge de chaque côté. Les deux se
+ * multipliaient : mesuré sur l'arbre de démonstration dans un cadre de
+ * 1300 × 820, le dézoom maximal laissait l'arbre à 219 × 319 px — dix-sept
+ * pour cent de la largeur, un objet perdu au milieu du vide. Ce n'était plus
+ * « de quoi respirer », c'était une pièce trop grande.
+ *
+ * À 0,82, il reste dix-huit pour cent de recul au-delà du cadrage complet :
+ * assez pour ne pas buter contre un mur, trop peu pour perdre l'arbre.
  */
-export const MIN_SCALE_FIT_RATIO = 0.55;
+export const MIN_SCALE_FIT_RATIO = 0.82;
 
 /** Seuils de niveau de détail : au-delà, on dégrade le rendu pour tenir la fluidité. */
 export const LOD_FULL = 0.52;
