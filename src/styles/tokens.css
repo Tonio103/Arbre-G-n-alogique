@@ -84,7 +84,10 @@
    */
   --link: rgba(42, 34, 24, 0.88);
   --link-node: rgba(42, 34, 24, 0.88);
-  --link-highlight: #1B3A5C;
+  /* La lignée mise en évidence est plus NOIRE et plus grasse, pas bleue : sur
+     une gravure, ce qu'on veut faire ressortir se charge d'encre. Un trait
+     bleu au milieu de traits noirs se lit comme une sélection de logiciel. */
+  --link-highlight: rgba(24, 18, 10, 0.95);
   --link-dim: rgba(42, 34, 24, 0.24);
   --link-cross: rgba(158, 68, 32, 0.5);
   /* La bande d'une rangée sur deux, et sa décennie dans la marge. */
@@ -177,7 +180,7 @@
 
   --link: rgba(226, 240, 251, 0.82);
   --link-node: rgba(226, 240, 251, 0.82);
-  --link-highlight: #93C7E8;
+  --link-highlight: rgba(240, 250, 255, 0.95);
   --link-dim: rgba(226, 240, 251, 0.22);
   --link-cross: rgba(224, 138, 98, 0.5);
   --row-band: rgba(147, 199, 232, 0.035);

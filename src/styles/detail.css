@@ -415,7 +415,7 @@
   transform: scale(1.12);
   box-shadow:
     0 0 0 2px var(--accent-ring),
-    0 6px 14px rgba(16, 26, 44, 0.24);
+    0 6px 14px rgba(46, 36, 24, 0.14);
 }
 
 .relation-text {

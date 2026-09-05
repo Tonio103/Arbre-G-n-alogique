@@ -32,13 +32,23 @@ function readPalette(theme: string): LinkPalette {
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string): string =>
     styles.getPropertyValue(name).trim() || fallback;
+  /*
+   * Les valeurs de secours sont celles de l'HERBIER, et c'est important.
+   *
+   * C'étaient encore celles de l'ancien thème « ciel » — `rgba(122, 138, 168)`
+   * et consorts. Quatre des jetons lus n'existant pas dans la palette, tout
+   * l'arbre s'est peint en gris-bleu de nuit sur du papier ivoire pendant
+   * toute la refonte, sans que rien ne signale l'erreur : un secours n'échoue
+   * jamais bruyamment. Il doit donc être juste, faute de quoi il transforme
+   * un jeton oublié en défaut silencieux.
+   */
   return {
-    line: read('--link', 'rgba(122, 138, 168, 0.55)'),
-    strong: read('--link-highlight', '#2f6fdb'),
-    dim: read('--link-dim', 'rgba(122, 138, 168, 0.16)'),
-    cross: read('--link-cross', 'rgba(194, 118, 28, 0.5)'),
-    band: read('--row-band', 'rgba(118, 136, 170, 0.05)'),
-    bandLabel: read('--row-label', 'rgba(118, 136, 170, 0.4)'),
+    line: read('--link', 'rgba(42, 34, 24, 0.88)'),
+    strong: read('--link-highlight', 'rgba(24, 18, 10, 0.95)'),
+    dim: read('--link-dim', 'rgba(42, 34, 24, 0.24)'),
+    cross: read('--link-cross', 'rgba(158, 68, 32, 0.5)'),
+    band: read('--row-band', 'rgba(46, 36, 24, 0.028)'),
+    bandLabel: read('--row-label', 'rgba(46, 36, 24, 0.3)'),
     // Ciel : un fil de lumière, large et doux, comme les liaisons d'une
     // carte du ciel. Atlas : un trait encré, l'ombre à peine plus large que
     // le trait lui-même, comme l'encre qui bave un rien dans le papier.

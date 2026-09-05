@@ -417,22 +417,20 @@
 }
 
 /*
- * Sélection : la même plaque épaissie, plus un liseré d'accent. Il s'ajoute
- * aux ombres du matériau au lieu de les remplacer — sinon la plaque perdait sa
- * tranche et son élévation à l'instant précis où on la regarde le plus.
+ * La plaque de nom a été retirée de la carte (voir « LE NOM EST POSÉ À MÊME
+ * LE PAPIER » plus haut) — mais elle RESSUSCITAIT à la sélection, qui lui
+ * redonnait fond, tranche et liseré. On sélectionnait donc quelqu'un et une
+ * boîte réapparaissait sous son nom, seule de toute la planche.
+ *
+ * La sélection se dit dans l'encre du nom, comme le survol : le patronyme
+ * remonte au bistre et le prénom prend son gras plein.
  */
-.node[data-selected] .node-plate {
-  background-color: var(--glass-fill-strong);
-  --lg-blur: 14px;
-  box-shadow:
-    var(--pa-ombre),
-    inset 0 1px 0 0 var(--pa-arete),
-    inset 0 -1px 0 0 var(--pa-creux),
-    0 0 0 1px var(--accent-ring);
+.node[data-selected] .node-first {
+  font-weight: 700;
 }
 
-:root[data-theme='dark'] .node[data-selected] .node-plate {
-  background-color: var(--glass-fill-strong);
+.node[data-selected] .node-last {
+  color: var(--text-secondary);
 }
 
 .node[data-selected] .node-years {
@@ -452,30 +450,26 @@
   transform: translateY(0);
 }
 
-.node[data-role='spouse'] .node-avatar {
+/*
+ * LE RÔLE SE DIT PAR L'ÉPAISSEUR, PAS PAR LA TEINTE.
+ *
+ * Il y avait quatre anneaux de quatre couleurs — rose pour le conjoint,
+ * sanguine pour l'ascendance, vert pour la descendance, bleu pour la fratrie.
+ * Quatre teintes sur une planche qui n'en compte que trois, et dont deux ont
+ * un emploi réservé : le bleu de Prusse est l'accent, la sanguine dit ce qui
+ * manque. Un anneau vert ne voulait rien dire de plus qu'un anneau gras.
+ *
+ * Surtout, cette information est DÉJÀ dans le dessin : les parents sont
+ * au-dessus, les enfants en dessous, le conjoint à côté. La position dit le
+ * rôle mieux qu'une couleur, et la fiche ouverte l'écrit en toutes lettres
+ * (« Épouse », « Fils »). Ce que l'anneau doit dire, et lui seul, c'est
+ * « celui-ci fait partie de ce qu'on regarde » — un seul état, donc.
+ */
+.node[data-role] .node-avatar {
   box-shadow:
-    0 0 0 2.5px var(--accent-rose),
-    0 8px 18px rgba(16, 26, 44, 0.22);
-}
-
-.node[data-role='parent'] .node-avatar,
-.node[data-role='ancestor'] .node-avatar {
-  box-shadow:
-    0 0 0 2.5px var(--accent-warm),
-    0 8px 18px rgba(16, 26, 44, 0.22);
-}
-
-.node[data-role='child'] .node-avatar,
-.node[data-role='descendant'] .node-avatar {
-  box-shadow:
-    0 0 0 2.5px var(--accent-mint),
-    0 8px 18px rgba(16, 26, 44, 0.22);
-}
-
-.node[data-role='sibling'] .node-avatar {
-  box-shadow:
-    0 0 0 2.5px var(--accent),
-    0 8px 18px rgba(16, 26, 44, 0.22);
+    0 0 0 2.2px var(--text-primary),
+    0 2px 5px rgba(46, 36, 24, 0.12),
+    0 8px 18px rgba(46, 36, 24, 0.1);
 }
 
 /* Hors de la branche sélectionnée : on efface sans faire disparaître. */
@@ -498,8 +492,10 @@
  */
 .node[data-path] .node-avatar {
   box-shadow:
-    0 0 0 2px var(--accent),
-    0 6px 16px rgba(16, 26, 44, 0.22);
+    0 0 0 1.4px var(--text-primary),
+    0 0 0 3.4px var(--glass-panel-solid),
+    0 0 0 4.6px var(--accent),
+    0 6px 16px rgba(46, 36, 24, 0.12);
 }
 
 /* Le liseré du chemin de parenté s'ajoute au matériau, comme celui de la
