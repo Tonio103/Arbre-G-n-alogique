@@ -526,10 +526,19 @@
 }
 
 .map-card,
-.timeline-undated,
-.gaps-head {
+.timeline-undated {
   border-radius: var(--radius-panel, 18px);
   padding: 16px 18px;
+}
+
+/*
+ * L'en-tête du bordereau n'est plus un panneau : c'est un titre, sa note, et
+ * un filet. Une boîte remplie posée en tête d'un registre ferait croire à un
+ * encadré, alors qu'elle ne fait qu'annoncer ce qui suit.
+ */
+.gaps-head {
+  padding: 2px 2px 14px;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border);
 }
 
 .map-card header h3,
@@ -859,129 +868,197 @@
   cursor: pointer;
 }
 
+/* ---------------------------------------------------------------------------
+ * LE BORDEREAU DE RECHERCHE
+ *
+ * C'étaient des cartes : boîtes arrondies remplies, pastilles de couleur dans
+ * des pilules, boutons dans des boîtes. Le dernier endroit de l'application à
+ * parler ce vocabulaire-là.
+ *
+ * Or ce que cette vue montre est exactement ce qu'un naturaliste tient depuis
+ * toujours : la liste de ce qui MANQUE à sa collection. Un bordereau — des
+ * lignes réglées, une case à cocher en tête de chacune, la mention et sa
+ * précision, et les gestes en fin de ligne. Sur cent quarante-cinq entrées,
+ * un registre se parcourt ; cent quarante-cinq cartes se subissent.
+ *
+ * Deux colonnes au-delà de 760 px, comme un index imprimé : une ligne de
+ * bordereau est courte, et une seule colonne sur dix-neuf cents pixels
+ * laisserait les deux tiers de la page vides.
+ * ------------------------------------------------------------------------- */
+
+/*
+ * Le titre de rang, et son filet.
+ *
+ * La pastille de couleur disparaît : la sanguine est réservée à ce qui
+ * manque vraiment (voir la doctrine des pigments en tête de `tokens.css`), et
+ * trois pastilles de trois couleurs pour trois degrés d'un même manque n'en
+ * disaient pas plus que trois mots. Le filet qui court jusqu'au bord fait ce
+ * que fait un titre de section sur une page : il ouvre le rang.
+ */
 .gaps-group-title {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 6px 0 0;
+  gap: 10px;
+  margin: 18px 0 0;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
-.gaps-group-title::before {
+.gaps-group-title::after {
   content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border);
 }
 
-.gaps-group-title[data-priority='high']::before {
-  background: var(--accent-rose);
-}
-
-.gaps-group-title[data-priority='medium']::before {
-  background: var(--accent-warm);
-}
-
-.gaps-group-title[data-priority='low']::before {
-  background: var(--accent-mint);
+.gaps-group-title[data-priority='high'] {
+  color: var(--accent-warm);
 }
 
 .gaps-group-title em {
-  font-style: normal;
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
 
 .gaps-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 0 34px;
 }
 
+/* Une LIGNE de bordereau : réglée dessous, sans fond ni cadre. */
 .gap-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: var(--radius-panel, 18px);
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 9px 2px 8px;
+  border-radius: 0;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border);
 }
 
 .gap-card[data-status='done'] {
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
+/*
+ * LA CASE À COCHER.
+ *
+ * Trois états, trois marques, et jamais une couleur pour seul signal : vide,
+ * barrée d'un trait oblique, cochée. C'est ce qu'on trace au crayon sur un
+ * bordereau, et cela se lit aussi bien pour qui ne distingue pas les teintes
+ * — ce que trois pastilles rouge, orange et verte ne permettaient pas.
+ */
 .gap-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  align-self: flex-start;
-  padding: 3px 9px;
-  border-radius: 9px;
-  background: var(--glass-fill-faint);
-  color: var(--text-tertiary);
-  font-size: 11.5px;
-  font-weight: 550;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--glass-border-strong);
+  color: transparent;
+  font-size: 0;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .gap-status:hover {
-  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--text-secondary);
 }
 
 .gap-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent-rose);
+  position: absolute;
+  inset: 2px;
+  background: none;
+  border-radius: 0;
 }
 
+/* En cours : un trait oblique, la marque qu'on porte en passant. */
 .gap-status[data-status='searching'] .gap-dot {
-  background: var(--accent-warm);
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 0.7px),
+    var(--accent-warm) calc(50% - 0.7px) calc(50% + 0.7px),
+    transparent calc(50% + 0.7px)
+  );
 }
 
+/* Complété : la coche, deux traits d'un chevron retourné. */
 .gap-status[data-status='done'] .gap-dot {
-  background: var(--accent-mint);
+  inset: 1px 1px 3px 1px;
+  border-left: 1.6px solid var(--accent-mint);
+  border-bottom: 1.6px solid var(--accent-mint);
+  transform: rotate(-45deg) scale(0.82);
 }
 
 .gap-title {
+  grid-column: 2;
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 550;
-  line-height: 1.4;
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.32;
 }
 
 .gap-note {
-  margin: 4px 0 0;
+  grid-column: 2;
+  margin: 1px 0 0;
   color: var(--text-tertiary);
+  font-family: var(--font-display);
   font-size: 12.5px;
+  font-style: italic;
 }
 
+/*
+ * Les gestes, en fin de ligne : des mentions soulignées, pas des boutons.
+ *
+ * Une ligne de registre ne porte pas de boutons ; elle porte des renvois. Le
+ * soulignement suffit à dire qu'on peut cliquer, et il tient dans la ligne au
+ * lieu de la faire tripler de hauteur.
+ */
 .gap-actions {
+  grid-column: 2;
   display: flex;
-  gap: 8px;
-  margin-top: auto;
+  gap: 16px;
+  margin-top: 5px;
 }
 
 .gap-actions button {
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: var(--glass-fill-faint);
+  padding: 0;
+  border-radius: 0;
+  background: none;
   color: var(--text-secondary);
+  font-family: var(--font-display);
   font-size: 12.5px;
-  font-weight: 550;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border-strong);
+  transition: color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .gap-actions button:hover {
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  background: none;
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 var(--accent);
 }
 
 /* ── Le guide ────────────────────────────────────────────────────────────── */
@@ -1339,23 +1416,28 @@
 .gaps-more {
   align-self: center;
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
-  padding: 10px 18px;
-  border-radius: var(--radius-control);
+  padding: 8px 2px;
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-display);
+  box-shadow: inset 0 -1px 0 0 var(--glass-border-strong);
   color: var(--text-primary);
   font-size: 13.5px;
-  font-weight: 550;
-  transition: background var(--dur-fast) var(--ease-out);
+  font-weight: 500;
+  transition: box-shadow var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .gaps-more:hover {
-  background: var(--glass-fill-hover);
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 var(--accent);
 }
 
 .gaps-more em {
-  font-style: normal;
   font-size: 12px;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
 

@@ -94,7 +94,7 @@ export function GapsView({
     <section className="view view--gaps" aria-label="Informations manquantes" ref={viewRef}>
       <ScopeBar graph={graph} focusId={focusId} scope={scope} onChange={onScopeChange} count={people.size} />
 
-      <header className="gaps-head lg lg--thick">
+      <header className="gaps-head">
         <h3>
           {shown.length === 0
             ? 'Rien à compléter dans ce périmètre'
@@ -129,7 +129,7 @@ export function GapsView({
               {list.map((gap) => {
                 const state = statusOf(gap);
                 return (
-                  <li key={gap.id} className="gap-card lg lg--thick" data-status={state}>
+                  <li key={gap.id} className="gap-card" data-status={state}>
                     <button
                       type="button"
                       className="gap-status"
@@ -167,7 +167,7 @@ export function GapsView({
       {remaining > 0 && (
         <button
           type="button"
-          className="gaps-more lg lg--chip"
+          className="gaps-more"
           onClick={() => setShownCount((count) => count + PAGE * 2)}
         >
           Voir {Math.min(remaining, PAGE * 2)} de plus
