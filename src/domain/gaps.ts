@@ -229,3 +229,73 @@ export function saveGapStatus(status: Record<string, GapStatus>): void {
     /* voir `loadGapStatus` */
   }
 }
+
+/*
+ * ============================================================================
+ *
+ *  LES QUATRE ÉTATS DE LA RAMURE
+ *
+ *  « À compléter : 16 » est un chiffre dans une barre. Il dit qu'il manque
+ *  quelque chose, il ne dit pas OÙ, et personne ne va chercher. Le même fait,
+ *  posé sur l'arbre lui-même, se voit sans qu'on le demande : une branche
+ *  couverte de bourgeons est une branche qu'on n'a pas encore renseignée.
+ *
+ *  Quatre états, et c'est une VRAIE botanique — pas quatre couleurs de
+ *  pastille déguisées en feuilles :
+ *
+ *    LA FEUILLE        la fiche tient debout : on sait quand et où. Une vie
+ *                      documentée, ouverte.
+ *    LA FEUILLE SÈCHE  la même fiche, pour quelqu'un qui n'est plus. Une
+ *                      feuille sèche n'est pas une feuille ratée : c'est une
+ *                      feuille arrivée au bout.
+ *    LE BOURGEON       on sait quelque chose, pas tout. C'est l'état le plus
+ *                      fréquent, et c'est l'invitation : renseigner une date
+ *                      fait éclore le bourgeon en feuille, sous les yeux.
+ *    LE RAMEAU NU      on ne sait rien du tout — pas une date, pas un lieu,
+ *                      pas un métier. La branche s'arrête là.
+ *
+ *  L'ordre compte : c'est un gradient de ce qu'on sait, et le dessin le porte
+ *  jusque dans sa densité — le bourgeon est le plus dense parce qu'il est
+ *  clos, le rameau nu n'a aucun corps du tout.
+ *
+ * ==========================================================================*/
+
+export type EtatBotanique = 'feuille' | 'feuille-seche' | 'bourgeon' | 'rameau-nu';
+
+/**
+ * Ce qu'une fiche montre d'une vie.
+ *
+ * Volontairement peu exigeant : une date de naissance et un lieu suffisent à
+ * faire une feuille. Exiger davantage transformerait l'arbre entier en
+ * bourgeons, et un signal que rien n'atteint jamais ne signale plus rien.
+ */
+export function etatBotanique(person: {
+  birthDate?: unknown;
+  birthPlace?: string;
+  deathDate?: unknown;
+  deathPlace?: string;
+  profession?: string;
+  biography?: string;
+  headline?: string;
+  photo?: string;
+  residences?: string[];
+  living: boolean;
+}): EtatBotanique {
+  const situe = Boolean(person.birthDate) && Boolean(person.birthPlace);
+  // Pour quelqu'un qui n'est plus, la fiche ne tient debout qu'avec sa fin.
+  const acheve = person.living || Boolean(person.deathDate);
+  if (situe && acheve) return person.living ? 'feuille' : 'feuille-seche';
+
+  const rien =
+    !person.birthDate &&
+    !person.birthPlace &&
+    !person.deathDate &&
+    !person.deathPlace &&
+    !person.profession &&
+    !person.biography &&
+    !person.headline &&
+    !person.photo &&
+    !(person.residences && person.residences.length > 0);
+
+  return rien ? 'rameau-nu' : 'bourgeon';
+}

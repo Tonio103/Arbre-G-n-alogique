@@ -1,10 +1,20 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import type { Person } from '@/data/schema';
 import type { RelationRole } from '@/domain/relations';
 import { formatLifespan } from '@/domain/dates';
+import { etatBotanique } from '@/domain/gaps';
+import { hashString } from '@/domain/text';
 import { Avatar } from './Avatar';
 import { CARD_HEIGHT, CARD_WIDTH } from '@/view/metrics';
+
+/** Ce que la marque botanique dit, pour qui ne voit pas le dessin. */
+const DIT: Record<string, string> = {
+  feuille: 'fiche renseignée',
+  'feuille-seche': 'fiche renseignée, personne décédée',
+  bourgeon: 'fiche à compléter',
+  'rameau-nu': 'rien de renseigné, la branche s’arrête ici',
+};
 
 export type NodeDetail = 'full' | 'compact';
 
@@ -44,6 +54,7 @@ export interface PersonNodeProps {
 
 function buildAriaLabel(person: Person, hiddenKin?: number): string {
   const parts = [person.displayName];
+  parts.push(DIT[etatBotanique(person)]);
   const lifespan = formatLifespan(person.birthDate, person.deathDate);
   if (lifespan) parts.push(lifespan);
   if (person.profession) parts.push(person.profession);
@@ -87,6 +98,32 @@ export const PersonNode = memo(function PersonNode({
 }: PersonNodeProps) {
   const lifespan = formatLifespan(person.birthDate, person.deathDate);
   const compact = detail === 'compact';
+
+  /*
+   * L'état de la fiche, et son éclosion.
+   *
+   * On ne garde l'état précédent que pour repérer le passage du bourgeon à la
+   * feuille : c'est le seul changement qui mérite d'être vu, parce que c'est
+   * le seul que quelqu'un vient de provoquer en renseignant un champ.
+   */
+  const etat = etatBotanique(person);
+  const precedent = useRef(etat);
+  const [eclos, setEclos] = useState(false);
+
+  useEffect(() => {
+    const avant = precedent.current;
+    precedent.current = etat;
+    if (avant === etat) return;
+    if (avant !== 'bourgeon' && avant !== 'rameau-nu') return;
+    if (etat !== 'feuille' && etat !== 'feuille-seche') return;
+    setEclos(true);
+    const fin = window.setTimeout(() => setEclos(false), 900);
+    return () => window.clearTimeout(fin);
+  }, [etat]);
+
+  // Aucune planche n'a deux spécimens identiques : l'inclinaison vient de
+  // l'identifiant, donc elle ne bouge jamais pour une même personne.
+  const angle = (hashString(person.id) % 23) - 11;
 
   return (
     <button
@@ -138,6 +175,15 @@ export const PersonNode = memo(function PersonNode({
           photo={person.photo}
           size={compact ? 44 : 50}
           className="node-avatar"
+        />
+        {/* La marque botanique : ce que cette fiche montre de cette vie.
+            Voir `etatBotanique` et `styles/botanique.css`. */}
+        <span
+          className="node-etat"
+          data-etat={etat}
+          data-eclos={eclos || undefined}
+          style={{ '--marque-angle': `${angle}deg` } as React.CSSProperties}
+          aria-hidden="true"
         />
       </span>
 

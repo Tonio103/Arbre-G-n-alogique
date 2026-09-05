@@ -60,6 +60,7 @@ import '@/styles/papier.css';
 import '@/styles/app.css';
 import '@/styles/avatar.css';
 import '@/styles/node.css';
+import '@/styles/botanique.css';
 import '@/styles/chrome.css';
 import '@/styles/detail.css';
 import '@/styles/loading-screen.css';
@@ -382,18 +383,26 @@ export default function App() {
      * ce `return` était définitif : rien ne redéclenchait cet effet une fois
      * la taille redevenue valide (`viewport` ne change jamais d'identité, et
      * `layout` non plus une fois les données arrivées), et le rideau restait
-     * affiché indéfiniment. On réessaie donc à chaque image, borné à un peu
-     * plus de deux secondes — largement au-delà de ce qu'il faut à un onglet
-     * réellement affiché pour obtenir sa taille.
+     * affiché indéfiniment. On réessaie donc à chaque image.
+     *
+     * La limite se compte en TEMPS, pas en images, et c'est tout le sujet.
+     * Elle valait cent cinquante essais, sur l'idée qu'une image dure seize
+     * millisecondes : deux secondes et demie. Mais un onglet en arrière-plan
+     * — précisément le cas que ce garde-fou vise — voit son `rAF` ramené à
+     * une image par seconde, voire moins. Cent cinquante essais y prenaient
+     * plusieurs MINUTES, pendant lesquelles le rideau restait affiché sur des
+     * noms de famille qui défilaient dans le vide. Mesuré ici même : l'arbre
+     * n'apparaissait plus du tout tant que la fenêtre n'était pas au premier
+     * plan.
      */
     let frame = 0;
-    let attempts = 0;
+    let rideau = 0;
     let focusTimer = 0;
 
     const start = (stageSize: { width: number; height: number }): void => {
       introRef.current = true;
-      // Le rideau de chargement se retire ici : c'est le premier instant où
-      // l'arbre est réellement cadré, pas un délai arbitraire.
+      // Le cas normal : le rideau se retire au moment où l'arbre est cadré,
+      // sans attendre le minuteur posé plus bas.
       setReady(true);
 
       // L'arbre entier d'abord : on doit voir de quoi il s'agit — un arbre, sa
@@ -409,10 +418,18 @@ export default function App() {
       }, 1500);
     };
 
+    /*
+     * Le cadrage attend une taille utilisable, AUSSI LONGTEMPS QU'IL LE FAUT.
+     *
+     * Cadrer sur une scène de zéro pixel ne produit pas un cadrage approximatif
+     * mais un cadrage absurde — mesuré ici : une échelle de 0,02, un arbre
+     * réduit à un point, un écran vide. Une scène finit toujours par obtenir sa
+     * taille dès qu'on la regarde ; il n'y a donc aucune raison de renoncer.
+     */
     const tryStart = (): void => {
+      if (introRef.current) return;
       const stageSize = viewport.size;
-      if (stageSize.width <= 1 && attempts < 150) {
-        attempts += 1;
+      if (stageSize.width <= 1) {
         frame = requestAnimationFrame(tryStart);
         return;
       }
@@ -420,8 +437,22 @@ export default function App() {
     };
     tryStart();
 
+    /*
+     * Le rideau, lui, se retire sur un MINUTEUR, et c'est la seule chose qui
+     * ne doit dépendre de rien.
+     *
+     * Il se retirait à la fin du cadrage, ce qui liait deux choses sans
+     * rapport : un onglet ouvert en arrière-plan ne reçoit aucune image, donc
+     * jamais de taille, donc jamais de cadrage — et le rideau y restait
+     * affiché indéfiniment, sur des noms de famille défilant dans le vide.
+     * Mesuré ici même, fenêtre au second plan : l'arbre n'apparaissait plus du
+     * tout. Un minuteur échoit dans un onglet caché ; une image, non.
+     */
+    rideau = window.setTimeout(() => setReady(true), 2400);
+
     return () => {
       cancelAnimationFrame(frame);
+      window.clearTimeout(rideau);
       window.clearTimeout(focusTimer);
     };
   }, [viewport, layout, datasetCtrl.loading]);

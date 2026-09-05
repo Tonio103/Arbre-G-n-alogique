@@ -1,0 +1,137 @@
+/* ============================================================================
+ *
+ *  LA RAMURE, ET CE QU'ELLE DIT DE CE QU'ON SAIT
+ *
+ *  Voir `etatBotanique` dans `domain/gaps.ts` pour les quatre états et ce qui
+ *  les sépare. Ici, seulement leur dessin.
+ *
+ *  Ce sont des MASQUES, pas des balises `<svg>`. Sur cinq cents personnes, six
+ *  chemins par carte feraient trois mille éléments SVG dans la page ; un
+ *  masque en `data:` est rastérisé une fois par couple (dessin, taille) et
+ *  réutilisé par toutes les cartes qui le portent. Quatre rastérisations pour
+ *  tout l'arbre, et la couleur reste celle d'un jeton — donc le thème la suit.
+ *
+ *  Dans un masque, l'alpha est la matière : le `fill-opacity` du limbe devient
+ *  la densité du dessin. Le bourgeon est le plus dense parce qu'il est clos,
+ *  le rameau nu n'a aucun corps du tout. Le gradient de ce qu'on sait se lit
+ *  donc avant même qu'on ait reconnu la forme.
+ *
+ * ========================================================================== */
+
+.node-etat {
+  position: absolute;
+  left: -5px;
+  top: -3px;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background-color: var(--marque-encre, var(--text-tertiary));
+  opacity: var(--marque-force, 0.78);
+  -webkit-mask-image: var(--marque);
+  mask-image: var(--marque);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* Aucune planche d'herbier n'a deux spécimens identiques : une rotation
+     tirée de l'identifiant suffit à casser la répétition du tampon, et ne
+     coûte rien — la rastérisation du masque, elle, est partagée. */
+  transform: rotate(var(--marque-angle, 0deg));
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.node-etat[data-etat='feuille'] {
+  --marque: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.4 16.6 C 7.0 11.2 10.6 6.2 19.4 4.0 C 18.8 13.0 14.4 17.2 8.4 16.6 Z' fill='black' fill-opacity='0.2' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M4.4 20.6 C 6.1 18.8 7.3 17.6 8.4 16.6'/%3E%3Cpath d='M8.4 16.6 C 11.9 13.4 15.8 9.0 19.4 4.0'/%3E%3Cpath d='M10.1 13.4 C 11.9 13.0 13.4 12.1 14.6 10.8'/%3E%3Cpath d='M12.0 15.7 C 14.1 15.1 15.9 13.8 17.1 12.0'/%3E%3C/svg%3E");
+}
+
+.node-etat[data-etat='feuille-seche'] {
+  --marque: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.2 17.6 C 6.4 12.2 9.8 6.2 18.6 3.4 C 17.0 9.2 14.6 13.2 11.8 15.6 C 10.6 16.7 9.4 17.4 8.2 17.6 Z' fill='black' fill-opacity='0.1' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M4.4 20.9 C 6.0 19.5 7.2 18.6 8.2 17.6'/%3E%3Cpath d='M18.6 3.4 C 15.2 6.8 12.4 10.8 10.4 15.4'/%3E%3Cpath d='M18.6 3.4 C 17.1 4.7 16.5 6.1 16.8 7.6'/%3E%3C/svg%3E");
+}
+
+.node-etat[data-etat='bourgeon'] {
+  --marque: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15.4 C 9.0 14.2 7.8 11.4 8.2 8.6 C 8.6 5.8 10.0 4.0 12 3.4 C 14.0 4.0 15.4 5.8 15.8 8.6 C 16.2 11.4 15.0 14.2 12 15.4 Z' fill='black' fill-opacity='0.34' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M12 21.4 L 12 15.4'/%3E%3Cpath d='M8.5 10.8 C 10.4 10.2 11.9 8.8 12.8 6.6'/%3E%3Cpath d='M9.4 13.6 C 11.6 12.9 13.4 11.4 14.6 9.2'/%3E%3C/svg%3E");
+}
+
+.node-etat[data-etat='rameau-nu'] {
+  --marque: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.4 21.4 C 8.4 17.2 9.9 13.0 11.3 8.2'/%3E%3Cpath d='M11.3 8.2 C 11.9 6.1 12.6 4.3 13.6 2.4'/%3E%3Cpath d='M11.3 8.2 C 13.8 7.6 16.0 6.3 18.0 4.4'/%3E%3Cpath d='M10.0 12.8 C 11.8 12.8 13.4 12.1 14.8 10.8'/%3E%3Cpath d='M8.9 16.2 C 9.9 16.5 10.7 16.3 11.4 15.6'/%3E%3Cpath d='M12.6 5.4 C 13.3 5.7 14.1 5.6 14.8 4.9'/%3E%3C/svg%3E");
+}
+
+/* Une fiche qui tient debout est écrite au bistre ; ce qui manque est plus
+   pâle. La sanguine est réservée au rameau nu — le seul état qui arrête
+   vraiment l'arbre, et le seul qui mérite qu'on la dépense (voir la doctrine
+   des pigments en tête de `tokens.css`). */
+.node-etat[data-etat='feuille'] {
+  --marque-encre: var(--text-secondary);
+  --marque-force: 0.82;
+}
+
+.node-etat[data-etat='feuille-seche'] {
+  --marque-encre: var(--text-tertiary);
+  --marque-force: 0.8;
+}
+
+.node-etat[data-etat='bourgeon'] {
+  --marque-encre: var(--text-tertiary);
+  --marque-force: 0.72;
+}
+
+.node-etat[data-etat='rameau-nu'] {
+  --marque-encre: var(--accent-warm);
+  --marque-force: 0.7;
+}
+
+/* Le survol rapproche la marque du geste qui va la changer. */
+.node:hover .node-etat,
+.node:focus-visible .node-etat {
+  opacity: 1;
+  transform: rotate(var(--marque-angle, 0deg)) scale(1.1);
+}
+
+/* Une carte estompée par une sélection ne garde pas sa marque vive : elle
+   attirerait l'œil hors de ce qu'on regarde (même règle que `.node-more`). */
+.node[data-dimmed] .node-etat {
+  opacity: 0.3;
+}
+
+/* Une carte réduite n'a plus la place d'un dessin lisible. */
+.node[data-detail='compact'] .node-etat {
+  width: 12px;
+  height: 12px;
+  left: -3px;
+}
+
+/*
+ * L'ÉCLOSION.
+ *
+ * C'est le seul moment où la marque bouge, et c'est tout l'intérêt du
+ * dispositif : on renseigne une date, et le bourgeon devient feuille sous les
+ * yeux de qui vient de la renseigner. Un compteur qui passe de 16 à 15 ne
+ * remercie personne ; une feuille qui s'ouvre, si.
+ */
+@keyframes eclore {
+  0% {
+    transform: rotate(calc(var(--marque-angle, 0deg) - 18deg)) scale(0.5);
+    opacity: 0;
+  }
+  55% {
+    transform: rotate(var(--marque-angle, 0deg)) scale(1.24);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--marque-angle, 0deg)) scale(1);
+    opacity: var(--marque-force, 0.78);
+  }
+}
+
+.node-etat[data-eclos] {
+  animation: eclore 900ms var(--ease-spring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-etat[data-eclos] {
+    animation: none;
+  }
+}
