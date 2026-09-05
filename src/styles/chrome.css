@@ -430,14 +430,32 @@
 
 /* --------------------------- Rail des générations --------------------------- */
 
+/*
+ * L'ÉCHELLE DE LA MARGE.
+ *
+ * C'était une pilule remplie contenant des pastilles arrondies, chacune avec
+ * son point et son étiquette sur deux lignes — le dernier endroit de
+ * l'application à parler le vocabulaire d'un kit d'interface, et le premier
+ * qu'on voit du coin de l'œil.
+ *
+ * L'axe vertical de l'arbre EST le temps : ce rail est donc le même instrument
+ * que la règle de la Chronologie, tourné d'un quart de tour. Un filet vertical
+ * dans la marge, des graduations qui en sortent, une date en regard de
+ * chacune, et celle où l'on se trouve marquée plus franchement.
+ *
+ * Il garde une bande de papier — mais une BANDE, pas une pilule : l'arbre
+ * défile dessous en permanence, et une graduation posée sur une carte de
+ * personne ne se lirait plus. C'est la marge de la planche, celle où le
+ * graveur porte ses repères.
+ */
 .rail {
   position: absolute;
-  right: calc(14px + var(--safe-right));
+  right: calc(12px + var(--safe-right));
   top: 50%;
   transform: translateY(-50%);
   z-index: 12;
-  padding: 10px 8px;
-  border-radius: var(--radius-pill);
+  padding: 14px 12px 14px 4px;
+  border-radius: 0;
   animation: chrome-in 620ms var(--ease-out) 180ms both;
   transition:
     right var(--dur-slow) var(--ease-out),
@@ -446,69 +464,103 @@
 
 /* Le rail s'écarte pour laisser la place à la fiche plutôt que de passer dessous. */
 .app[data-panel-open] .rail {
-  right: calc(var(--panel-width) + 26px);
+  right: calc(var(--panel-width) + 12px);
 }
 
+/* Le filet porteur, à gauche des graduations : c'est lui qu'on suit. */
 .rail-list {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
+  padding-left: 13px;
+}
+
+.rail-list::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: color-mix(in srgb, var(--text-primary) 30%, transparent);
 }
 
 .rail-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 7px;
-  border-radius: var(--radius-pill);
+  gap: 7px;
+  padding: 3px 6px 3px 0;
+  border-radius: 0;
   color: var(--text-tertiary);
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
-.rail-item:hover {
-  background: var(--glass-fill-hover);
-  color: var(--text-primary);
-}
-
+/* La graduation elle-même : courte au repos, longue et grasse à l'endroit où
+   l'on se trouve — la hiérarchie de la règle de la Chronologie. */
 .rail-dot {
+  position: absolute;
+  left: -13px;
   width: 6px;
-  height: 6px;
+  height: 1px;
   flex: none;
-  border-radius: 50%;
+  border-radius: 0;
   background: currentColor;
-  opacity: 0.55;
+  opacity: 0.65;
   transition:
-    transform var(--dur-base) var(--ease-spring),
+    width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out),
     opacity var(--dur-base) var(--ease-out);
 }
 
+.rail-item:hover {
+  color: var(--text-secondary);
+}
+
+.rail-item:hover .rail-dot {
+  width: 10px;
+}
+
 .rail-item[data-active] {
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .rail-item[data-active] .rail-dot {
-  transform: scale(1.6);
+  width: 13px;
+  height: 1.6px;
   opacity: 1;
 }
 
+/*
+ * La date en regard, le numéro de génération en second.
+ *
+ * C'était l'inverse — « G9 » en gras, « 1940s » en petit dessous. Mais
+ * personne ne se repère à un numéro de génération : on se repère à une
+ * ÉPOQUE. Le numéro reste, en italique et plus pâle, comme la cote d'une
+ * planche.
+ */
 .rail-label {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: baseline;
+  gap: 5px;
   line-height: 1.1;
 }
 
-.rail-generation {
-  font-size: 11px;
+.rail-decade {
+  font-family: var(--font-display);
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 
-.rail-decade {
-  font-size: 9.5px;
-  opacity: 0.7;
+.rail-generation {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.62;
   font-variant-numeric: tabular-nums;
 }
 

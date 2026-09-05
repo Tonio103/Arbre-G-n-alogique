@@ -72,7 +72,7 @@ export function GenerationRail({ rows, positions, viewport }: GenerationRailProp
   if (rows.length === 0) return null;
 
   return (
-    <nav className="rail lg lg--thick lg--pill lg--bar-v" aria-label="Générations">
+    <nav className="rail lg lg--clear lg--bar-v" aria-label="Générations">
       <ul className="rail-list">
         {/* L'arbre pousse vers le haut : la génération la plus récente est en
             haut de l'écran, le rail doit suivre le même ordre. */}
@@ -113,8 +113,8 @@ export function GenerationRail({ rows, positions, viewport }: GenerationRailProp
               >
                 <span className="rail-dot" aria-hidden="true" />
                 <span className="rail-label">
-                  <span className="rail-generation">G{row.generation + 1}</span>
                   {row.label && <span className="rail-decade">{row.label}</span>}
+                  <span className="rail-generation">G{row.generation + 1}</span>
                 </span>
               </button>
             </li>

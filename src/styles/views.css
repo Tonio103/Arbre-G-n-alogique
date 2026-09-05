@@ -230,9 +230,17 @@
 
 /* ── Carte ───────────────────────────────────────────────────────────────── */
 
+/*
+ * La carte prend la place, la colonne des lieux prend le reste.
+ *
+ * Elle valait 1,35 contre 0,8 : à peine plus de la moitié de la largeur pour
+ * le dessin, alors que la colonne de droite ne contient que des listes de
+ * noms, qui se lisent très bien sur trois cents pixels. La carte est le sujet
+ * de cette vue ; elle doit s'y voir.
+ */
 .map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 0.62fr);
   gap: 18px;
   align-items: start;
 }
@@ -320,11 +328,27 @@
  * de la hauteur voulue et du rapport du `viewBox` (`--map-aspect`, posé par
  * `MapView`) : la boîte épouse alors le dessin au pixel près.
  */
+/*
+ * LA TAILLE DE LA CARTE, ET POURQUOI ELLE ÉTAIT DE 300 PIXELS.
+ *
+ * Le dessin avait `width: 100%` et un `max-width` calculé. Mais son panneau
+ * est en `width: fit-content` — il se referme sur son contenu. Un pourcentage
+ * dont le conteneur attend justement la taille de l'enfant pour se
+ * dimensionner est circulaire : CSS le traite alors comme `auto`, et un
+ * `<svg>` sans dimension propre retombe sur la taille par défaut d'un élément
+ * remplacé, soit exactement 300 × 150 px, redressée ici à 300 × 297 par le
+ * rapport du `viewBox`. Le `max-width` de 598 px calculé à côté n'a jamais eu
+ * la moindre chance de s'appliquer : il ne plafonnait rien.
+ *
+ * La largeur est donc une LONGUEUR, jamais un pourcentage. Elle se déduit de
+ * la hauteur disponible et du rapport du `viewBox` (`--map-aspect`, posé par
+ * `MapView`), et se borne en `vw` plutôt qu'en `%` pour la même raison : dans
+ * un conteneur en `fit-content`, un pourcentage ne veut rien dire.
+ */
 .map-svg {
   display: block;
-  width: 100%;
   height: auto;
-  max-width: calc(min(58vh, 520px) * var(--map-aspect, 1.4));
+  width: min(calc(min(74vh, 780px) * var(--map-aspect, 1.4)), 62vw);
   border-radius: calc(var(--radius-panel, 18px) - 8px);
   cursor: grab;
   /* Le geste de glissé gère lui-même le déplacement ; laisser le navigateur
