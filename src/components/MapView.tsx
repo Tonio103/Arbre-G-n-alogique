@@ -19,7 +19,7 @@ import type { Scope } from '@/domain/scope';
 import { useGlassScrollSuspend } from '@/hooks/useGlassScrollSuspend';
 import { ScopeBar } from './ScopeBar';
 import { IconButton } from './TopBar';
-import { FitIcon, MinusIcon, PlusIcon } from './icons';
+import { MinusIcon, PlusIcon } from './icons';
 import { CoinsGraves } from './Ornements';
 
 export interface MapViewProps {
@@ -296,10 +296,6 @@ export function MapView({
     });
   }, []);
 
-  const resetCamera = useCallback(() => {
-    setCamera({ z: START_ZOOM, lat: START_LAT, lon: START_LON });
-  }, []);
-
   /*
    * La molette doit empêcher le défilement de la PAGE en dessous — mais React
    * pose son propre écouteur de rendu en mode passif pour `wheel`, ce qui rend
@@ -436,15 +432,23 @@ export function MapView({
               <span className="ornement ornement--rose" />
             </span>
 
+            {/*
+              Deux boutons, et c'est tout.
+              
+              Il y en avait un troisième, « Revenir à toute la famille », dont
+              l'icône — quatre équerres d'angle — se lit universellement comme
+              un plein écran. Signalé deux fois pour cette raison : on
+              l'actionne en attendant que la carte s'agrandisse, et elle se
+              contente de revenir à son cadrage. Un bouton qu'on ne peut pas
+              lire correctement ne rend pas le service qu'il prétend rendre, et
+              le zoom arrière fait déjà le même travail.
+            */}
             <div className="map-zoom control-group lg lg--control lg--bar">
               <IconButton label="Dézoomer" onClick={() => zoomTo(-1)}>
                 <MinusIcon />
               </IconButton>
               <IconButton label="Zoomer" onClick={() => zoomTo(1)}>
                 <PlusIcon />
-              </IconButton>
-              <IconButton label="Revenir à toute la famille" onClick={resetCamera}>
-                <FitIcon />
               </IconButton>
             </div>
 

@@ -117,11 +117,27 @@
   transition: transform var(--dur-base) var(--ease-spring);
 }
 
+/*
+ * Deux défauts vivaient dans cette règle, et elle les cachait tous les deux.
+ *
+ * `display: block` ANNULAIT la grille de `.avatar` — même spécificité, mais
+ * `node.css` est importé après `avatar.css`. Le médaillon n'a donc jamais été
+ * une grille centrée : l'initiale se posait sur la première ligne, en haut du
+ * disque, et seul le `text-align` hérité la centrait horizontalement. Signalé
+ * comme « les initiales doivent être au milieu ».
+ *
+ * Et ce `box-shadow` REMPLAÇAIT celui de `.avatar`, où vit le cerne du
+ * médaillon — une propriété ne se cumule pas d'une règle à l'autre. On
+ * refaisait le cerne dans `avatar.css` pendant que cette règle-ci le jetait,
+ * pour le remplacer par une ombre bleutée héritée de l'ancien thème.
+ *
+ * Le cerne est donc REPRIS ici en tête de liste, et l'ombre le suit.
+ */
 .node-avatar {
-  display: block;
   box-shadow:
-    0 1px 2px rgba(16, 26, 44, 0.16),
-    0 8px 20px rgba(16, 26, 44, 0.16);
+    0 0 0 1.4px var(--avatar-cerne, rgba(42, 34, 24, 0.82)),
+    0 1px 2px rgba(46, 36, 24, 0.09),
+    0 6px 14px rgba(46, 36, 24, 0.07);
   transition: box-shadow var(--dur-base) var(--ease-out);
 }
 
@@ -292,9 +308,10 @@
 .node:hover .node-avatar,
 .node:focus-visible .node-avatar {
   box-shadow:
-    0 2px 4px rgba(16, 26, 44, 0.2),
-    0 14px 30px rgba(16, 26, 44, 0.26),
-    0 0 0 5px var(--accent-soft);
+    0 0 0 1.4px var(--text-primary),
+    0 0 0 4.5px var(--accent-soft),
+    0 2px 5px rgba(46, 36, 24, 0.12),
+    0 10px 22px rgba(46, 36, 24, 0.1);
 }
 
 /* Ken Burns : le portrait continue de dériver tant qu'on s'y attarde — voir
@@ -394,9 +411,9 @@
 
 .node[data-selected] .node-avatar {
   box-shadow:
-    0 0 0 2.5px var(--accent),
-    0 0 0 7px var(--accent-soft),
-    0 12px 28px rgba(16, 26, 44, 0.3);
+    0 0 0 2px var(--accent),
+    0 0 0 6px var(--accent-soft),
+    0 10px 24px rgba(46, 36, 24, 0.16);
 }
 
 /*
