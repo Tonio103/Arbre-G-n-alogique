@@ -459,11 +459,11 @@
  */
 .rail {
   position: absolute;
-  right: calc(12px + var(--safe-right));
+  right: calc(14px + var(--safe-right));
   top: 50%;
   transform: translateY(-50%);
   z-index: 12;
-  padding: 14px 12px 14px 4px;
+  padding: 16px 14px 16px 6px;
   border-radius: 0;
   animation: chrome-in 620ms var(--ease-out) 180ms both;
   transition:
@@ -484,12 +484,23 @@
 }
 
 /* Le filet porteur, à gauche des graduations : c'est lui qu'on suit. */
+/*
+ * SUR GRAND ÉCRAN, RIEN NE JUSTIFIE UNE ÉCRITURE DE POCHE.
+ *
+ * Le rail tenait dans une bande de 12 px de graduation et un texte à 10-12 px
+ * — la même taille qu'il aurait fallu sur un cadran de montre, alors qu'un
+ * écran de bureau lui laisse toute la hauteur qu'il veut. Signalé tel quel :
+ * « trop petite ». Les graduations, le texte et l'espacement montent d'un
+ * cran ; sur mobile, où la place manque vraiment, le rail disparaît
+ * entièrement (voir plus bas) — les deux réglages ne se contredisent donc
+ * pas.
+ */
 .rail-list {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding-left: 13px;
+  gap: 2px;
+  padding-left: 17px;
 }
 
 .rail-list::before {
@@ -506,8 +517,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 3px 6px 3px 0;
+  gap: 8px;
+  padding: 4px 6px 4px 0;
   border-radius: 0;
   color: var(--text-tertiary);
   transition: color var(--dur-fast) var(--ease-out);
@@ -517,9 +528,9 @@
    l'on se trouve — la hiérarchie de la règle de la Chronologie. */
 .rail-dot {
   position: absolute;
-  left: -13px;
-  width: 6px;
-  height: 1px;
+  left: -17px;
+  width: 8px;
+  height: 1.1px;
   flex: none;
   border-radius: 0;
   background: currentColor;
@@ -535,7 +546,7 @@
 }
 
 .rail-item:hover .rail-dot {
-  width: 10px;
+  width: 13px;
 }
 
 .rail-item[data-active] {
@@ -543,8 +554,8 @@
 }
 
 .rail-item[data-active] .rail-dot {
-  width: 13px;
-  height: 1.6px;
+  width: 17px;
+  height: 1.8px;
   opacity: 1;
 }
 
@@ -565,15 +576,15 @@
 
 .rail-decade {
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 14.5px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.015em;
   font-variant-numeric: tabular-nums;
 }
 
 .rail-generation {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 12px;
   font-style: italic;
   font-weight: 500;
   opacity: 0.62;
