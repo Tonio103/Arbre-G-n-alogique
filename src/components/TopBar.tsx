@@ -118,7 +118,7 @@ export function TopBar({
           agissent sur elle.
         */}
         {viewMode === 'tree' && (
-          <div className="control-group lg lg--control lg--bar">
+          <div className="control-group">
             <IconButton label="Voir l’arbre entier" onClick={onFit}>
               <FitIcon />
             </IconButton>
@@ -131,7 +131,7 @@ export function TopBar({
           </div>
         )}
 
-        <div className="control-group lg lg--control lg--bar">
+        <div className="control-group">
           <IconButton
             className="hide-compact"
             label={

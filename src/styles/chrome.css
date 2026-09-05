@@ -160,25 +160,47 @@
   gap: 8px;
 }
 
+/*
+ * LES COMMANDES SONT DES GLYPHES ENCRÉS.
+ *
+ * Chaque groupe était une boîte remplie contenant des pastilles arrondies qui
+ * s'allumaient d'un aplat au survol. Trois épaisseurs de boîte pour un
+ * dessin de dix-neuf pixels.
+ *
+ * Il ne reste que le dessin, et un FILET entre deux voisins — la même règle
+ * que pour les onglets, et pour la même raison : sur une page, ce qui sépare
+ * deux choses est un trait, pas un fond. Le survol encre le glyphe au lieu de
+ * lui allumer une surface, et l'état enfoncé le passe au bleu de Prusse.
+ */
 .control-group {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius-control);
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
 }
 
 .icon-button {
+  position: relative;
   display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 12px;
-  color: var(--text-secondary);
+  border-radius: 0;
+  color: var(--text-tertiary);
   transition:
-    background var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-spring);
+}
+
+.icon-button + .icon-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 24%;
+  bottom: 24%;
+  width: 1px;
+  background: var(--glass-border);
 }
 
 .icon-button svg {
@@ -187,7 +209,6 @@
 }
 
 .icon-button:hover {
-  background: var(--glass-fill-hover);
   color: var(--text-primary);
 }
 
@@ -196,7 +217,6 @@
 }
 
 .icon-button[data-pressed] {
-  background: var(--accent-soft);
   color: var(--accent);
 }
 
@@ -206,23 +226,31 @@
   position: relative;
 }
 
+/*
+ * LA RECHERCHE EST UNE LIGNE À REMPLIR.
+ *
+ * C'était une pilule remplie à coins ronds — le champ de saisie de n'importe
+ * quelle application. Sur un document, on n'écrit pas dans une pilule : on
+ * écrit SUR UNE LIGNE. Un registre, un formulaire d'état civil, un bordereau
+ * d'herbier : partout la même réglure, et le mot posé dessus.
+ *
+ * La ligne s'épaissit à la saisie plutôt que d'allumer un halo autour d'une
+ * boîte. C'est la même information — « c'est ici que vous écrivez » — dite
+ * dans la langue du papier.
+ */
 .search-field {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   height: 40px;
-  padding: 0 10px 0 13px;
-  border-radius: var(--radius-pill);
+  padding: 0 6px 0 4px;
+  border-radius: 0;
+  box-shadow: inset 0 -1px 0 0 var(--glass-border-strong);
   transition: box-shadow var(--dur-base) var(--ease-out);
 }
 
-/* Le focus se marque par un halo, la surface n'ayant plus de bordure propre. */
 .search-field:focus-within {
-  box-shadow:
-    var(--pa-ombre),
-    inset 0 1px 0 0 var(--pa-arete),
-    0 0 0 3px var(--accent-soft),
-    0 0 0 1px var(--accent-ring);
+  box-shadow: inset 0 -1.6px 0 0 var(--accent);
 }
 
 .search-icon {
@@ -232,6 +260,8 @@
   color: var(--text-tertiary);
 }
 
+/* La saisie se compose dans le caractère de titre, comme une mention portée
+   à la main sur un bordereau. */
 .search-input {
   flex: 1;
   min-width: 0;
@@ -239,12 +269,15 @@
   border: none;
   outline: none;
   background: none;
-  font-size: 14px;
-  letter-spacing: -0.005em;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
 }
 
 .search-input::placeholder {
   color: var(--text-tertiary);
+  font-style: italic;
 }
 
 .search-input::-webkit-search-cancel-button {

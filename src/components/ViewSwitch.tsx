@@ -48,7 +48,7 @@ const TABS: Array<{ mode: ViewMode; label: string; glyph: () => JSX.Element }> =
 
 export function ViewSwitch({ mode, onChange, gapCount }: ViewSwitchProps) {
   return (
-    <nav className="view-switch lg lg--chip" aria-label="Vue">
+    <nav className="view-switch" aria-label="Vue">
       {TABS.map((tab) => {
         const Glyph = tab.glyph;
         const active = tab.mode === mode;

@@ -142,7 +142,7 @@ export function SearchField({ graph, index, onPick, total, anchorId }: SearchFie
 
   return (
     <div className="search" ref={containerRef}>
-      <div className="search-field lg lg--control lg--pill lg--bar" data-open={showResults || undefined}>
+      <div className="search-field" data-open={showResults || undefined}>
         <svg className="search-icon" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="9" cy="9" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.7" />
           <path d="M13.6 13.6 L17.4 17.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />

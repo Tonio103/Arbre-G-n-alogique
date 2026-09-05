@@ -19,40 +19,83 @@
 .view-switch {
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border-radius: var(--radius-control);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
 }
 
+/*
+ * LES ONGLETS SE COMPOSENT, ILS NE SE BOUTONNENT PAS.
+ *
+ * C'étaient quatre pastilles à coins arrondis dans une boîte remplie, et
+ * l'active portait un aplat de couleur. Rien là-dedans n'appartient à une
+ * page imprimée — c'est le vocabulaire d'un kit d'interface, posé sur du
+ * papier.
+ *
+ * Ils deviennent ce qu'une table des matières fait depuis toujours : des
+ * entrées composées côte à côte, séparées par un FILET vertical, et celle où
+ * l'on se trouve marquée d'un trait sous elle. Le libellé passe en petites
+ * capitales espacées, comme un titre courant de livre.
+ *
+ * Le trait est en `::after` et non en `border-bottom` : il doit être plus
+ * court que l'onglet, s'arrêter sous le texte, et s'épaissir sans déplacer
+ * quoi que ce soit.
+ */
 .view-switch-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 13px;
-  border-radius: 12px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 550;
+  padding: 9px 15px 8px;
+  color: var(--text-tertiary);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* Le filet de séparation, entre deux entrées et jamais avant la première. */
+.view-switch-tab + .view-switch-tab::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 1px;
+  background: var(--glass-border);
+}
+
+.view-switch-tab::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 2px;
+  height: 1.5px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .view-switch-tab svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
+  opacity: 0.75;
 }
 
 .view-switch-tab:hover {
-  background: var(--glass-fill-hover);
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .view-switch-tab[data-active] {
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  color: var(--text-primary);
+}
+
+.view-switch-tab[data-active]::after {
+  opacity: 0.85;
 }
 
 /*
@@ -60,28 +103,23 @@
  *
  * En orange plein, il criait en permanence dans le coin de l'écran alors
  * qu'il ne signale rien d'anormal — un arbre généalogique est incomplet par
- * nature. Il prend la teinte de son onglet, et ne se colore franchement que
- * lorsqu'on est justement dans cette vue.
+ * nature. Il n'a plus de pastille du tout : ce sont des chiffres en italique,
+ * comme un renvoi de note en bas de page.
  */
 .view-switch-count {
-  min-width: 17px;
-  padding: 1px 5px;
-  border-radius: 9px;
-  background: var(--glass-fill-strong);
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 650;
-  text-align: center;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
-.view-switch-tab[data-active] .view-switch-count,
-.view-switch-tab:hover .view-switch-count {
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+.view-switch-tab[data-active] .view-switch-count {
+  color: var(--accent-warm);
 }
 
 @media (max-width: 720px) {
@@ -301,11 +339,21 @@
 }
 
 /* Les boutons de zoom, superposés en bas à droite de la carte. */
+/*
+ * Les boutons de la Carte gardent leur feuille.
+ *
+ * `.control-group` a perdu son fond : dans la barre du haut, il reposait déjà
+ * sur le papier de la barre, et deux papiers empilés ne font pas une surface,
+ * ils font une épaisseur. Ici c'est l'inverse — ces boutons flottent au-dessus
+ * du dessin de la carte, où il n'y a pas de papier du tout.
+ */
 .map-zoom {
   position: absolute;
   right: 8px;
   bottom: 40px;
   flex-direction: column;
+  padding: 3px;
+  border-radius: var(--radius-control);
 }
 
 /* Visible si une tuile n'a pas encore chargé, ou pas pu — jamais un trou
