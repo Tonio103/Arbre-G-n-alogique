@@ -190,6 +190,25 @@
   top: 0;
   left: 0;
   pointer-events: none;
+  transition: opacity 220ms var(--ease-out);
+}
+
+/*
+ * LES BRANCHES S'EFFACENT PENDANT LA REPLANTATION.
+ *
+ * C'est le seul vrai compromis du voyage des cartes (voir `TreeCanvas`) : un
+ * canevas ne peut pas voyager avec elles. Il est redessiné à la NOUVELLE
+ * disposition dès le changement, si bien que pendant le vol chaque carte
+ * survolerait des branches qui ne sont plus les siennes — et arriverait sur
+ * une ramure déjà en place, ce qui rendrait son trajet incompréhensible.
+ *
+ * On ne l'efface pas complètement : à 0,12 la structure reste là, en filigrane,
+ * et ce sont les médaillons qu'on suit. Un fond vide donnerait l'impression que
+ * l'arbre a disparu.
+ */
+.world[data-replantation] .stage-canvas,
+.world[data-replantation] .path-flow {
+  opacity: 0.12;
 }
 
 /*

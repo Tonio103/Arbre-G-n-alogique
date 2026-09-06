@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { NodePosition, TreeLayout } from '@/domain/layout';
 import type { HighlightSet, RelationPath } from '@/domain/relations';
@@ -40,6 +40,38 @@ interface VisibleState {
 }
 
 const EMPTY_VISIBLE: VisibleState = { nodes: [], detail: 'none' };
+
+/* ---------------------------------------------------------------------------
+ * LA REPLANTATION
+ *
+ * « Repartir d'ici » redessine l'arbre autour d'une autre personne. Le
+ * commentaire de ce bouton le dit lui-même : trente-sept personnes sur quatre-
+ * vingts ne sont atteignables que par lui. C'était pourtant le moment le plus
+ * désorientant de l'application — tout l'arbre se dissolvait (`node-materialize`
+ * : opacité nulle, échelle 0,5, flou de quatre pixels) et se reformait ailleurs.
+ * On perdait complètement où sa branche était partie.
+ *
+ * Les cartes VOYAGENT donc de leur ancienne place à la nouvelle. Les
+ * identifiants sont stables d'une disposition à l'autre, le rapprochement est
+ * donc exact : qui reste voyage, qui entre se matérialise comme avant.
+ *
+ * Le voyage s'exprime en unités du MONDE, et c'est ce qui le rend possible :
+ * les cartes sont positionnées en `left`/`top` dans `.world`, pas en
+ * coordonnées d'écran. La caméra vole vers la nouvelle racine pendant ce
+ * temps-là — les deux mouvements se composent au lieu de se combattre, ce qui
+ * serait arrivé avec un déplacement exprimé à l'écran.
+ *
+ * `translate` et non `transform` : ce sont deux propriétés distinctes que le
+ * navigateur compose lui-même. `.node` se sert déjà de `transform` pour le
+ * survol et la matérialisation ; les écrire au même endroit aurait voulu dire
+ * les recomposer à la main.
+ * ------------------------------------------------------------------------- */
+
+/** Un peu plus que le vol de caméra (620 ms) : les cartes se posent après lui. */
+const VOYAGE_MS = 760;
+
+/** En deçà, ce n'est pas un voyage mais un arrondi de placement. */
+const VOYAGE_SEUIL = 0.5;
 
 /** Le niveau de détail suit le zoom : texte complet, prénom seul, puis points. */
 function detailForScale(scale: number): NodeDetail | 'none' {
@@ -85,6 +117,24 @@ export function TreeCanvas({
 
   const [grabbing, setGrabbing] = useState(false);
   const draggedRef = useRef(false);
+
+  /*
+   * Le voyage se prépare au changement de disposition, mais ne peut être joué
+   * qu'une image plus tard.
+   *
+   * Le recensement des cartes visibles passe par un `requestAnimationFrame` :
+   * au moment où la disposition change, le DOM porte encore les ANCIENNES
+   * positions. Jouer l'animation là annulerait son propre effet — on
+   * décalerait les cartes depuis l'endroit où elles sont déjà. On retient donc
+   * les écarts et on les joue quand le recensement a posé les cartes à leur
+   * nouvelle place.
+   */
+  const positionsPrecedentes = useRef(layout.positions);
+  const voyageEnAttente = useRef<{
+    ecarts: Map<string, { dx: number; dy: number }>;
+    montees: Set<string>;
+    pour: TreeLayout;
+  } | null>(null);
 
   // --- Transform appliquée directement au DOM, hors cycle de rendu React ---
   useEffect(() => {
@@ -516,6 +566,84 @@ export function TreeCanvas({
     if (!position) return null;
     return { x: cardCenterX(position.x), y: portraitCenterY(position.y) };
   }, [selectedId, layout]);
+
+  /*
+   * Qui s'est déplacé, et de combien.
+   *
+   * On ne retient que les cartes DÉJÀ MONTÉES : une carte qui entre dans le
+   * cadre au même moment a sa propre animation d'arrivée, et lui ajouter un
+   * voyage la ferait voler et surgir en même temps.
+   */
+  useEffect(() => {
+    const avant = positionsPrecedentes.current;
+    positionsPrecedentes.current = layout.positions;
+    if (avant === layout.positions) return;
+
+    const ecarts = new Map<string, { dx: number; dy: number }>();
+    for (const [id, apres] of layout.positions) {
+      const depart = avant.get(id);
+      if (!depart) continue;
+      const dx = depart.x - apres.x;
+      const dy = depart.y - apres.y;
+      if (Math.abs(dx) < VOYAGE_SEUIL && Math.abs(dy) < VOYAGE_SEUIL) continue;
+      ecarts.set(id, { dx, dy });
+    }
+
+    voyageEnAttente.current =
+      ecarts.size > 0
+        ? {
+            ecarts,
+            montees: new Set(visibleRef.current.nodes.map((node) => node.id)),
+            pour: layout,
+          }
+        : null;
+  }, [layout]);
+
+  /*
+   * Et le voyage se joue, une fois les cartes reposées.
+   *
+   * `fill: 'backwards'` est indispensable : sans lui, la carte s'afficherait
+   * une image à sa nouvelle place avant que l'animation ne la ramène en
+   * arrière — un sursaut, précisément ce qu'on cherche à supprimer.
+   */
+  useLayoutEffect(() => {
+    const voyage = voyageEnAttente.current;
+    if (!voyage) return;
+    // La disposition a encore changé entre-temps : ces écarts ne décrivent
+    // plus le trajet réel, mieux vaut ne rien jouer qu'un faux mouvement.
+    if (voyage.pour !== layout) {
+      voyageEnAttente.current = null;
+      return;
+    }
+    voyageEnAttente.current = null;
+
+    const world = worldRef.current;
+    if (!world) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let unSeulVoyage = false;
+    for (const carte of world.querySelectorAll<HTMLElement>('.node[data-id]')) {
+      const id = carte.dataset.id;
+      if (!id || !voyage.montees.has(id)) continue;
+      const ecart = voyage.ecarts.get(id);
+      if (!ecart) continue;
+      unSeulVoyage = true;
+      carte.animate(
+        [{ translate: `${ecart.dx}px ${ecart.dy}px` }, { translate: '0px 0px' }],
+        { duration: VOYAGE_MS, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' },
+      );
+    }
+
+    // Aucune carte n'a bougé à l'écran : la ramure n'a aucune raison de
+    // s'effacer, et le clignotement se verrait pour rien.
+    if (!unSeulVoyage) return;
+
+    world.dataset.replantation = 'true';
+    const fin = window.setTimeout(() => {
+      delete world.dataset.replantation;
+    }, VOYAGE_MS * 0.62);
+    return () => window.clearTimeout(fin);
+  }, [visible, layout]);
 
   const etats = useMemo(() => {
     const table = new Map<string, EtatBotanique>();
