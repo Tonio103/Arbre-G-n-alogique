@@ -652,6 +652,34 @@ export function TreeCanvas({
   }, [graph.people]);
 
   /*
+   * LES SOUCHES : celles que l'arbre place sans qu'elles descendent de
+   * personne.
+   *
+   * Les marques botaniques se posent sur le rameau qui mène à chaque enfant.
+   * Une personne dont l'arbre ne montre aucun parent n'a donc pas de rameau —
+   * et n'avait aucune marque. Mesuré sur l'arbre de démonstration : quatre
+   * personnes sur huit, c'est-à-dire toute la rangée du haut. Sur un arbre
+   * réel, c'est la frontière haute de chaque branche : précisément les fiches
+   * les plus incomplètes, celles que le langage des feuilles existe pour
+   * signaler. Le signal manquait là où il sert le plus.
+   *
+   * L'accentuation suit la sélection, comme pour les unions — sans quoi une
+   * souche resterait encrée au milieu d'un arbre estompé.
+   */
+  const souches = useMemo(() => {
+    const enfants = new Set<string>();
+    for (const union of layout.unions) {
+      for (const enfant of union.children) enfants.add(enfant.id);
+    }
+    const liste: Array<{ id: string; x: number; y: number; accentuee: boolean }> = [];
+    for (const [id, position] of layout.positions) {
+      if (enfants.has(id)) continue;
+      liste.push({ id, x: position.x, y: position.y, accentuee: highlight.people.has(id) });
+    }
+    return liste;
+  }, [layout, highlight]);
+
+  /*
    * QUI VIENT DE FLEURIR.
    *
    * En posant le langage des feuilles, on a écrit que « renseigner une date
@@ -714,6 +742,7 @@ export function TreeCanvas({
           etats={etats}
           source={source}
           eclosion={eclosion}
+          souches={souches}
         />
 
         <PathFlow layout={layout} relation={relation} />

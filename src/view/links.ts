@@ -108,6 +108,17 @@ export interface DrawLinksParams {
    * elles s'ouvrent donc ensemble. Absent : rien n'éclôt.
    */
   eclosion?: { ids: Set<string>; progres: number };
+  /**
+   * Les SOUCHES : les personnes que l'arbre place sans qu'elles soient
+   * l'enfant d'aucune union dessinée.
+   *
+   * Elles n'ont pas de rameau, donc pas d'endroit où accrocher leur marque
+   * botanique — et la moitié de l'arbre se retrouvait muette (voir
+   * `feuiller`). Elles reçoivent une amorce de branche au-dessus de leur
+   * carte, qui dit ce qui est vrai : ça continue par là, on ne sait
+   * simplement pas encore où.
+   */
+  souches?: Array<{ id: string; x: number; y: number; accentuee: boolean }>;
 }
 
 /**
@@ -331,7 +342,26 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     }
 
     if (params.etats) {
-      feuiller(ctx, group.list, params.etats, group.color, unit, avancements, params.eclosion);
+      // Les souches suivent le même partage que les unions : accentuées avec
+      // la lignée choisie, estompées avec le reste.
+      const souchesDuGroupe = params.souches?.filter(
+        (souche) => group.role === 'seul' || souche.accentuee === (group.role === 'accent'),
+      );
+      const seveGlobale =
+        group.role === 'accent' && seve
+          ? Math.max(0, Math.min(1, seve.front / Math.max(1, seve.plan.portee)))
+          : 1;
+      feuiller(
+        ctx,
+        group.list,
+        params.etats,
+        group.color,
+        unit,
+        avancements,
+        params.eclosion,
+        souchesDuGroupe,
+        seveGlobale,
+      );
     }
   }
 
@@ -769,6 +799,34 @@ function eclot(p: number): number {
   return 1 + (c + 1) * u * u * u + c * u * u;
 }
 
+/**
+ * Un point où une marque vient se poser.
+ *
+ * Deux origines, un seul dessin : le rameau qui descend vers un enfant, et
+ * l'amorce qui monte au-dessus d'une souche. Les rassembler évite d'écrire
+ * deux fois la même feuille — et c'est en les séparant qu'on avait laissé la
+ * moitié de l'arbre sans marque.
+ */
+interface Attache {
+  id: string;
+  x: number;
+  y: number;
+  /** De quel côté la feuille s'écarte. Jamais au hasard : voir plus bas. */
+  cote: number;
+  /** Ce que la sève a déjà atteint ici. 1 hors animation. */
+  pousse: number;
+  /** Longueur du bout de branche à tracer sous la marque. 0 sur un rameau. */
+  amorce: number;
+}
+
+/**
+ * L'amorce d'une souche, en pixels d'écran.
+ *
+ * Assez longue pour se lire comme une branche qui continue, assez courte pour
+ * ne pas se confondre avec un vrai lien de filiation — ce qu'elle n'est pas.
+ */
+const AMORCE_SOUCHE = 17;
+
 function feuiller(
   ctx: CanvasRenderingContext2D,
   unions: LayoutUnion[],
@@ -779,6 +837,17 @@ function feuiller(
   avancements?: Map<string, number>,
   /** Les feuilles en train de s'ouvrir. Voir `eclosion` dans les paramètres. */
   eclosion?: { ids: Set<string>; progres: number },
+  /** Les personnes sans rameau, qui portent leur marque sur une amorce. */
+  souches?: Array<{ id: string; x: number; y: number }>,
+  /**
+   * L'avancée d'ensemble de la sève, pour les souches.
+   *
+   * Elles ne sont rattachées à aucun trait dont on connaîtrait l'arrivée
+   * exacte du front. Faute de mieux, elles suivent l'avancée globale : ce
+   * n'est pas juste au trait près, mais elles arrivent AVEC la vague au lieu
+   * d'être déjà là avant elle, ce qui se verrait.
+   */
+  seveGlobale = 1,
 ): void {
   const tiges = new Path2D();
   const pleines = new Path2D();
@@ -786,6 +855,14 @@ function feuiller(
   const nervures = new Path2D();
   const bourgeons = new Path2D();
   let quelquechose = false;
+
+  const attaches: Attache[] = [];
+
+  /*
+   * Le côté alterne selon la position, jamais au hasard : une même branche
+   * doit porter sa feuille du même côté à chaque redessin.
+   */
+  const coteDe = (x: number): number => (Math.round(x) % 2 === 0 ? 1 : -1);
 
   for (const union of unions) {
     const { partners, children } = union;
@@ -797,57 +874,91 @@ function feuiller(
     if (pousse <= 0.02) continue;
 
     for (const child of children) {
-      const etat = etats.get(child.id);
-      if (!etat || etat === 'rameau-nu') continue;
-
       const centre = cardCenterX(child.x);
       const haut = cardTop(child.y);
       // Aux deux cinquièmes de la descente : assez bas pour ne pas se perdre
       // dans le nœud d'attache, assez haut pour ne pas toucher la carte.
-      const yb = busY + (haut - busY) * 0.42;
-      // Le côté alterne selon la position, jamais au hasard : une même branche
-      // doit porter sa feuille du même côté à chaque redessin.
-      const cote = Math.round(centre) % 2 === 0 ? 1 : -1;
-      // La feuille part de la branche et s'en écarte vers le haut : c'est le
-      // sens dans lequel pousse un rameau.
-      const angleRepos = cote > 0 ? -0.68 : Math.PI + 0.68;
+      attaches.push({
+        id: child.id,
+        x: centre,
+        y: busY + (haut - busY) * 0.42,
+        cote: coteDe(centre),
+        pousse,
+        amorce: 0,
+      });
+    }
+  }
 
-      /*
-       * L'ÉCLOSION.
-       *
-       * Une feuille ne s'ouvre pas en grandissant : elle se DÉROULE. Elle
-       * arrive donc pliée contre sa branche et se redresse — un demi-radian
-       * de vrille qui se résorbe, dans le sens de son côté, et le
-       * dépassement d'`eclot` par-dessus. Sans cette vrille, ce serait une
-       * feuille qu'on agrandit, ce qui ne ressemble à rien de vivant.
-       *
-       * `brut` et non la valeur adoucie : `eclot` dépasse un, et une vrille
-       * qui dépasse repartirait de l'autre côté.
-       */
-      const brut = eclosion?.ids.has(child.id)
-        ? Math.max(0, Math.min(1, eclosion.progres))
-        : 1;
-      const ouverture = eclosion?.ids.has(child.id) ? eclot(eclosion.progres) : 1;
-      const echelle = Math.min(pousse, ouverture);
-      if (echelle <= 0.02) continue;
+  for (const souche of souches ?? []) {
+    const centre = cardCenterX(souche.x);
+    attaches.push({
+      id: souche.id,
+      x: centre,
+      y: cardTop(souche.y) - AMORCE_SOUCHE * unit,
+      cote: coteDe(centre),
+      pousse: seveGlobale,
+      amorce: AMORCE_SOUCHE * unit,
+    });
+  }
 
-      const angle = angleRepos + (1 - brut) * 0.62 * cote;
-      const taille = 24 * unit * echelle;
-      const tige = 5 * unit * echelle;
-      const px = repere(centre, yb, angle);
-      const [bx, by] = px(tige, 0);
+  for (const attache of attaches) {
+    const etat = etats.get(attache.id);
+    if (!etat || etat === 'rameau-nu') continue;
 
-      quelquechose = true;
-      petiole(tiges, centre, yb, angle, tige);
-      if (etat === 'feuille') {
-        limbe(pleines, bx, by, angle, taille, 0);
-        nervure(nervures, bx, by, angle, taille, 0);
-      } else if (etat === 'feuille-seche') {
-        limbe(seches, bx, by, angle, taille * 0.92, 0.5);
-        nervure(nervures, bx, by, angle, taille * 0.92, 0.5);
-      } else {
-        goutte(bourgeons, bx, by, angle, taille * 0.42);
+    quelquechose = true;
+
+    /*
+     * L'amorce se trace AVANT la feuille, et ne suit pas son ouverture.
+     *
+     * Une branche ne rétrécit pas parce qu'une feuille pousse dessus. Les
+     * lier aurait fait disparaître l'amorce le temps de l'éclosion, puis
+     * repousser avec elle — un clignotement, à l'endroit précis qu'on
+     * regarde. Elle ne suit que la sève.
+     */
+    if (attache.amorce > 0) {
+      const longueur = attache.amorce * Math.max(0, Math.min(1, attache.pousse));
+      if (longueur > 0.5) {
+        tiges.moveTo(attache.x, attache.y + longueur);
+        tiges.lineTo(attache.x, attache.y);
       }
+    }
+
+    /*
+     * L'ÉCLOSION.
+     *
+     * Une feuille ne s'ouvre pas en grandissant : elle se DÉROULE. Elle
+     * arrive donc pliée contre sa branche et se redresse — un demi-radian de
+     * vrille qui se résorbe, dans le sens de son côté, et le dépassement
+     * d'`eclot` par-dessus. Sans cette vrille, ce serait une feuille qu'on
+     * agrandit, ce qui ne ressemble à rien de vivant.
+     *
+     * `brut` et non la valeur adoucie : `eclot` dépasse un, et une vrille qui
+     * dépasse repartirait de l'autre côté.
+     */
+    const enTrainDEclore = eclosion?.ids.has(attache.id) ?? false;
+    const brut = enTrainDEclore ? Math.max(0, Math.min(1, eclosion!.progres)) : 1;
+    const ouverture = enTrainDEclore ? eclot(eclosion!.progres) : 1;
+    const echelle = Math.min(attache.pousse, ouverture);
+    if (echelle <= 0.02) continue;
+
+    // La feuille part de la branche et s'en écarte vers le haut : c'est le
+    // sens dans lequel pousse un rameau.
+    const angleRepos = attache.cote > 0 ? -0.68 : Math.PI + 0.68;
+    const angle = angleRepos + (1 - brut) * 0.62 * attache.cote;
+    const taille = 24 * unit * echelle;
+    const tige = 5 * unit * echelle;
+    const px = repere(attache.x, attache.y, angle);
+    const [bx, by] = px(tige, 0);
+
+    petiole(tiges, attache.x, attache.y, angle, tige);
+    if (etat === 'feuille') {
+      limbe(pleines, bx, by, angle, taille, 0);
+      nervure(nervures, bx, by, angle, taille, 0);
+    } else if (etat === 'feuille-seche') {
+      limbe(seches, bx, by, angle, taille * 0.92, 0.5);
+      nervure(nervures, bx, by, angle, taille * 0.92, 0.5);
+    } else {
+      goutte(bourgeons, bx, by, angle, taille * 0.42);
     }
   }
 

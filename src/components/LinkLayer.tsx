@@ -32,6 +32,8 @@ export interface LinkLayerProps {
    * personnes.
    */
   eclosion?: { ids: Set<string>; cle: number } | null;
+  /** Les personnes sans rameau, qui portent leur marque sur une amorce. */
+  souches: Array<{ id: string; x: number; y: number; accentuee: boolean }>;
   /**
    * D'où part la sève : le point de la personne choisie.
    *
@@ -189,6 +191,7 @@ export function LinkLayer({
   etats,
   source,
   eclosion,
+  souches,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
@@ -198,8 +201,8 @@ export function LinkLayer({
   const seveRef = useRef<{ plan: PlanDeSeve; start: number; duree: number } | null>(null);
   const eclosionRef = useRef<{ ids: Set<string>; start: number } | null>(null);
 
-  const stateRef = useRef({ highlightUnions, hasSelection, pathUnions, etats });
-  stateRef.current = { highlightUnions, hasSelection, pathUnions, etats };
+  const stateRef = useRef({ highlightUnions, hasSelection, pathUnions, etats, souches });
+  stateRef.current = { highlightUnions, hasSelection, pathUnions, etats, souches };
 
   useEffect(() => {
     paletteRef.current = readPalette(theme);
@@ -254,6 +257,7 @@ export function LinkLayer({
         hasSelection: stateRef.current.hasSelection,
         pathUnions: stateRef.current.pathUnions,
         etats: stateRef.current.etats,
+        souches: stateRef.current.souches,
         eclosion: eclosionRef.current
           ? {
               ids: eclosionRef.current.ids,
@@ -369,7 +373,7 @@ export function LinkLayer({
     // mais par un chemin détourné — toute modification refait la disposition,
     // dont le changement d'identité relance l'effet principal. Une repeinte
     // qui dépend d'un effet de bord n'est pas une repeinte.
-  }, [highlightUnions, hasSelection, pathUnions, theme, etats]);
+  }, [highlightUnions, hasSelection, pathUnions, theme, etats, souches]);
 
   /*
    * L'éclosion, image par image.
