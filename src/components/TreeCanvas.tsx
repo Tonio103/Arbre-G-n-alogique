@@ -674,7 +674,15 @@ export function TreeCanvas({
     const liste: Array<{ id: string; x: number; y: number; accentuee: boolean }> = [];
     for (const [id, position] of layout.positions) {
       if (enfants.has(id)) continue;
-      liste.push({ id, x: position.x, y: position.y, accentuee: highlight.people.has(id) });
+      liste.push({
+        id,
+        x: position.x,
+        y: position.y,
+        // Une souche est le plus souvent le partenaire d'une union accentuée
+        // sans appartenir au cercle : son amorce doit suivre l'encre du trait
+        // qui part d'elle, pas l'appartenance au cercle.
+        accentuee: highlight.people.has(id) || highlight.touched.has(id),
+      });
     }
     return liste;
   }, [layout, highlight]);
@@ -760,7 +768,17 @@ export function TreeCanvas({
                 y={node.y}
                 detail={detail}
                 role={role}
-                dimmed={hasSelection && !role}
+                dimmed={
+                  hasSelection &&
+                  !role &&
+                  !highlight.touched.has(node.id) &&
+                  // Le chemin de parenté trace lui aussi ses traits en pleine
+                  // encre, par-dessus tout le reste. Une étape du chemin
+                  // recevait donc son liseré d'accent sur une carte à 24 % —
+                  // un anneau franc autour d'un fantôme. Même règle qu'au
+                  // dessus : ce que l'encre touche n'est pas estompé.
+                  !pathPeople?.has(node.id)
+                }
                 selected={selectedId === node.id}
                 flagged={flaggedId === node.id}
                 onPath={pathPeople?.has(node.id) || undefined}

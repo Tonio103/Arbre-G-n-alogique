@@ -8,6 +8,28 @@ export interface HighlightSet {
   people: Map<string, RelationRole>;
   /** Unions dont le trait doit être accentué. */
   unions: Set<string>;
+  /**
+   * LES PERSONNES QU'UN TRAIT ENCRÉ VIENT TOUCHER, sans faire partie du cercle.
+   *
+   * Une union accentuée ne se limite pas à un fil entre deux points : elle
+   * dessine le trait d'alliance de ses deux partenaires ET une descente vers
+   * CHACUN de ses enfants. Sélectionner quelqu'un encrait donc, en toute
+   * logique, l'union dont ses parents sont issus — et avec elle l'alliance des
+   * grands-parents et le rameau de chaque oncle.
+   *
+   * Ces gens-là, eux, restaient estompés à 24 %. Mesuré sur l'arbre de graine :
+   * la barre d'alliance des grands-parents rendue à 25/255 — du noir franc —
+   * arrivant sur deux médaillons fantômes. Le trait affirmait une chose, la
+   * carte son contraire, et c'est la carte qu'on lit : tout le haut de l'arbre
+   * paraissait gris alors que son encre ne l'était pas.
+   *
+   * D'où cette fermeture : quiconque est relié par un trait encré cesse d'être
+   * un fantôme. Sans pour autant entrer dans le cercle — pas d'anneau, pas de
+   * dates — parce qu'un grand-père n'est pas une mère. La grammaire tient en
+   * trois degrés : l'anneau pour le cercle proche, la pleine encre pour ce que
+   * le trait touche, l'estompe pour le reste de l'arbre.
+   */
+  touched: Set<string>;
 }
 
 export type RelationRole =
@@ -20,7 +42,11 @@ export type RelationRole =
   | 'descendant'
   | 'related';
 
-const EMPTY_HIGHLIGHT: HighlightSet = { people: new Map(), unions: new Set() };
+const EMPTY_HIGHLIGHT: HighlightSet = {
+  people: new Map(),
+  unions: new Set(),
+  touched: new Set(),
+};
 
 /** Ancêtres d'une personne, indexés par distance générationnelle. */
 export function ancestorsOf(graph: FamilyGraph, id: string, maxDepth = 32): Map<string, number> {
@@ -114,7 +140,22 @@ export function computeHighlight(
   const unions = new Set<string>();
   collectUnions(graph, people.keys(), unions);
 
-  return { people, unions };
+  /*
+   * La fermeture : on relit les unions retenues et on ramasse tous ceux que
+   * leurs traits atteignent. Une seule passe, sans récursion — on ne collecte
+   * pas de nouvelles unions depuis ces gens-là, sinon l'accentuation gagnerait
+   * l'arbre entier de proche en proche. C'est exactement le minimum qui suffit
+   * à ce qu'aucun trait noir ne finisse sur une carte grise.
+   */
+  const touched = new Set<string>();
+  for (const unionId of unions) {
+    const union = graph.unions.get(unionId);
+    if (!union) continue;
+    for (const id of union.partners) if (!people.has(id)) touched.add(id);
+    for (const id of union.children) if (!people.has(id)) touched.add(id);
+  }
+
+  return { people, unions, touched };
 }
 
 function gendered(person: Person | undefined, male: string, female: string, neutral: string): string {
