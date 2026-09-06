@@ -1,47 +1,78 @@
 /*
- * Le flux lumineux d'un chemin de parenté — voir `PathFlow`.
+ * L'encre qui parcourt un chemin de parenté — voir `PathFlow`.
  *
  * Vit dans `.world`, aux mêmes coordonnées que les médaillons et le canevas
- * des liens : `overflow: visible` sur une boîte de taille nulle, exactement
- * comme `.world` lui-même, pour ne rien recadrer.
+ * des liens : `overflow: visible` sur une boîte minuscule, pour ne rien
+ * recadrer tout en laissant le tracé déborder librement.
+ *
+ * ── UN PIXEL, ET PAS ZÉRO ──────────────────────────────────────────────
+ *
+ * Cette boîte mesurait 0 × 0, et le commentaire présentait ce choix comme
+ * délibéré — « exactement comme `.world` lui-même ». Or la spécification SVG
+ * est explicite : sur un `<svg>` racine, une largeur ou une hauteur nulle
+ * DÉSACTIVE le rendu de l'élément. Pas son découpage : son rendu.
+ *
+ * Le chemin de parenté n'a donc jamais été affiché. Ni le tracé, ni les trois
+ * points lumineux qui étaient censés le parcourir — on a passé du temps à
+ * remplacer une animation que personne n'avait jamais vue. Constaté en posant
+ * un trait rouge de seize pixels à pleine opacité, qui restait invisible ; il
+ * est apparu à l'instant où la boîte est passée à un pixel.
+ *
+ * `.world` peut se permettre zéro parce que c'est une `<div>` : la règle ne
+ * vaut que pour SVG.
  */
 .path-flow {
   position: absolute;
   top: 0;
   left: 0;
-  width: 0;
-  height: 0;
+  width: 1px;
+  height: 1px;
   overflow: visible;
   pointer-events: none;
   z-index: 2;
 }
 
+/* Le chemin au repos : un guide, pas un trait. Le lien lui-même est déjà
+   accentué sur le canevas ; celui-ci ne fait que dire par où l'encre passe. */
 .path-flow-track {
   fill: none;
   stroke: var(--accent);
   stroke-width: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
   opacity: 0.16;
 }
 
-.path-flow-spark {
-  fill: var(--accent-strong);
-  filter: drop-shadow(0 0 5px var(--accent)) drop-shadow(0 0 10px var(--accent-ring));
-}
-
-.path-flow-spark--b {
-  fill: var(--accent-rose);
-  filter: drop-shadow(0 0 5px var(--accent-rose)) drop-shadow(0 0 10px var(--accent-rose));
-}
-
-.path-flow-spark--c {
-  fill: var(--accent-warm);
-  filter: drop-shadow(0 0 5px var(--accent-warm)) drop-shadow(0 0 10px var(--accent-warm));
+/*
+ * L'AURÉOLE.
+ *
+ * Un seul tiret, long d'un cinquième du parcours, dont `PathFlow` anime le
+ * décalage. Sa tête arrondie est la goutte : le point et sa traînée sont le
+ * même objet, il n'y a donc rien à synchroniser.
+ *
+ * PLUS LARGE que le lien qu'il suit, et pâle. Le chemin de parenté est déjà
+ * tracé en noir franc sur le canevas ; un trait fin de bleu sombre par-dessus
+ * ne se voyait pas du tout — vérifié à l'écran. En débordant de part et
+ * d'autre, l'auréole se lit aussi bien sur le noir que sur le papier nu, ce
+ * qui compte : le chemin passe par le centre des portraits là où les liens
+ * passent par le bord des cartes, les deux ne se recouvrent pas partout.
+ *
+ * `non-scaling-stroke` : l'épaisseur est en pixels d'écran, comme celle des
+ * liens. Sans lui, l'auréole grossirait avec le zoom et noierait les cartes.
+ */
+.path-flow-encre {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.34;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .path-flow-spark {
+  .path-flow-encre {
     display: none;
   }
 }
