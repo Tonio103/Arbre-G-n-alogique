@@ -651,6 +651,46 @@ export function TreeCanvas({
     return table;
   }, [graph.people]);
 
+  /*
+   * QUI VIENT DE FLEURIR.
+   *
+   * En posant le langage des feuilles, on a écrit que « renseigner une date
+   * fait éclore le bourgeon en feuille, sous les yeux ». Ce n'était pas vrai :
+   * depuis que les feuilles sont peintes sur le canevas, l'ouverture n'existait
+   * plus que pendant la montée de sève. On remplissait une date, et la feuille
+   * apparaissait d'un coup, à sa taille définitive.
+   *
+   * On compare donc les états d'une modification à l'autre, et on ne retient
+   * que le passage de ce qui est CLOS — bourgeon, rameau nu — à ce qui est
+   * OUVERT. L'inverse n'est pas une éclosion : effacer une date referme une
+   * fiche, et rien ne doit récompenser ça.
+   *
+   * Une personne qui vient d'entrer dans l'arbre n'éclôt pas non plus : elle a
+   * déjà son animation d'arrivée, et sa feuille naît avec elle.
+   */
+  const etatsPrecedents = useRef(etats);
+  const numeroEclosion = useRef(0);
+  const [eclosion, setEclosion] = useState<{ ids: Set<string>; cle: number } | null>(null);
+
+  useEffect(() => {
+    const avant = etatsPrecedents.current;
+    etatsPrecedents.current = etats;
+    if (avant === etats) return;
+
+    const ouvertes = new Set<string>();
+    for (const [id, apres] of etats) {
+      const depart = avant.get(id);
+      if (!depart || depart === apres) continue;
+      const etaitClos = depart === 'bourgeon' || depart === 'rameau-nu';
+      const estOuvert = apres === 'feuille' || apres === 'feuille-seche';
+      if (etaitClos && estOuvert) ouvertes.add(id);
+    }
+
+    if (ouvertes.size === 0) return;
+    numeroEclosion.current += 1;
+    setEclosion({ ids: ouvertes, cle: numeroEclosion.current });
+  }, [etats]);
+
   return (
     <div
       ref={stageRef}
@@ -673,6 +713,7 @@ export function TreeCanvas({
           growingUnionId={growingUnionId}
           etats={etats}
           source={source}
+          eclosion={eclosion}
         />
 
         <PathFlow layout={layout} relation={relation} />

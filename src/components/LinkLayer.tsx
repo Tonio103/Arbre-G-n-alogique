@@ -25,6 +25,14 @@ export interface LinkLayerProps {
   /** L'état botanique de chaque fiche, pour feuiller les branches. */
   etats: Map<string, EtatBotanique>;
   /**
+   * Les fiches dont le bourgeon vient de devenir feuille.
+   *
+   * `cle` change à chaque nouvelle éclosion : c'est elle qui relance
+   * l'animation, deux éclosions successives pouvant porter sur les mêmes
+   * personnes.
+   */
+  eclosion?: { ids: Set<string>; cle: number } | null;
+  /**
    * D'où part la sève : le point de la personne choisie.
    *
    * `null` quand rien n'est sélectionné — l'arbre est alors tout entier à sa
@@ -57,6 +65,16 @@ const seveDuree = (portee: number): number =>
 
 /** Le reste de l'arbre s'estompe vite : c'est un fond, pas un sujet. */
 const ESTOMPE_MS = 260;
+
+/*
+ * L'ÉCLOSION.
+ *
+ * Assez lente pour être vue, assez brève pour ne pas faire attendre : c'est
+ * une récompense, pas une étape. Renseigner une date fait s'ouvrir la feuille
+ * de la personne concernée, sous les yeux de qui vient de la renseigner — un
+ * compteur qui passe de 145 à 144 ne remercie personne.
+ */
+const ECLOSION_MS = 900;
 
 /**
  * L'avancée du front dans le temps.
@@ -170,6 +188,7 @@ export function LinkLayer({
   growingUnionId,
   etats,
   source,
+  eclosion,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
@@ -177,6 +196,7 @@ export function LinkLayer({
   const forceRef = useRef<(() => void) | null>(null);
   const growthRef = useRef<{ unionId: string; start: number } | null>(null);
   const seveRef = useRef<{ plan: PlanDeSeve; start: number; duree: number } | null>(null);
+  const eclosionRef = useRef<{ ids: Set<string>; start: number } | null>(null);
 
   const stateRef = useRef({ highlightUnions, hasSelection, pathUnions, etats });
   stateRef.current = { highlightUnions, hasSelection, pathUnions, etats };
@@ -234,6 +254,12 @@ export function LinkLayer({
         hasSelection: stateRef.current.hasSelection,
         pathUnions: stateRef.current.pathUnions,
         etats: stateRef.current.etats,
+        eclosion: eclosionRef.current
+          ? {
+              ids: eclosionRef.current.ids,
+              progres: (performance.now() - eclosionRef.current.start) / ECLOSION_MS,
+            }
+          : undefined,
         seve: seveRef.current
           ? {
               plan: seveRef.current.plan,
@@ -338,7 +364,48 @@ export function LinkLayer({
   // même si le cadre visible, lui, n'a pas bougé d'un pixel.
   useEffect(() => {
     forceRef.current?.();
-  }, [highlightUnions, hasSelection, pathUnions, theme]);
+    // `etats` en dépendance : sans lui, une feuille nouvellement ouverte ne
+    // réapparaissait qu'au prochain déplacement de la vue. Cela FONCTIONNAIT,
+    // mais par un chemin détourné — toute modification refait la disposition,
+    // dont le changement d'identité relance l'effet principal. Une repeinte
+    // qui dépend d'un effet de bord n'est pas une repeinte.
+  }, [highlightUnions, hasSelection, pathUnions, theme, etats]);
+
+  /*
+   * L'éclosion, image par image.
+   *
+   * Même mécanique que la montée de sève : on repeint tant que l'ouverture
+   * dure, puis on relâche. Le reste du temps `LinkLayer` ne redessine que
+   * lorsque la vue bouge.
+   */
+  useEffect(() => {
+    if (!eclosion || eclosion.ids.size === 0) return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      eclosionRef.current = null;
+      forceRef.current?.();
+      return undefined;
+    }
+
+    eclosionRef.current = { ids: eclosion.ids, start: performance.now() };
+
+    let frame = 0;
+    const tick = (): void => {
+      forceRef.current?.();
+      const en = eclosionRef.current;
+      if (en && performance.now() - en.start < ECLOSION_MS) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      eclosionRef.current = null;
+      forceRef.current?.();
+    };
+    frame = requestAnimationFrame(tick);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      eclosionRef.current = null;
+    };
+  }, [eclosion]);
 
   /*
    * LA SÈVE MONTE.

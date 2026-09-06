@@ -100,6 +100,14 @@ export interface DrawLinksParams {
    * Absent : tout est à son état final, sans animation.
    */
   seve?: { plan: PlanDeSeve; front: number; estompe: number };
+  /**
+   * Les fiches dont le bourgeon vient de s'ouvrir en feuille, et où en est
+   * cette ouverture.
+   *
+   * Une seule avancée pour toutes : elles viennent d'une même modification,
+   * elles s'ouvrent donc ensemble. Absent : rien n'éclôt.
+   */
+  eclosion?: { ids: Set<string>; progres: number };
 }
 
 /**
@@ -322,7 +330,9 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
       ctx.globalAlpha = 1;
     }
 
-    if (params.etats) feuiller(ctx, group.list, params.etats, group.color, unit, avancements);
+    if (params.etats) {
+      feuiller(ctx, group.list, params.etats, group.color, unit, avancements, params.eclosion);
+    }
   }
 
   /*
@@ -767,6 +777,8 @@ function feuiller(
   unit: number,
   /** Par union, la part de son trait déjà encrée. Absent : tout est ouvert. */
   avancements?: Map<string, number>,
+  /** Les feuilles en train de s'ouvrir. Voir `eclosion` dans les paramètres. */
+  eclosion?: { ids: Set<string>; progres: number },
 ): void {
   const tiges = new Path2D();
   const pleines = new Path2D();
@@ -798,9 +810,30 @@ function feuiller(
       const cote = Math.round(centre) % 2 === 0 ? 1 : -1;
       // La feuille part de la branche et s'en écarte vers le haut : c'est le
       // sens dans lequel pousse un rameau.
-      const angle = cote > 0 ? -0.68 : Math.PI + 0.68;
-      const taille = 24 * unit * pousse;
-      const tige = 5 * unit * pousse;
+      const angleRepos = cote > 0 ? -0.68 : Math.PI + 0.68;
+
+      /*
+       * L'ÉCLOSION.
+       *
+       * Une feuille ne s'ouvre pas en grandissant : elle se DÉROULE. Elle
+       * arrive donc pliée contre sa branche et se redresse — un demi-radian
+       * de vrille qui se résorbe, dans le sens de son côté, et le
+       * dépassement d'`eclot` par-dessus. Sans cette vrille, ce serait une
+       * feuille qu'on agrandit, ce qui ne ressemble à rien de vivant.
+       *
+       * `brut` et non la valeur adoucie : `eclot` dépasse un, et une vrille
+       * qui dépasse repartirait de l'autre côté.
+       */
+      const brut = eclosion?.ids.has(child.id)
+        ? Math.max(0, Math.min(1, eclosion.progres))
+        : 1;
+      const ouverture = eclosion?.ids.has(child.id) ? eclot(eclosion.progres) : 1;
+      const echelle = Math.min(pousse, ouverture);
+      if (echelle <= 0.02) continue;
+
+      const angle = angleRepos + (1 - brut) * 0.62 * cote;
+      const taille = 24 * unit * echelle;
+      const tige = 5 * unit * echelle;
       const px = repere(centre, yb, angle);
       const [bx, by] = px(tige, 0);
 
