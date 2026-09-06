@@ -565,48 +565,83 @@ interface Trait {
  * pareil à chaque redessin, sinon l'arbre entier tremblote dès qu'on le
  * déplace.
  */
-function fremis(graine: number): (t: number) => number {
-  const table: number[] = [];
-  let x = graine * 2654435761 % 4294967296;
-  for (let i = 0; i < 64; i += 1) {
-    x = (x * 1664525 + 1013904223) % 4294967296;
-    table.push(x / 4294967296);
+/*
+ * LE FRÉMIS : UNE SEULE TABLE, POUR TOUT L'ARBRE.
+ *
+ * Chaque trait tirait sa propre table de soixante-quatre valeurs et la
+ * refermait dans une fonction. Mesuré : à cent cinquante traits redessinés
+ * trois fois — une passe par épaisseur d'encre —, cela faisait quatre cent
+ * cinquante tables et quatre cent cinquante fermetures créées puis jetées à
+ * CHAQUE image de la montée de sève.
+ *
+ * Une table unique, remplie une fois, suffit : chaque trait n'y entre pas au
+ * même endroit. Le décalage vient de sa position, donc il ne bouge jamais —
+ * un trait frémit exactement pareil à chaque redessin, ce qui est toute la
+ * condition pour que l'arbre ne tremblote pas quand on le déplace.
+ */
+const FREMIS_TAILLE = 512;
+const FREMIS = new Float64Array(FREMIS_TAILLE);
+{
+  let x = 0x9e3779b9;
+  for (let i = 0; i < FREMIS_TAILLE; i += 1) {
+    x = (x * 1664525 + 1013904223) >>> 0;
+    FREMIS[i] = x / 4294967296;
   }
-  return (t: number): number => {
-    const i = Math.floor(t);
-    const f = t - i;
-    const a = table[((i % 64) + 64) % 64];
-    const b = table[((i + 1) % 64 + 64) % 64];
-    // Lissage en marche d'escalier adoucie : la dérivée s'annule aux nœuds,
-    // donc pas d'angle au passage d'un intervalle à l'autre.
-    return a + (b - a) * (f * f * (3 - 2 * f));
-  };
+}
+
+function fremis(decalage: number, t: number): number {
+  const u = t + decalage;
+  const i = Math.floor(u);
+  const f = u - i;
+  const a = FREMIS[((i % FREMIS_TAILLE) + FREMIS_TAILLE) % FREMIS_TAILLE];
+  const b = FREMIS[(((i + 1) % FREMIS_TAILLE) + FREMIS_TAILLE) % FREMIS_TAILLE];
+  // Lissage en marche d'escalier adoucie : la dérivée s'annule aux nœuds,
+  // donc pas d'angle au passage d'un intervalle à l'autre.
+  return a + (b - a) * (f * f * (3 - 2 * f));
 }
 
 /** Une graine stable, tirée de la position : le même trait frémit toujours
  *  de la même façon, où qu'on en soit dans le déplacement. */
 const graineDe = ([x1, y1]: Segment): number => Math.abs(Math.round(x1 * 7.3 + y1 * 13.1));
 
+/* ---------------------------------------------------------------------------
+ * L'AXE D'UN TRAIT, ÉCHANTILLONNÉ UNE SEULE FOIS
+ *
+ * Un trait est encré en trois passes — deux bavures et l'encre — et les trois
+ * suivent EXACTEMENT le même axe : seule la demi-épaisseur change. On les
+ * calculait pourtant trois fois, avec leur trigonométrie, leur bruit et deux
+ * tableaux qui grandissaient à coups de `push`.
+ *
+ * L'axe est donc échantillonné une fois dans des tampons réutilisés d'un trait
+ * à l'autre, et les trois chemins sont nourris dans la foulée. Plus une seule
+ * allocation par trait, et un tiers du calcul.
+ * ------------------------------------------------------------------------- */
+
+/** Bien au-delà du `N` maximal ci-dessous : ces tampons ne sont alloués qu'une
+ *  fois pour toute la vie de la page. */
+const ECH_MAX = 40;
+const ECH_X = new Float64Array(ECH_MAX);
+const ECH_Y = new Float64Array(ECH_MAX);
+const ECH_DEMI = new Float64Array(ECH_MAX);
+let echN = 0;
+let echNx = 0;
+let echNy = 0;
+
 /**
- * Le tracé d'un trait à la plume.
+ * Pose l'axe d'un trait dans les tampons partagés.
  *
- * On ne « strokes » pas une ligne : on REMPLIT la forme comprise entre deux
- * bords décalés de part et d'autre de l'axe. C'est la seule façon de faire
- * varier l'épaisseur le long de la course — et c'est ce qui distingue une
- * plume d'un feutre, qui pose partout la même largeur.
- *
- * `gonfle` sert à la bavure : le même tracé, élargi, très pâle, posé dessous.
+ * Rend `false` pour un trait de longueur nulle : il n'y a rien à encrer, et sa
+ * normale ne serait pas définie.
  */
-function plume(path: Path2D, trait: Trait, base: number, gonfle: number, unit: number): void {
+function echantillonner(trait: Trait, base: number, unit: number): boolean {
   const [x1, y1, x2, y2] = trait.seg;
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len = Math.hypot(dx, dy);
-  if (len < 0.01) return;
+  if (len < 0.01) return false;
 
-  const nx = -dy / len;
-  const ny = dx / len;
-  const bruit = fremis(graineDe(trait.seg));
+  echNx = -dy / len;
+  echNy = dx / len;
 
   /*
    * Le frémis se mesure à l'ÉCRAN, pas à l'épaisseur du trait.
@@ -629,26 +664,46 @@ function plume(path: Path2D, trait: Trait, base: number, gonfle: number, unit: n
   // trait : c'est un accident de l'attache, pas une proportion de la branche.
   const noeud = trait.noeud ?? 0;
   const portee = 6 / courseEcran;
+  const decalage = graineDe(trait.seg) % FREMIS_TAILLE;
   // Assez de points pour que chaque ondulation soit décrite, pas au point de
   // payer un millier de sommets par union.
   const N = Math.min(24, Math.max(6, Math.round(periodes * 5)));
-  const gauche: number[] = [];
-  const droite: number[] = [];
+  echN = N;
 
   for (let i = 0; i <= N; i += 1) {
     const t = i / N;
     const bosse = noeud > 0 ? noeud * unit * Math.exp(-(t / portee) * (t / portee)) : 0;
-    const demi = (base * (trait.from + (trait.to - trait.from) * t)) / 2 + gonfle + bosse;
-    const ecart = (bruit(t * periodes) - 0.5) * unit * 1.5;
-    const px = x1 + dx * t + nx * ecart;
-    const py = y1 + dy * t + ny * ecart;
-    gauche.push(px + nx * demi, py + ny * demi);
-    droite.push(px - nx * demi, py - ny * demi);
+    const ecart = (fremis(decalage, t * periodes) - 0.5) * unit * 1.5;
+    ECH_X[i] = x1 + dx * t + echNx * ecart;
+    ECH_Y[i] = y1 + dy * t + echNy * ecart;
+    ECH_DEMI[i] = (base * (trait.from + (trait.to - trait.from) * t)) / 2 + bosse;
   }
 
-  path.moveTo(gauche[0], gauche[1]);
-  for (let i = 2; i < gauche.length; i += 2) path.lineTo(gauche[i], gauche[i + 1]);
-  for (let i = droite.length - 2; i >= 0; i -= 2) path.lineTo(droite[i], droite[i + 1]);
+  return true;
+}
+
+/**
+ * Le tracé d'un trait à la plume, depuis l'axe déjà posé.
+ *
+ * On ne « strokes » pas une ligne : on REMPLIT la forme comprise entre deux
+ * bords décalés de part et d'autre de l'axe. C'est la seule façon de faire
+ * varier l'épaisseur le long de la course — et c'est ce qui distingue une
+ * plume d'un feutre, qui pose partout la même largeur.
+ *
+ * `gonfle` sert à la bavure : le même tracé, élargi, très pâle, posé dessous.
+ */
+function plume(path: Path2D, gonfle: number): void {
+  const n = echN;
+  let demi = ECH_DEMI[0] + gonfle;
+  path.moveTo(ECH_X[0] + echNx * demi, ECH_Y[0] + echNy * demi);
+  for (let i = 1; i <= n; i += 1) {
+    demi = ECH_DEMI[i] + gonfle;
+    path.lineTo(ECH_X[i] + echNx * demi, ECH_Y[i] + echNy * demi);
+  }
+  for (let i = n; i >= 0; i -= 1) {
+    demi = ECH_DEMI[i] + gonfle;
+    path.lineTo(ECH_X[i] - echNx * demi, ECH_Y[i] - echNy * demi);
+  }
   path.closePath();
 }
 
@@ -671,18 +726,34 @@ function encrer(
 ): void {
   if (traits.length === 0 || opacite <= 0) return;
 
-  for (const [gonfle, alpha] of [[2.6, 0.05] as const, [1.1, 0.07] as const]) {
-    const bavure = new Path2D();
-    for (const trait of traits) plume(bavure, trait, base, gonfle * unit, unit);
-    ctx.globalAlpha = alpha * opacite;
-    ctx.fillStyle = couleur;
-    ctx.fill(bavure);
+  /*
+   * Les trois chemins se remplissent EN MÊME TEMPS, un trait après l'autre.
+   *
+   * Trois boucles séparées sur la liste des traits obligeaient à
+   * rééchantillonner l'axe à chaque fois. Une seule boucle, trois `Path2D`
+   * nourris dans la foulée : l'axe n'est calculé qu'une fois.
+   */
+  const bavureLarge = new Path2D();
+  const bavureCourte = new Path2D();
+  const encre = new Path2D();
+
+  for (const trait of traits) {
+    if (!echantillonner(trait, base, unit)) continue;
+    plume(bavureLarge, 2.6 * unit);
+    plume(bavureCourte, 1.1 * unit);
+    plume(encre, 0);
   }
 
-  ctx.globalAlpha = opacite;
-  const encre = new Path2D();
-  for (const trait of traits) plume(encre, trait, base, 0, unit);
+  // L'ordre compte : le papier boit l'encre bien au-delà du tracé, donc la
+  // bavure d'abord, le trait ensuite. Elle est obtenue en élargissant la même
+  // forme plutôt qu'en floutant, ce qui évite un `ctx.filter` par groupe — un
+  // flou de canevas coûte cher, deux remplissages de plus ne coûtent rien.
   ctx.fillStyle = couleur;
+  ctx.globalAlpha = 0.05 * opacite;
+  ctx.fill(bavureLarge);
+  ctx.globalAlpha = 0.07 * opacite;
+  ctx.fill(bavureCourte);
+  ctx.globalAlpha = opacite;
   ctx.fill(encre);
   ctx.globalAlpha = 1;
 }
@@ -1251,7 +1322,39 @@ const EP_BUS = 1;
 const EP_RAMEAU_HAUT = 0.95;
 const EP_RAMEAU_BAS = 0.72;
 
+/*
+ * LES TRAITS D'UNE UNION, CALCULÉS UNE FOIS PAR DISPOSITION.
+ *
+ * Ils ne dépendent que de la géométrie, qui ne change pas entre deux
+ * redessins — mais on les reconstruisait à chaque image : un tableau et cinq
+ * objets par union, pour cent cinquante unions visibles, soixante fois par
+ * seconde pendant une montée de sève.
+ *
+ * Le cache est une `WeakMap` sur l'objet union lui-même : quand la
+ * disposition est recalculée, ce sont de NOUVEAUX objets, et l'ancien cache
+ * s'efface tout seul. Rien à invalider à la main — donc rien à oublier
+ * d'invalider.
+ *
+ * Deux variantes coexistent, avec ou sans le trait d'alliance : un divorce le
+ * dessine à part, en pointillé. On garde donc les deux.
+ */
+const CACHE_TRAITS = new WeakMap<LayoutUnion, { avec?: Trait[]; sans?: Trait[] }>();
+
 function unionSegments(union: LayoutUnion, includeAlliance = true): Trait[] {
+  let entree = CACHE_TRAITS.get(union);
+  if (!entree) {
+    entree = {};
+    CACHE_TRAITS.set(union, entree);
+  }
+  const cle = includeAlliance ? 'avec' : 'sans';
+  const connu = entree[cle];
+  if (connu) return connu;
+  const calcule = calculerSegments(union, includeAlliance);
+  entree[cle] = calcule;
+  return calcule;
+}
+
+function calculerSegments(union: LayoutUnion, includeAlliance: boolean): Trait[] {
   const { partners, children } = union;
   if (partners.length === 0) return [];
 

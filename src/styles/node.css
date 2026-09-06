@@ -61,7 +61,21 @@
    * changements d'état ultérieurs (survol, sélection) restent gouvernés par
    * les transitions ci-dessus, jamais par cette animation.
    */
-  animation: node-materialize 520ms var(--ease-spring) both;
+  /*
+   * `backwards`, et surtout PAS `both`.
+   *
+   * `both` garde l'état de la dernière image-clé appliqué indéfiniment — dont
+   * le `filter: blur(0)` posé à 65 %. Mesuré : les trente-neuf cartes à
+   * l'écran portaient toutes un `filter: blur(0px)` permanent, reliquat d'une
+   * animation d'un demi-seconde. Un filtre, même nul, sort l'élément du
+   * rendu ordinaire et lui impose sa propre couche.
+   *
+   * `backwards` pose l'état de départ AVANT que l'animation commence — ce
+   * dont on a besoin — et rend l'élément à ses propres styles une fois
+   * finie. Les images-clés terminent déjà sur les valeurs naturelles
+   * (opacité pleine, aucune transformation), il n'y a donc aucun saut.
+   */
+  animation: node-materialize 520ms var(--ease-spring) backwards;
 }
 
 @keyframes node-materialize {
@@ -564,9 +578,23 @@
   opacity: 0;
   transform: translate(-50%, -6px) scale(0.96);
   transform-origin: top center;
+  /*
+   * `visibility: hidden` au repos, et ce n'est pas un détail.
+   *
+   * Une opacité nulle ne retire pas l'élément du rendu : il est composé,
+   * mesuré, et son fond — papier grainé, ombre portée — reste rastérisé.
+   * Mesuré : trente-neuf infobulles ainsi peintes en permanence, une par
+   * carte visible, pour n'en montrer qu'une au survol.
+   *
+   * La transition de `visibility` est posée à durée nulle avec un RETARD égal
+   * à celle de l'opacité : l'infobulle disparaît donc du rendu seulement une
+   * fois effacée, et le fondu de sortie reste entier.
+   */
+  visibility: hidden;
   transition:
     opacity var(--dur-fast) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+    transform var(--dur-base) var(--ease-spring),
+    visibility 0s linear var(--dur-base);
 }
 
 /*
@@ -579,9 +607,16 @@
  */
 .node:hover .node-tooltip,
 .node:focus-visible .node-tooltip {
+  visibility: visible;
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
-  transition-delay: 60ms;
+  /* À l'entrée, la visibilité doit revenir TOUT DE SUITE — sans quoi le fondu
+     se jouerait sur un élément encore retiré du rendu, et l'infobulle
+     surgirait à la fin au lieu d'apparaître. */
+  transition:
+    opacity var(--dur-fast) var(--ease-out) 60ms,
+    transform var(--dur-base) var(--ease-spring) 60ms,
+    visibility 0s linear 0s;
 }
 
 .node-tooltip-name {
