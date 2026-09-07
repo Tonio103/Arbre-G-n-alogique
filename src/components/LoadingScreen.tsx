@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface LoadingScreenProps {
   /** Passe à `true` dès que l'arbre est cadré et prêt à apparaître. */
@@ -11,6 +11,17 @@ export interface LoadingScreenProps {
   people?: number;
   /** Nombre de générations couvertes. */
   generations?: number;
+  /**
+   * Appelé une seule fois, à l'instant précis où le rideau commence à se
+   * retirer.
+   *
+   * C'est le seul moment qui convienne pour lancer le tracé de l'arbre : plus
+   * tôt, il s'encrerait derrière le rideau et personne ne le verrait ; plus
+   * tard, on regarderait du papier nu pendant que le rideau finit de partir.
+   * Ni le cadrage ni le plancher d'affichage ne peuvent le dire seuls — c'est
+   * le dernier des deux qui décide, et lui seul le sait.
+   */
+  onLeaving?: () => void;
 }
 
 /*
@@ -25,8 +36,15 @@ export interface LoadingScreenProps {
  * suivent, à vie, tombaient donc sur les 500 ms, un simple flash. Un rideau
  * qu'on ne voit jamais ne sert à rien : autant qu'il dure pareil pour tout le
  * monde, assez longtemps pour se lire.
+ *
+ * RAMENÉ DE 2800 À 1700 MS le jour où le rideau a cessé d'être le seul
+ * moment d'accueil. Il se retirait alors sur un arbre déjà tracé : c'était à
+ * lui de porter toute l'ouverture, et il lui fallait ce temps. Il passe
+ * désormais la main au tracé de l'arbre (voir `App`, « le tirage »), qui dure
+ * lui-même entre deux secondes et demie et quatre et demie. Les additionner faisait
+ * sept secondes de porte d'entrée.
  */
-const DISPLAY_MS = 2800;
+const DISPLAY_MS = 1700;
 const EXIT_MS = 620;
 
 /**
@@ -55,6 +73,7 @@ export function LoadingScreen({
   names = [],
   people = 0,
   generations = 0,
+  onLeaving,
 }: LoadingScreenProps) {
   const [mounted, setMounted] = useState(true);
   const [floorPassed, setFloorPassed] = useState(false);
@@ -84,11 +103,33 @@ export function LoadingScreen({
 
   const leaving = ready && floorPassed;
 
+  /*
+   * DEUX EFFETS, ET SURTOUT PAS UN SEUL.
+   *
+   * Ils tenaient ensemble : prévenir du départ et démonter le rideau à la fin
+   * de sa sortie. Or `onLeaving` arrive d'une lambda écrite sur place chez
+   * l'appelant, donc d'identité neuve à CHAQUE rendu — l'effet se rejouait
+   * sans cesse, et son nettoyage annulait à chaque fois le minuteur de
+   * démontage juste avant qu'il n'échoie. Mesuré : le rideau tenait encore à
+   * quatorze secondes, sur un arbre entièrement tracé derrière lui.
+   *
+   * Le minuteur ne dépend donc que de `leaving`. L'avertissement, lui, garde
+   * sa `ref` de garde : elle ne sert plus à empêcher un double appel — il n'y
+   * en aurait plus — mais à ce que la promesse « une seule fois » reste vraie
+   * quoi qu'il advienne des identités de fonctions chez l'appelant.
+   */
   useEffect(() => {
     if (!leaving) return undefined;
     const timer = window.setTimeout(() => setMounted(false), EXIT_MS);
     return () => window.clearTimeout(timer);
   }, [leaving]);
+
+  const prevenuRef = useRef(false);
+  useEffect(() => {
+    if (!leaving || prevenuRef.current) return;
+    prevenuRef.current = true;
+    onLeaving?.();
+  }, [leaving, onLeaving]);
 
   const caption = useMemo(() => {
     if (people === 0) return '';

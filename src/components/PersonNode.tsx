@@ -39,6 +39,16 @@ export interface PersonNodeProps {
   /** Cette personne fait partie du chemin de parenté affiché. */
   onPath?: boolean;
   /**
+   * La carte arrive pendant le tirage d'ouverture : elle est FRAPPÉE, pas
+   * matérialisée.
+   *
+   * Deux gestes opposés, et c'est voulu. La matérialisation ordinaire fait
+   * grandir la carte depuis un demi-format : quelque chose qui pousse. Une
+   * presse fait l'inverse — elle descend sur le papier, donc la carte arrive
+   * TROP GRANDE et floue, se pose, se comprime d'un rien, puis se cale.
+   */
+  frappee?: boolean;
+  /**
    * Nombre de proches — conjoints, enfants — que cette vue ne montre pas.
    *
    * Une ascendance n'a qu'une place par étage : un remariage ou une seconde
@@ -92,6 +102,7 @@ export const PersonNode = memo(function PersonNode({
   flagged,
   onPath,
   hiddenKin,
+  frappee,
   onSelect,
   onHover,
 }: PersonNodeProps) {
@@ -127,6 +138,7 @@ export const PersonNode = memo(function PersonNode({
       }
       data-id={person.id}
       data-path={onPath || undefined}
+      data-frappee={frappee || undefined}
       data-detail={detail}
       data-role={role ?? undefined}
       data-dimmed={dimmed || undefined}

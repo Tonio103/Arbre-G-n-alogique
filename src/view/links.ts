@@ -257,7 +257,15 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
     /** Par union, la part déjà encrée : c'est elle qui ouvre les feuilles. */
     let avancements: Map<string, number> | undefined;
 
-    if (group.role === 'accent' && seve) {
+    /*
+     * L'OUVERTURE COULE SUR LE GROUPE UNIQUE.
+     *
+     * La sève ne s'appliquait qu'au groupe accentué — celui qui n'existe que
+     * lorsqu'une personne est sélectionnée. À l'ouverture, il n'y a pas de
+     * sélection : tout l'arbre est dans le groupe « seul », et le plan, tout
+     * calculé qu'il était, ne servait à rien.
+     */
+    if ((group.role === 'accent' || group.role === 'seul') && seve) {
       avancements = new Map();
       for (const union of group.list) {
         const plan = seve.plan.traits.get(union.id);
@@ -348,7 +356,7 @@ export function drawLinks(ctx: CanvasRenderingContext2D, params: DrawLinksParams
         (souche) => group.role === 'seul' || souche.accentuee === (group.role === 'accent'),
       );
       const seveGlobale =
-        group.role === 'accent' && seve
+        (group.role === 'accent' || group.role === 'seul') && seve
           ? Math.max(0, Math.min(1, seve.front / Math.max(1, seve.plan.portee)))
           : 1;
       feuiller(
@@ -1129,6 +1137,26 @@ export interface PlanDeSeve {
   traits: Map<string, Array<ArriveeDeSeve | undefined>>;
   /** La course entière : du départ jusqu'au trait le plus lointain. */
   portee: number;
+  /**
+   * PAR PERSONNE, LA DISTANCE À LAQUELLE L'ENCRE LA REJOINT.
+   *
+   * Le plan savait animer des TRAITS ; il ne savait rien dire des gens que
+   * ces traits relient. Pour l'ouverture, c'est pourtant la seule question
+   * qui compte : un médaillon ne doit pas apparaître avant que la branche qui
+   * le porte soit tracée jusqu'à lui, sinon la carte flotte une demi-seconde
+   * au bout d'un rameau qui n'existe pas encore.
+   *
+   * Renseigné seulement quand on passe des ancres — le tracé d'une sélection
+   * n'en a pas besoin et ne paie donc pas ce calcul.
+   */
+  personnes?: Map<string, number>;
+}
+
+/** Le point du monde par lequel l'encre rejoint une personne. */
+export interface AncreDePersonne {
+  id: string;
+  x: number;
+  y: number;
 }
 
 /**
@@ -1150,6 +1178,8 @@ export function planterLaSeve(
   unions: LayoutUnion[],
   accentuees: Set<string>,
   source: { x: number; y: number },
+  /** Où chaque personne accroche le réseau. Voir `personnes` dans le plan. */
+  ancres?: AncreDePersonne[],
 ): PlanDeSeve | null {
   const index = new Map<string, number>();
   const px: number[] = [];
@@ -1272,7 +1302,43 @@ export function planterLaSeve(
     portee = Math.max(portee, arrivee + inscrit.longueur);
   }
 
-  return { traits, portee };
+  /*
+   * L'HEURE D'ARRIVÉE DE CHAQUE PERSONNE.
+   *
+   * L'ancre d'une personne — le haut de sa carte, là où son rameau la
+   * rejoint — est déjà un nœud du réseau par construction : c'est l'extrémité
+   * basse de ce rameau. On la retrouve donc par la clé de grille, en O(1), et
+   * l'on ne retombe sur un balayage complet que pour les rares ancres qui n'y
+   * correspondent à rien — une souche, qui n'a pas de rameau du tout, et dont
+   * l'accroche la plus proche est une extrémité de son trait d'alliance.
+   */
+  let personnes: Map<string, number> | undefined;
+  if (ancres && ancres.length > 0) {
+    personnes = new Map();
+    for (const ancre of ancres) {
+      const cle = `${Math.round(ancre.x * PAS_GRILLE)}:${Math.round(ancre.y * PAS_GRILLE)}`;
+      let n = index.get(cle);
+      if (n === undefined) {
+        let meilleure = Infinity;
+        for (let k = 0; k < px.length; k += 1) {
+          const d = (px[k] - ancre.x) ** 2 + (py[k] - ancre.y) ** 2;
+          if (d < meilleure) {
+            meilleure = d;
+            n = k;
+          }
+        }
+      }
+      const d = n === undefined ? Infinity : dist[n];
+      // Hors réseau : la personne arrive quand le front passe à sa hauteur,
+      // à vol d'oiseau. Même parti que pour les traits inaccessibles.
+      personnes.set(
+        ancre.id,
+        Number.isFinite(d) ? d : Math.hypot(ancre.x - source.x, ancre.y - source.y),
+      );
+    }
+  }
+
+  return { traits, portee, personnes };
 }
 
 /**

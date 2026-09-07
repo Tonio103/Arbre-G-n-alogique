@@ -44,6 +44,33 @@
  * place à elle, et les deux ne se disputent rien.
  */
 
+/*
+ * LE MOBILIER ARRIVE APRÈS LA PLANCHE.
+ *
+ * Pendant le tirage d'ouverture (voir `App`), la barre, le rail et les coins
+ * gravés n'existent pas : le rideau se retire sur du PAPIER, et rien d'autre.
+ * Ils avaient l'air, sinon, d'attendre par-dessus une planche à moitié
+ * encrée — ce qui vidait le geste de son sens. Dans un générique, le mobilier
+ * passe en dernier.
+ *
+ * `animation: none` et pas seulement `opacity: 0`, et c'est indispensable :
+ * `chrome-in` est posée en `both`, or une animation l'emporte sur une simple
+ * déclaration. Sans la retirer, l'opacité nulle n'aurait rien fait.
+ *
+ * L'effet de bord est précisément ce qu'on veut : l'attribut retiré, le
+ * navigateur voit une animation neuve et la joue depuis le début. Le mobilier
+ * entre donc avec son propre mouvement d'arrivée, celui qu'il a toujours eu,
+ * à l'instant où la planche est finie.
+ */
+.app[data-tirage] .topbar,
+.app[data-tirage] .rail,
+.app[data-tirage] .coins,
+.app[data-tirage] .notice {
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
 @keyframes chrome-in {
   from {
     opacity: 0;

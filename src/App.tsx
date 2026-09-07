@@ -24,7 +24,7 @@ import {
   type NewPersonInput,
 } from '@/domain/edit';
 import type { PersonRecord, UnionStatus } from '@/data/schema';
-import { ViewportController, transformForBounds } from '@/view/viewport';
+import { ViewportController, transformForBounds, transformForPoint } from '@/view/viewport';
 import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
@@ -364,10 +364,124 @@ export default function App() {
     viewport.fit(layout.bounds, FIT_PADDING, 0.9, 820);
   }, [viewport, layout.bounds]);
 
-  // Ouverture : l'arbre entier apparaît d'abord, puis la vue plonge vers la
-  // personne principale. En une seconde, on comprend l'échelle et où l'on est.
+  /* ═════════════════════════════════════════════════════════════════════
+   * LE TIRAGE — la séquence d'ouverture.
+   *
+   * Ce qu'il y avait avant : le rideau se retirait sur un arbre DÉJÀ tracé,
+   * cadré en entier, puis la vue plongeait vers la personne principale. Deux
+   * mouvements de caméra sur une image fixe — l'application s'ouvrait comme
+   * on ouvre un document.
+   *
+   * Ce que c'est devenu tient de la planche qu'on vient de tirer, et se lit
+   * en quatre mouvements enchaînés :
+   *
+   *   1. LE PAPIER. Le rideau se retire sur du papier nu, cadré serré sur la
+   *      souche de l'arbre. Aucun trait, aucune carte.
+   *
+   *   2. L'ENCRE. Le tracé part de la souche et gagne l'arbre entier, chaque
+   *      branche dans l'ordre où le réseau la relie — c'est le moteur de
+   *      montée de sève, celui de la sélection, lâché sur tout l'arbre. La
+   *      goutte de la plume court en tête de chaque front.
+   *
+   *   3. LES MÉDAILLONS. Chaque carte frappe le papier à l'instant où l'encre
+   *      la rejoint, pas avant : elle arrive trop grande et floue, se pose,
+   *      se comprime d'un rien, puis se cale. C'est le geste d'une presse, et
+   *      c'est ce qui la distingue d'une apparition en fondu.
+   *
+   *   4. LE RECUL. La caméra recule pendant tout le tracé — de la souche à
+   *      l'arbre entier — puis se pose sur la personne principale. On part
+   *      d'un détail, on découvre l'ampleur, on revient à son histoire.
+   *
+   * Interruptible à tout moment : le premier geste de l'utilisateur — clic,
+   * molette, touche — coupe la séquence et rend l'arbre entier d'un coup. Une
+   * ouverture qu'on ne peut pas passer devient une porte fermée.
+   * ═════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * La durée du tracé, à l'échelle de l'arbre.
+   *
+   * En racine de la diagonale, comme la montée de sève : un arbre quatre fois
+   * plus large met deux fois plus de temps. Bornée des deux côtés — sous deux
+   * secondes et demie le geste n'est plus lisible, au-delà de quatre secondes
+   * et demie on attend.
+   */
+  const dureeDuTrace = (bounds: { minX: number; maxX: number; minY: number; maxY: number }): number => {
+    const diagonale = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+    return Math.max(2500, Math.min(4500, 1700 + Math.sqrt(diagonale) * 36));
+  };
+
   const introRef = useRef(false);
   const [ready, setReady] = useState(false);
+
+  /** Le tracé en cours. `null` dès qu'il est fini ou passé. */
+  const [ouverture, setOuverture] = useState<{
+    source: { x: number; y: number };
+    duree: number;
+    cle: number;
+  } | null>(null);
+
+  /*
+   * Le tracé ne peut commencer qu'une fois DEUX choses vraies : l'arbre est
+   * cadré (sinon on encre dans le vide) et le rideau s'est retiré (sinon on
+   * encre derrière lui). Ces deux événements n'ont aucun ordre garanti — un
+   * cadrage lent passe après le plancher du rideau, un onglet en arrière-plan
+   * fait l'inverse. Chacun pose son drapeau et appelle le même déclencheur ;
+   * le second à arriver ouvre.
+   */
+  const preparationRef = useRef<{ source: { x: number; y: number }; duree: number } | null>(null);
+  const rideauPartiRef = useRef(false);
+  const ouvertRef = useRef(false);
+  /* `rideauSeRetire` est défini avant `ouvrirSiPret` — il doit rester stable,
+     et ne peut donc pas fermer sur elle directement. */
+  const ouvrirSiPretRef = useRef<(() => void) | null>(null);
+
+  /* Stable : `LoadingScreen` la garde en dépendance d'effet, et une identité
+     neuve à chaque rendu y relancerait l'effet du départ de rideau. */
+  const rideauSeRetire = useCallback(() => {
+    rideauPartiRef.current = true;
+    ouvrirSiPretRef.current?.();
+  }, []);
+
+  const ouvrirSiPret = useCallback(() => {
+    if (ouvertRef.current) return;
+    const preparation = preparationRef.current;
+    if (!preparation || !rideauPartiRef.current) return;
+    ouvertRef.current = true;
+    setOuverture({ ...preparation, cle: performance.now() });
+  }, []);
+  ouvrirSiPretRef.current = ouvrirSiPret;
+
+  /** Couper la séquence : l'arbre entier, tout de suite. */
+  const passerLOuverture = useCallback(() => {
+    ouvertRef.current = true;
+    setOuverture((courante) => (courante ? null : courante));
+  }, []);
+
+  /*
+   * LE PREMIER GESTE COUPE.
+   *
+   * Sur la fenêtre et en capture : la séquence doit céder avant que le clic
+   * n'atteigne une carte, et non après. `passive` parce qu'on n'annule rien —
+   * le geste garde tout son effet, il coupe seulement le tracé en passant.
+   */
+  useEffect(() => {
+    if (!ouverture) return undefined;
+    const couper = (): void => passerLOuverture();
+    const options = { capture: true, passive: true } as const;
+    window.addEventListener('pointerdown', couper, options);
+    window.addEventListener('wheel', couper, options);
+    window.addEventListener('keydown', couper, options);
+    // Filet de sécurité : si une image manque à l'appel, la séquence se
+    // termine quand même. Rien ne doit pouvoir laisser l'arbre à moitié encré.
+    const fin = window.setTimeout(passerLOuverture, ouverture.duree + 900);
+    return () => {
+      window.removeEventListener('pointerdown', couper, options);
+      window.removeEventListener('wheel', couper, options);
+      window.removeEventListener('keydown', couper, options);
+      window.clearTimeout(fin);
+    };
+  }, [ouverture, passerLOuverture]);
+
   useEffect(() => {
     if (introRef.current) return;
     // Tant que la version partagée n'a pas répondu, l'arbre affiché n'est
@@ -404,17 +518,55 @@ export default function App() {
       // sans attendre le minuteur posé plus bas.
       setReady(true);
 
-      // L'arbre entier d'abord : on doit voir de quoi il s'agit — un arbre, sa
-      // silhouette, son ampleur — avant de descendre dans une branche.
-      viewport.set(transformForBounds(layout.bounds, stageSize, FIT_PADDING, 0.92));
-
-      // Puis la vue s'approche doucement du pied, d'où l'on plonge à la
-      // molette ou en glissant. Ce mouvement d'ouverture dit en une seconde
-      // ce que l'espace contient et comment il se parcourt.
       const root = layout.positions.get(graph.rootId);
-      focusTimer = window.setTimeout(() => {
-        if (root) viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1800);
-      }, 1500);
+      const calme = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (calme) {
+        // Aucune séquence : l'arbre entier, cadré, puis la personne
+        // principale. Le mouvement reste, l'effet de tracé disparaît.
+        viewport.set(transformForBounds(layout.bounds, stageSize, FIT_PADDING, 0.92));
+        focusTimer = window.setTimeout(() => {
+          if (root) {
+            viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1800);
+          }
+        }, 1500);
+        return;
+      }
+
+      /*
+       * LA SOUCHE : d'où part l'encre.
+       *
+       * La plus haute des cartes, et parmi elles la plus proche du milieu.
+       * Pas `graph.rootId` — celle-là est la personne AUTOUR de qui l'arbre
+       * est construit, souvent au bas de l'ascendance : l'encre en serait
+       * partie pour remonter à contre-sens de la lecture, et un arbre se lit
+       * de ses racines vers ses branches.
+       */
+      const milieuX = (layout.bounds.minX + layout.bounds.maxX) / 2;
+      let souche: { x: number; y: number } | null = null;
+      let meilleur = Infinity;
+      for (const position of layout.positions.values()) {
+        const score = position.y * 10000 + Math.abs(position.x - milieuX);
+        if (score < meilleur) {
+          meilleur = score;
+          souche = position;
+        }
+      }
+      if (!souche) return;
+
+      const depart = {
+        x: souche.x + CARD_WIDTH / 2,
+        y: souche.y + CARD_HEIGHT / 2,
+      };
+      const duree = dureeDuTrace(layout.bounds);
+
+      // Mouvement 1 : la caméra se pose serrée sur la souche, derrière le
+      // rideau. `set` et non `focusPoint` — il n'y a rien à animer, on part
+      // de là.
+      viewport.set(transformForPoint(depart.x, depart.y, stageSize, 1.3, 0));
+
+      preparationRef.current = { source: depart, duree };
+      ouvrirSiPret();
     };
 
     /*
@@ -454,7 +606,35 @@ export default function App() {
       window.clearTimeout(rideau);
       window.clearTimeout(focusTimer);
     };
-  }, [viewport, layout, datasetCtrl.loading]);
+  }, [viewport, layout, datasetCtrl.loading, graph.rootId, ouvrirSiPret]);
+
+  /*
+   * MOUVEMENT 4 : LE RECUL, puis la pose.
+   *
+   * La caméra recule pendant tout le tracé — un peu plus longtemps que lui,
+   * pour que le dernier trait se pose avant que le mouvement ne s'arrête —
+   * puis vient se caler sur la personne principale.
+   *
+   * Le recul est en `inout` : il démarre et s'arrête doucement, comme un
+   * mouvement d'appareil sur rail. En `out`, il partait à pleine vitesse à
+   * l'instant même où la première goutte d'encre touchait le papier.
+   */
+  useEffect(() => {
+    if (!ouverture) return undefined;
+    const recul = window.setTimeout(() => {
+      viewport.fit(layout.bounds, FIT_PADDING, 0.92, ouverture.duree + 300);
+    }, 90);
+    const pose = window.setTimeout(() => {
+      const root = layout.positions.get(graph.rootId);
+      if (root) {
+        viewport.focusPoint(root.x + CARD_WIDTH / 2, root.y + CARD_HEIGHT / 2, 0.9, 0, 1250);
+      }
+    }, ouverture.duree + 450);
+    return () => {
+      window.clearTimeout(recul);
+      window.clearTimeout(pose);
+    };
+  }, [ouverture, viewport, layout, graph.rootId]);
 
   /*
    * Un import ou un retour à la démonstration change l'arbre de forme au
@@ -717,13 +897,18 @@ export default function App() {
    * plus rien ne lit cette marque.
    */
   return (
-    <div className="app" data-panel-open={selectedPerson ? true : undefined}>
+    <div
+      className="app"
+      data-panel-open={selectedPerson ? true : undefined}
+      data-tirage={ouverture ? true : undefined}
+    >
       <LoadingScreen
         ready={ready}
         title={graph.title}
         names={openingNames}
         people={graph.people.size}
         generations={graph.generations.length}
+        onLeaving={rideauSeRetire}
       />
       <Backdrop viewport={viewport} />
 
@@ -809,6 +994,7 @@ export default function App() {
         pathUnions={relation?.unions}
         relation={relation}
         growingUnionId={growingUnionId}
+        ouverture={ouverture}
       />
 
       <GenerationRail rows={layout.rows} positions={layout.positions} viewport={viewport} />

@@ -1,7 +1,8 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { TreeLayout } from '@/domain/layout';
 import type { Rect, SpatialIndex } from '@/view/spatial';
-import { planterLaSeve, type PlanDeSeve } from '@/view/links';
+import { planterLaSeve, type AncreDePersonne, type PlanDeSeve } from '@/view/links';
+import { cardCenterX, cardTop } from '@/view/metrics';
 import type { EtatBotanique } from '@/domain/gaps';
 import type { ViewportController } from '@/view/viewport';
 import { visibleRect } from '@/view/viewport';
@@ -41,6 +42,24 @@ export interface LinkLayerProps {
    * teinte normale, et il n'y a pas de front à faire courir.
    */
   source: { x: number; y: number } | null;
+  /**
+   * L'OUVERTURE : l'arbre entier s'encre depuis sa souche.
+   *
+   * Le même moteur que la montée de sève, à trois différences près — le plan
+   * couvre TOUTES les unions au lieu des seules accentuées, il part de la
+   * souche au lieu de la personne choisie, et il dure quelques secondes au
+   * lieu d'une. `cle` relance le tracé ; `null` quand l'ouverture est passée.
+   */
+  ouverture?: { source: { x: number; y: number }; duree: number; cle: number } | null;
+  /**
+   * Appelé une fois le plan de l'ouverture calculé, avec l'heure d'arrivée de
+   * l'encre chez chaque personne, en millisecondes depuis le début.
+   *
+   * C'est ce qui permet aux médaillons de frapper le papier au passage du
+   * front plutôt que d'apparaître tous ensemble : le calcul a lieu ici, où le
+   * plan existe, et le résultat remonte à qui pose les cartes.
+   */
+  onOuverturePlan?: (arrivees: Map<string, number>) => void;
 }
 
 /** Durée de l'apparition d'un trait tout juste créé. */
@@ -192,6 +211,8 @@ export function LinkLayer({
   source,
   eclosion,
   souches,
+  ouverture,
+  onOuverturePlan,
 }: LinkLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef(0);
@@ -200,6 +221,24 @@ export function LinkLayer({
   const growthRef = useRef<{ unionId: string; start: number } | null>(null);
   const seveRef = useRef<{ plan: PlanDeSeve; start: number; duree: number } | null>(null);
   const eclosionRef = useRef<{ ids: Set<string>; start: number } | null>(null);
+
+  /*
+   * Les ancres de l'ouverture, dérivées de la mise en page.
+   *
+   * Le haut de chaque carte : c'est là que le rameau vient la rejoindre, donc
+   * l'endroit exact où l'encre l'atteint. Recalculées avec `layout` et jamais
+   * autrement — elles ne dépendent de rien d'autre, et les tenir dans une
+   * `ref` évite de les faire entrer dans les dépendances de l'effet de sève,
+   * où un nouveau tableau à chaque rendu relancerait Dijkstra sans cesse.
+   */
+  const ouvertureAncresRef = useRef<AncreDePersonne[]>([]);
+  useMemo(() => {
+    const ancres: AncreDePersonne[] = [];
+    for (const [id, position] of layout.positions) {
+      ancres.push({ id, x: cardCenterX(position.x), y: cardTop(position.y) });
+    }
+    ouvertureAncresRef.current = ancres;
+  }, [layout]);
 
   const stateRef = useRef({ highlightUnions, hasSelection, pathUnions, etats, souches });
   stateRef.current = { highlightUnions, hasSelection, pathUnions, etats, souches };
@@ -424,7 +463,32 @@ export function LinkLayer({
    * fois par seconde.
    */
   useEffect(() => {
-    if (!hasSelection || !source || highlightUnions.size === 0) {
+    /*
+     * DEUX SÈVES, UN SEUL MOTEUR.
+     *
+     * L'ouverture et la sélection font exactement la même chose — un front
+     * d'encre qui court sur un réseau depuis un point — et ne diffèrent que
+     * par leur périmètre, leur départ et leur durée. Les tenir dans deux
+     * effets aurait voulu dire deux boucles capables d'écrire dans le même
+     * `seveRef`, et donc de s'écraser l'une l'autre au moment précis où l'on
+     * clique pendant l'ouverture. Un seul effet, trois paramètres.
+     *
+     * L'ouverture passe DEVANT : cliquer pendant qu'elle court l'interrompt,
+     * ce qui est le comportement attendu — le geste de l'utilisateur prime
+     * toujours sur une animation d'accueil.
+     */
+    const cible = ouverture
+      ? {
+          unions: new Set(layout.unions.map((union) => union.id)),
+          depuis: ouverture.source,
+          duree: ouverture.duree,
+          ancres: ouvertureAncresRef.current,
+        }
+      : hasSelection && source && highlightUnions.size > 0
+        ? { unions: highlightUnions, depuis: source, duree: 0, ancres: undefined }
+        : null;
+
+    if (!cible) {
       seveRef.current = null;
       forceRef.current?.();
       return undefined;
@@ -436,15 +500,41 @@ export function LinkLayer({
       return undefined;
     }
 
-    const plan = planterLaSeve(layout.unions, highlightUnions, source);
+    const plan = planterLaSeve(layout.unions, cible.unions, cible.depuis, cible.ancres);
     if (!plan || plan.portee <= 0) {
       seveRef.current = null;
       forceRef.current?.();
       return undefined;
     }
 
-    const duree = seveDuree(plan.portee);
+    const duree = cible.duree > 0 ? cible.duree : seveDuree(plan.portee);
     seveRef.current = { plan, start: performance.now(), duree };
+
+    /*
+     * L'heure d'arrivée chez chacun, convertie en millisecondes.
+     *
+     * `avance` est un `smoothstep` : le front ne parcourt pas la portée à
+     * vitesse constante. Inverser la distance en temps demande donc d'inverser
+     * ce lissage, faute de quoi les cartes du milieu de l'arbre frapperaient
+     * jusqu'à un sixième de seconde trop tôt — l'écart maximal d'un smoothstep
+     * à sa diagonale. On le fait par bissection : c'est monotone, dix
+     * itérations donnent le millième, et cela n'a lieu qu'une fois.
+     */
+    if (plan.personnes && onOuverturePlan) {
+      const arrivees = new Map<string, number>();
+      for (const [id, distance] of plan.personnes) {
+        const cible2 = Math.max(0, Math.min(1, distance / plan.portee));
+        let bas = 0;
+        let haut = 1;
+        for (let k = 0; k < 12; k += 1) {
+          const milieu = (bas + haut) / 2;
+          if (avance(milieu) < cible2) bas = milieu;
+          else haut = milieu;
+        }
+        arrivees.set(id, ((bas + haut) / 2) * duree);
+      }
+      onOuverturePlan(arrivees);
+    }
 
     let frame = 0;
     const tick = (): void => {
@@ -465,7 +555,7 @@ export function LinkLayer({
       if (frame) cancelAnimationFrame(frame);
       seveRef.current = null;
     };
-  }, [highlightUnions, hasSelection, source, layout]);
+  }, [highlightUnions, hasSelection, source, layout, ouverture, onOuverturePlan]);
 
   // L'apparition d'un trait tout juste créé : redessine à chaque image
   // pendant `GROWTH_MS`, puis relâche — le reste du temps, `LinkLayer` ne

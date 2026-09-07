@@ -32,6 +32,13 @@ export interface TreeCanvasProps {
   relation?: RelationPath;
   /** Union tout juste créée : son trait se dessine au lieu d'apparaître d'un coup. */
   growingUnionId?: string | null;
+  /**
+   * LE TIRAGE : l'arbre s'encre depuis sa souche à l'ouverture.
+   *
+   * Voir `App`. Tant qu'il court, les médaillons ne sont pas tous posés :
+   * chacun attend que l'encre l'ait rejoint. `null` avant et après.
+   */
+  ouverture?: { source: { x: number; y: number }; duree: number; cle: number } | null;
 }
 
 interface VisibleState {
@@ -108,6 +115,7 @@ export function TreeCanvas({
   pathUnions,
   relation,
   growingUnionId,
+  ouverture,
 }: TreeCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
@@ -540,6 +548,74 @@ export function TreeCanvas({
   );
 
 
+  /* ═══════════════════════════════════════════════════════════════════
+   * LA VAGUE DES MÉDAILLONS.
+   *
+   * Chaque carte frappe le papier à l'instant où l'encre la rejoint. Deux
+   * façons de s'y prendre, et la première ne marchait pas :
+   *
+   * · UN RETARD CSS par carte, calculé une fois. Mais les cartes sont
+   *   virtualisées — seules celles qui sont à l'écran existent — et la caméra
+   *   RECULE pendant tout le tracé. Une carte qui entre dans le cadre à la
+   *   moitié de la séquence naissait alors avec son retard entier devant
+   *   elle, et frappait une seconde trop tard. Rattraper cela demandait de
+   *   recalculer le retard restant à chaque rendu, donc de modifier
+   *   `animation-delay` en plein vol : l'animation redémarrait.
+   *
+   * · UN ENSEMBLE DE RÉVÉLÉS, tenu par une horloge. La carte n'est tout
+   *   simplement pas rendue avant son heure, et son animation part sans
+   *   retard au moment où elle apparaît. Rien à rattraper, rien à
+   *   resynchroniser, et une carte qui entre tardivement dans le cadre est
+   *   déjà révélée : elle se pose sans cérémonie, ce qui est juste.
+   *
+   * L'ensemble n'est remplacé que lorsqu'il GRANDIT — sur quatre-vingt-treize
+   * personnes, cela fait au plus quatre-vingt-treize rendus répartis sur
+   * trois secondes, là où une horloge à chaque image en aurait fait deux
+   * cents.
+   * ═══════════════════════════════════════════════════════════════════ */
+  const [reveles, setReveles] = useState<Set<string> | null>(null);
+  const arriveesRef = useRef<Map<string, number> | null>(null);
+
+  const recevoirPlanDOuverture = useCallback((arrivees: Map<string, number>) => {
+    arriveesRef.current = arrivees;
+  }, []);
+
+  useEffect(() => {
+    if (!ouverture) {
+      arriveesRef.current = null;
+      setReveles(null);
+      return undefined;
+    }
+    // Papier nu : personne n'est encore posé. L'ensemble vide, et non `null`,
+    // c'est toute la différence entre « rien n'est révélé » et « il n'y a rien
+    // à révéler ».
+    setReveles(new Set());
+    const depart = performance.now();
+    let frame = 0;
+    const tick = (): void => {
+      const arrivees = arriveesRef.current;
+      const passe = performance.now() - depart;
+      if (arrivees) {
+        const atteints = new Set<string>();
+        for (const [id, quand] of arrivees) if (quand <= passe) atteints.add(id);
+        setReveles((avant) =>
+          avant && avant.size === atteints.size ? avant : atteints,
+        );
+      }
+      if (passe < ouverture.duree) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      // Fini : plus aucun filtre, l'arbre est à tout le monde.
+      setReveles(null);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      setReveles(null);
+    };
+  }, [ouverture]);
+
   const hasSelection = highlight.people.size > 0;
 
   const detail = visible.detail;
@@ -751,6 +827,8 @@ export function TreeCanvas({
           source={source}
           eclosion={eclosion}
           souches={souches}
+          ouverture={ouverture}
+          onOuverturePlan={recevoirPlanDOuverture}
         />
 
         <PathFlow layout={layout} relation={relation} />
@@ -759,6 +837,8 @@ export function TreeCanvas({
           visible.nodes.map((node) => {
             const person = graph.people.get(node.id);
             if (!person) return null;
+            // L'encre ne l'a pas encore rejointe : elle n'existe pas encore.
+            if (reveles && !reveles.has(node.id)) return null;
             const role = highlight.people.get(node.id);
             return (
               <PersonNode
@@ -783,6 +863,7 @@ export function TreeCanvas({
                 flagged={flaggedId === node.id}
                 onPath={pathPeople?.has(node.id) || undefined}
                 hiddenKin={layout.hiddenKin.get(node.id)}
+                frappee={reveles !== null || undefined}
                 onSelect={handleSelect}
                 onHover={handleHover}
               />
