@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import { useGlassScrollSuspend } from '@/hooks/useGlassScrollSuspend';
+import { useIsCompact } from '@/hooks/useMediaQuery';
 import type { Scope } from '@/domain/scope';
 import { buildTimeline, livingIn } from '@/domain/timeline';
 import { formatLifespan } from '@/domain/dates';
@@ -47,40 +48,67 @@ export interface TimelineViewProps {
  *   s'écrit d'elle-même quand on le fait courir.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-/** Hauteur d'une vie. Serré : c'est un registre, pas un tableau. */
-const ROW_H = 21;
-/**
- * Le blanc entre deux générations, où se logent le filet et son titre.
+/* ── LES PROPORTIONS DE LA PLANCHE ─────────────────────────────────────
  *
- * Le registre était d'abord marqué par une bande de fond, au jeton
- * `--row-band` — celui des rangées de l'arbre. Sur l'arbre il court d'un bord
- * à l'autre de l'écran et fonctionne ; ici, sur un panneau de papier déjà
- * clair, 2,8 % d'encre sur douze cents pixels ne se voit tout simplement pas.
- * Constaté à l'écran sur les dix générations de la démonstration : aucune
- * séparation lisible.
+ * DEUX JEUX, et non un seul mis à l'échelle. C'est toute la différence.
  *
- * Un filet et un titre, donc — ce qu'une table gravée a toujours fait pour
- * séparer ses sections, et qui a l'avantage de NOMMER la génération au lieu
- * de simplement l'alterner.
- */
-const GEN_GAP = 28;
-/** La colonne des noms s'achève ici. */
-const LEFT = 216;
-/** La gouttière tout à gauche, où se lit le numéro de génération. */
-const GEN_X = 12;
-/** La hauteur du filet porteur de la règle des siècles. */
-const RULE_Y = 34;
-/**
- * Où commence le premier registre.
+ * La planche avait une largeur unique de 1060 unités, et sur téléphone le
+ * `viewBox` la ramenait simplement à la largeur disponible. Mesuré à 390 px
+ * d'écran : un facteur 0,32, donc des noms rendus à moins de quatre pixels de
+ * haut. Une planche illisible n'est pas une planche réduite, c'est une planche
+ * perdue.
  *
- * Assez bas pour que son titre et son filet tiennent SOUS la règle des
- * siècles : la règle est à 34, ses millésimes juste au-dessus, et le titre du
- * registre se pose à `TOP - 13`. À 48, les deux se chevauchaient exactement.
- */
-const TOP = 64;
-/** De la place à droite du trait pour les millésimes. */
-const RIGHT_PAD = 62;
-const WIDTH = 1060;
+ * Rétrécir la GÉOMÉTRIE plutôt que le rendu remet les rapports d'aplomb : une
+ * gouttière de noms plus courte, moins de marge, une largeur moindre. Les
+ * textes sont dimensionnés en unités de `viewBox` — diviser la largeur du
+ * repère par deux double donc leur taille apparente, sans toucher à une seule
+ * règle de style.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+interface Proportions {
+  /** Hauteur d'une vie. Serré : c'est un registre, pas un tableau. */
+  rowH: number;
+  /** Le blanc entre deux générations, où se logent le filet et son titre. */
+  genGap: number;
+  /** La colonne des noms s'achève ici. */
+  left: number;
+  /** La gouttière tout à gauche, où se lit le titre de génération. */
+  genX: number;
+  /** La hauteur du filet porteur de la règle des siècles. */
+  ruleY: number;
+  /**
+   * Où commence le premier registre.
+   *
+   * Assez bas pour que son titre et son filet tiennent SOUS la règle des
+   * siècles, dont les millésimes se composent juste au-dessus de `ruleY`.
+   */
+  top: number;
+  /** De la place à droite du trait pour les millésimes. */
+  rightPad: number;
+  width: number;
+}
+
+const PLANCHE: Proportions = {
+  rowH: 21,
+  genGap: 28,
+  left: 216,
+  genX: 12,
+  ruleY: 34,
+  top: 64,
+  rightPad: 62,
+  width: 1060,
+};
+
+const PLANCHE_ETROITE: Proportions = {
+  rowH: 20,
+  genGap: 26,
+  left: 150,
+  genX: 8,
+  ruleY: 32,
+  top: 60,
+  rightPad: 46,
+  width: 620,
+};
 
 /** Un pas de graduation lisible, quel que soit l'intervalle couvert. */
 function tickStep(years: number): number {
@@ -182,6 +210,13 @@ export function TimelineView({
   selectedId,
   onSelectPerson,
 }: TimelineViewProps) {
+  /* Le même seuil que la feuille de style : les deux décrivent la même
+     bascule, et les laisser diverger ferait basculer la géométrie et la mise
+     en page à des largeurs différentes. */
+  const etroit = useIsCompact();
+  const { rowH: ROW_H, genGap: GEN_GAP, left: LEFT, genX: GEN_X, ruleY: RULE_Y, top: TOP, rightPad: RIGHT_PAD, width: WIDTH } =
+    etroit ? PLANCHE_ETROITE : PLANCHE;
+
   const timeline = useMemo(() => buildTimeline(graph, people), [graph, people]);
   const [year, setYear] = useState<number | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);

@@ -210,8 +210,17 @@
   gap: 12px 18px;
 }
 
+/*
+ * Les quatre périmètres se replient plutôt que de déborder.
+ *
+ * `.scope-bar` savait déjà passer à la ligne, mais `.scope-choices` était une
+ * rangée unique qui ne cédait rien : sur 390 px, « Côté maternel » sortait de
+ * l'écran par la droite, sans barre de défilement ni le moindre indice qu'il
+ * existait. Quatre libellés courts se rangent très bien sur deux lignes.
+ */
 .scope-choices {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 4px;
   border-radius: var(--radius-control);
@@ -1664,18 +1673,54 @@
    * largeur disponible — les graduations s'espacent d'elles-mêmes, et le
    * `viewBox` garde les proportions.
    */
+  /*
+   * La planche garde une largeur MINIMALE, et défile si besoin.
+   *
+   * Elle était laissée libre de rétrécir jusqu'à la largeur de l'écran, pour
+   * éviter un défilement horizontal permanent. Mais son repère fait 620
+   * unités : sur 342 px utiles, cela ramenait tout à 0,55 — des noms sous six
+   * pixels. Un défilement latéral se manipule ; un texte trop petit ne se lit
+   * pas. Le plancher est calé juste au-dessus de la largeur d'un téléphone
+   * courant : la plupart des écrans n'auront rien à faire défiler du tout.
+   */
   .timeline-svg {
+    min-width: 420px;
+  }
+
+  /*
+   * LA BARRE D'OUTILS TIENT EN DEUX RANGS, PAS EN QUATRE.
+   *
+   * Elle passait en colonne : le bouton de lecture seul sur une ligne, la
+   * règle sur la deuxième, l'année seule sur la troisième — un tiret perdu à
+   * droite d'un écran vide — et le décompte sur la quatrième. Quatre lignes
+   * pour un seul réglage.
+   *
+   * Elle reste donc en ligne et se replie : la commande complète — lecture,
+   * règle, année — sur un rang, le décompte sous elle. La règle prend tout ce
+   * qui reste du premier rang, l'année garde sa largeur, et le tiret ne se
+   * retrouve plus jamais seul.
+   */
+  .timeline-tools {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+
+  .timeline-rule-field {
+    flex: 1 1 120px;
     min-width: 0;
   }
 
-  .timeline-tools {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+  .timeline-rule-field input[type='range'] {
+    width: 100%;
+    min-width: 0;
   }
 
-  .timeline-tools input[type='range'] {
-    width: 100%;
+  /* Le décompte passe à la ligne d'un bloc, en poussant une largeur pleine
+     devant lui — c'est ce qui force le retour sans avoir à compter les
+     éléments du premier rang. */
+  .timeline-reading {
+    flex: 1 0 100%;
   }
 
   .gaps-list {
