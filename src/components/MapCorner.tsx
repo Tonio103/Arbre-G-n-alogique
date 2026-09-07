@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import { collectScopedPlaces } from '@/domain/places';
+import { cadrePourLieux, urlTuile } from '@/view/tuiles';
 
 export interface MapCornerProps {
   graph: FamilyGraph;
@@ -39,103 +40,36 @@ export interface MapCornerProps {
  * bouton qui y mène.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-const TILE = 256;
 /**
  * La vignette, en pixels. Assez grande pour reconnaître une côte.
  *
  * Presque carrée, et c'est la géographie qui l'impose : l'étendue d'une
- * famille l'est aussi. Mesuré sur les 39 lieux de la démonstration — d'Audierne
- * à Grenoble, de Bailleul à Aix — 117 px de large pour 121 de haut au niveau
- * de tuile 4. Dans un cadre en 1,6:1, la hauteur ne passait pas et il fallait
- * descendre d'un cran : moitié de la largeur perdue en mer, et la France
- * réduite à une tache au milieu de l'Europe.
+ * famille l'est aussi. Mesuré sur les 39 lieux de la démonstration —
+ * d'Audierne à Grenoble, de Bailleul à Aix — 117 px de large pour 121 de haut
+ * au niveau de tuile 4. Dans un cadre en 1,6:1, la hauteur ne passait pas et
+ * il fallait descendre d'un cran : moitié de la largeur perdue en mer, et la
+ * France réduite à une tache au milieu de l'Europe.
  */
 const VIGNETTE_W = 236;
 const VIGNETTE_H = 162;
-/**
- * La marge autour des lieux, en fraction du cadre.
- *
- * Un huitième plutôt qu'un sixième. Une marge sert à ce qu'aucune marque ne
- * touche le filet ; au-delà, elle ne fait que coûter un niveau de tuile — et
- * un niveau de tuile, c'est la moitié de la finesse.
- */
-const MARGE = 0.08;
-const Z_MIN = 3;
-const Z_MAX = 11;
-
-const tileX = (lon: number, z: number): number => ((lon + 180) / 360) * 2 ** z;
-const tileY = (lat: number, z: number): number => {
-  const rad = (lat * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z;
-};
 
 export function MapCorner({ graph, people, selectedId, onOpen }: MapCornerProps) {
   const vue = useMemo(() => {
     const rapport = collectScopedPlaces(graph, people);
     if (rapport.places.length === 0) return null;
 
-    let latMin = Infinity;
-    let latMax = -Infinity;
-    let lonMin = Infinity;
-    let lonMax = -Infinity;
-    for (const lieu of rapport.places) {
-      latMin = Math.min(latMin, lieu.lat);
-      latMax = Math.max(latMax, lieu.lat);
-      lonMin = Math.min(lonMin, lieu.lon);
-      lonMax = Math.max(lonMax, lieu.lon);
-    }
-
-    /*
-     * LE NIVEAU LE PLUS SERRÉ QUI TIENNE ENCORE.
-     *
-     * On descend depuis le plus fin : le premier niveau où l'étendue des lieux
-     * entre dans le cadre est le bon. Chercher en montant depuis le plus large
-     * donnerait le même résultat en plus d'itérations — et il y a un cas où
-     * l'on ne trouve rien du tout, celui d'un seul lieu : l'étendue est alors
-     * nulle et TOUS les niveaux conviennent, donc on prend le plus fin, ce qui
-     * est exactement ce qu'on veut d'un lieu unique.
-     */
-    const utileW = VIGNETTE_W * (1 - MARGE * 2);
-    const utileH = VIGNETTE_H * (1 - MARGE * 2);
-    let z = Z_MIN;
-    for (let essai = Z_MAX; essai >= Z_MIN; essai -= 1) {
-      const largeur = (tileX(lonMax, essai) - tileX(lonMin, essai)) * TILE;
-      const hauteur = (tileY(latMin, essai) - tileY(latMax, essai)) * TILE;
-      if (largeur <= utileW && hauteur <= utileH) {
-        z = essai;
-        break;
-      }
-    }
-
-    const centreX = (tileX(lonMin, z) + tileX(lonMax, z)) / 2;
-    const centreY = (tileY(latMax, z) + tileY(latMin, z)) / 2;
-    const origine = {
-      x: centreX * TILE - VIGNETTE_W / 2,
-      y: centreY * TILE - VIGNETTE_H / 2,
-    };
-
-    const compte = 2 ** z;
-    const tuiles: Array<{ x: number; y: number; left: number; top: number }> = [];
-    const txDebut = Math.max(0, Math.floor(origine.x / TILE));
-    const txFin = Math.min(compte - 1, Math.floor((origine.x + VIGNETTE_W) / TILE));
-    const tyDebut = Math.max(0, Math.floor(origine.y / TILE));
-    const tyFin = Math.min(compte - 1, Math.floor((origine.y + VIGNETTE_H) / TILE));
-    for (let tx = txDebut; tx <= txFin; tx += 1) {
-      for (let ty = tyDebut; ty <= tyFin; ty += 1) {
-        tuiles.push({ x: tx, y: ty, left: tx * TILE - origine.x, top: ty * TILE - origine.y });
-      }
-    }
+    const cadre = cadrePourLieux(rapport.places, VIGNETTE_W, VIGNETTE_H);
+    if (!cadre) return null;
 
     const marques = rapport.places.map((lieu) => ({
       key: lieu.key,
       label: lieu.label,
-      x: tileX(lieu.lon, z) * TILE - origine.x,
-      y: tileY(lieu.lat, z) * TILE - origine.y,
+      ...cadre.projeter(lieu.lat, lieu.lon),
       gens: lieu.people,
       poids: lieu.people.length,
     }));
 
-    return { z, tuiles, marques, nombre: rapport.places.length };
+    return { z: cadre.z, tuiles: cadre.tuiles, marques, nombre: rapport.places.length };
   }, [graph, people]);
 
   if (!vue) return null;
@@ -153,7 +87,7 @@ export function MapCorner({ graph, people, selectedId, onOpen }: MapCornerProps)
             <img
               key={`${vue.z}:${tuile.x}:${tuile.y}`}
               className="carte-coin-tuile"
-              src={`https://tile.openstreetmap.org/${vue.z}/${tuile.x}/${tuile.y}.png`}
+              src={urlTuile(vue.z, tuile.x, tuile.y)}
               alt=""
               style={{ left: tuile.left, top: tuile.top }}
               loading="lazy"

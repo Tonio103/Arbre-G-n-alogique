@@ -1,0 +1,444 @@
+/* ============================================================================
+ *
+ *  LE FILM
+ *
+ *  Une famille racontée sur sa propre planche. Rien ici ne dessine l'arbre :
+ *  il est dessous, celui-là même qu'on manipule le reste du temps. Cette
+ *  feuille ne compose que ce qui se pose PAR-DESSUS — le voile, les cartons,
+ *  les millésimes, la réglure du temps.
+ *
+ * ========================================================================== */
+
+.film {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  /*
+   * La couche ne capte RIEN sauf ses propres commandes.
+   *
+   * Elle couvre tout l'écran ; en captant les gestes, elle aurait fait d'un
+   * arbre parfaitement vivant une image morte, et le film serait devenu une
+   * prison. Les enfants qui doivent répondre reprennent `pointer-events: auto`
+   * chacun pour soi.
+   */
+  pointer-events: none;
+  animation: film-ouvre 620ms var(--ease-out) both;
+}
+
+@keyframes film-ouvre {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * LE VOILE.
+ *
+ * Un lavis de papier, pas un noir de salle. L'arbre doit rester lisible
+ * dessous — c'est le sujet du film — mais reculer d'un cran, sans quoi les
+ * cartons se battraient avec la ramure pour la même attention. Un dégradé
+ * plutôt qu'un aplat : dense là où se composent les textes, presque nul au
+ * milieu, où l'on regarde l'arbre.
+ */
+.film-voile {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, var(--bg-base) 0%, transparent 26%, transparent 58%, var(--bg-base) 100%),
+    radial-gradient(120% 80% at 50% 46%, transparent 40%, var(--bg-veil) 100%);
+  opacity: 0.88;
+}
+
+/* ── La scène : cartons et millésimes ───────────────────────────────────── */
+
+.film-scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 clamp(20px, 6vw, 90px) clamp(72px, 12vh, 130px);
+  text-align: center;
+}
+
+/*
+ * Le titre et le carton final se composent AU CENTRE de l'écran, les autres
+ * en bas. Un carton de titre est une page ; une légende de plan est une
+ * légende, et se met sous l'image, pas dessus.
+ */
+.film-scene[data-acte='titre'],
+.film-scene[data-acte='final'] {
+  position: absolute;
+  inset: 0;
+  justify-content: center;
+  padding-bottom: 0;
+}
+
+/*
+ * LE MILLÉSIME.
+ *
+ * Grand, en chiffres de titre, très pâle : il ne se lit pas, il se remarque.
+ * C'est la seule chose du film qui dise l'échelle du temps qu'on traverse, et
+ * elle doit pouvoir passer derrière un nom sans le gêner.
+ */
+.film-annee {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: clamp(52px, 11vw, 132px);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  opacity: 0.14;
+  user-select: none;
+}
+
+.film-scene[data-acte='titre'] .film-annee,
+.film-scene[data-acte='final'] .film-annee {
+  opacity: 0.1;
+}
+
+/*
+ * LA RÉSERVE.
+ *
+ * Un titre composé directement sur la ramure se bat avec elle : mesuré à
+ * l'écran, « Beaumont — Ferrand » tombait en travers de six branches et
+ * douze médaillons. Un relieur ne compose pas sur son marbré, il colle une
+ * étiquette de papier uni — c'est le même geste ici, et le même que la
+ * réserve du cartouche de la page de garde.
+ *
+ * Un dégradé radial et non un aplat : une étiquette à bord franc poserait un
+ * rectangle blanc au milieu d'une gravure, ce qui se verrait bien davantage
+ * que le désordre qu'on cherche à corriger.
+ */
+.film-carton::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 148%;
+  height: 340%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    closest-side,
+    var(--bg-base) 0%,
+    var(--bg-base) 42%,
+    transparent 100%
+  );
+  opacity: 0.94;
+  pointer-events: none;
+}
+
+.film-carton {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 34em;
+}
+
+.film-titre {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 58px);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.005em;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+/* Le titre d'un acte de passage est plus discret que celui du film : c'est un
+   intertitre, pas une page de garde. */
+.film-scene:not([data-acte='titre']):not([data-acte='final']) .film-titre {
+  font-size: clamp(20px, 2.6vw, 30px);
+  letter-spacing: 0.03em;
+}
+
+.film-sous {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: clamp(13.5px, 1.5vw, 17px);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.film-scene[data-acte='titre'] .film-sous,
+.film-scene[data-acte='final'] .film-sous {
+  font-size: clamp(13px, 1.3vw, 15.5px);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ── L'acte des lieux ───────────────────────────────────────────────────── */
+
+/*
+ * LE CADRE DE LA CARTE, ET POURQUOI IL N'EST PAS PLEINE LARGEUR.
+ *
+ * Il l'a été : de bord à bord, mille pixels sur quatre cents. Le niveau de
+ * tuile retenu est celui qui fait tenir les lieux dans les DEUX dimensions —
+ * la hauteur bornait donc tout, la largeur restait aux trois quarts vide, et
+ * la France se retrouvait au milieu de la Pologne et du Portugal. Vérifié à
+ * l'écran : le déplacement de la famille tenait dans un centimètre.
+ *
+ * Un cadre plus proche du carré fait gagner deux niveaux de tuile sur la même
+ * hauteur, c'est-à-dire quatre fois plus de détail sur ce qu'on est venu voir.
+ */
+.film-carte {
+  position: absolute;
+  top: clamp(44px, 6vh, 70px);
+  /*
+   * De la place SOUS la carte pour le carton.
+   *
+   * Le carton se compose en bas de l'écran, et sa réserve de papier déborde
+   * largement du texte. À 176 px de garde, « Les lieux » tombait par-dessus le
+   * bord inférieur de la carte — mesuré à l'écran — et la réserve voilait tout
+   * le sud de la France.
+   */
+  bottom: clamp(184px, 25vh, 244px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(760px, 86vw);
+  overflow: hidden;
+  border: 1px solid var(--glass-border-strong);
+  background: var(--bg-mid);
+  isolation: isolate;
+  animation: film-ouvre 700ms var(--ease-out) both;
+}
+
+.film-carte-tuiles {
+  position: absolute;
+  inset: 0;
+}
+
+/* Même passage à l'encre que la vignette de coin : une tuile en couleurs est
+   une fenêtre d'application ouverte au milieu d'un herbier. */
+.film-carte-tuile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  filter: grayscale(1) contrast(0.82) brightness(1.06) sepia(0.42);
+  opacity: 0.66;
+  user-select: none;
+}
+
+.film-carte-marques {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* La route : le trait qui relie les lieux dans l'ordre où la famille les a
+   connus. Il s'allonge avec le parcours, il n'apparaît pas d'un coup. */
+.film-carte-route {
+  fill: none;
+  stroke: var(--accent-warm);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.55;
+}
+
+/* Tous les lieux connus, en fond : ils SITUENT la famille sans rien affirmer
+   d'un mouvement. */
+.film-carte-lieu-fond {
+  fill: var(--link);
+  opacity: 0.34;
+}
+
+/* Une étape du déplacement. La tête du parcours est plus grosse et porte sa
+   décennie : c'est là qu'on regarde. */
+.film-carte-etape circle {
+  fill: var(--accent-warm);
+  stroke: var(--glass-panel-solid);
+  stroke-width: 1.6;
+  transition: r var(--dur-base) var(--ease-spring);
+}
+
+.film-carte-etape[data-tete] circle {
+  stroke-width: 2.2;
+}
+
+.film-carte-etape text {
+  fill: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--glass-panel-solid);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/*
+ * LA LÉGENDE, ET POURQUOI ELLE EST OBLIGATOIRE.
+ *
+ * Ce trait ne relie pas des endroits où quelqu'un a vécu : il relie des
+ * moyennes. Un centre de gravité peut tomber en pleine mer si la famille se
+ * partage entre deux côtes. Sans cette ligne, le film affirmerait un
+ * déplacement que personne n'a fait — et il n'y a rien de pire, sur une
+ * planche qui se veut exacte, qu'une belle courbe qui ment.
+ */
+.film-carte-legende {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 8px;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* ── La main : commandes et réglure du temps ────────────────────────────── */
+
+/*
+ * Elle se retire quand on ne s'en sert pas — un film n'a pas de barre d'outils
+ * permanente — et revient au moindre mouvement. `visibility` accompagne
+ * l'opacité, pour qu'elle cesse aussi d'être atteignable au clavier une fois
+ * effacée : une commande invisible qui prend encore le focus est un piège.
+ */
+.film-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 clamp(16px, 4vw, 40px) clamp(18px, 3vh, 30px);
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    visibility 0s linear var(--dur-slow);
+}
+
+.film[data-main] .film-main {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.film-bouton {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.2px solid var(--glass-border-strong);
+  background: var(--glass-fill);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.film-bouton:hover {
+  background: var(--glass-fill-hover);
+}
+
+/*
+ * LA RÉGLURE DU TEMPS.
+ *
+ * Une graduation par acte, à sa vraie largeur. Une barre continue dirait la
+ * durée sans dire la structure ; ici on voit qu'il reste trois chapitres, on
+ * sait lequel court, et l'on peut y sauter.
+ */
+.film-reglure {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  gap: 3px;
+  height: 22px;
+}
+
+.film-chapitre {
+  position: relative;
+  flex-basis: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* La piste est en `::after` et non sur le bouton : la cible du clic fait
+   vingt-deux pixels de haut, le trait deux. On vise un chapitre, on ne vise
+   pas un filet. */
+.film-chapitre::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--glass-border-strong);
+}
+
+.film-chapitre[data-passe]::after {
+  background: var(--text-secondary);
+}
+
+.film-chapitre-plein {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  width: 0;
+  transform: translateY(-50%);
+  background: var(--text-secondary);
+  z-index: 1;
+}
+
+.film-chapitre[data-courant]::after {
+  background: var(--glass-border-strong);
+}
+
+.film-chapitre:hover::after {
+  background: var(--text-tertiary);
+}
+
+.film-fermer {
+  flex: none;
+  padding: 6px 2px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.film-fermer:hover {
+  color: var(--text-primary);
+}
+
+/*
+ * Rien ne bouge tout seul si le système l'a demandé. Le film reste jouable —
+ * c'est un choix explicite de l'utilisateur, pas une animation d'ambiance —
+ * mais il perd ses fondus, et la caméra ses courses (voir `FilmView`).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .film,
+  .film-carte {
+    animation: none;
+  }
+
+  .film-carte-lieu circle {
+    transition: none;
+  }
+}

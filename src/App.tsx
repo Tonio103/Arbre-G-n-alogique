@@ -30,6 +30,7 @@ import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { MapCorner } from '@/components/MapCorner';
+import { FilmView } from '@/components/FilmView';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
@@ -66,6 +67,7 @@ import '@/styles/detail.css';
 import '@/styles/loading-screen.css';
 import '@/styles/path-flow.css';
 import '@/styles/views.css';
+import '@/styles/film.css';
 import '@/styles/theme-transition.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
@@ -902,6 +904,7 @@ export default function App() {
       className="app"
       data-panel-open={selectedPerson ? true : undefined}
       data-tirage={ouverture ? true : undefined}
+      data-film={viewMode === 'film' ? true : undefined}
     >
       <LoadingScreen
         ready={ready}
@@ -1058,6 +1061,24 @@ export default function App() {
       {/* La carte, en index plutôt qu'en onglet — et jamais pendant le tirage,
           où la planche doit rester seule (voir « le mobilier » dans
           `chrome.css`). */}
+      {/*
+        LE FILM.
+
+        Il se pose PAR-DESSUS l'arbre, qui reste monté et visible dessous :
+        c'est bien la planche qu'on regarde bouger, pas une reconstitution. Il
+        est donc rendu hors du bloc des autres vues, lesquelles portent leur
+        propre papier opaque et masqueraient précisément ce qu'il y a à voir.
+      */}
+      {viewMode === 'film' && (
+        <FilmView
+          graph={graph}
+          layout={layout}
+          viewport={viewport}
+          gapCount={gapCount}
+          onClose={() => setViewMode('tree')}
+        />
+      )}
+
       {viewMode === 'tree' && !ouverture && (
         <MapCorner
           graph={graph}

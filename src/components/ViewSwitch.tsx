@@ -14,7 +14,7 @@
  * `MapCorner`), et son grand format s'ouvre d'un clic dessus. Le mode `map`
  * existe toujours ; il ne s'atteint simplement plus d'ici.
  */
-export type ViewMode = 'tree' | 'map' | 'timeline' | 'gaps';
+export type ViewMode = 'tree' | 'map' | 'timeline' | 'gaps' | 'film';
 
 export interface ViewSwitchProps {
   mode: ViewMode;
@@ -39,6 +39,16 @@ const ClockGlyph = () => (
   </svg>
 );
 
+/* Une bobine : deux galets et la pellicule entre eux. Le seul glyphe de la
+   barre qui ne décrive pas une façon de LIRE l'arbre, mais de le regarder. */
+const FilmGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+    <circle cx="7.6" cy="8.4" r="4.2" />
+    <circle cx="16.4" cy="8.4" r="4.2" />
+    <path d="M3.4 19.6h17.2M5.2 12.2 3.4 19.6M18.8 12.2l1.8 7.4" strokeLinecap="round" />
+  </svg>
+);
+
 const GapGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
     <path d="M12 4.6 3.4 19.4h17.2L12 4.6Z" strokeLinejoin="round" />
@@ -49,6 +59,7 @@ const GapGlyph = () => (
 const TABS: Array<{ mode: ViewMode; label: string; glyph: () => JSX.Element }> = [
   { mode: 'tree', label: 'Arbre', glyph: TreeGlyph },
   { mode: 'timeline', label: 'Chronologie', glyph: ClockGlyph },
+  { mode: 'film', label: 'Le film', glyph: FilmGlyph },
   { mode: 'gaps', label: 'À compléter', glyph: GapGlyph },
 ];
 

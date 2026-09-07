@@ -71,6 +71,24 @@
   pointer-events: none;
 }
 
+/*
+ * PENDANT LE FILM, MÊME SILENCE — À UNE EXCEPTION PRÈS.
+ *
+ * Le rail, les ornements et l'avis de données se retirent : ce sont des
+ * outils, et l'on ne regarde pas un film à travers ses outils. La BARRE, elle,
+ * reste — c'est par elle qu'on est entré, et c'est par elle qu'on ressort.
+ * L'effacer aurait fait du film un cul-de-sac dont on ne sort qu'en devinant
+ * qu'« Échap » existe.
+ */
+.app[data-film] .rail,
+.app[data-film] .coins,
+.app[data-film] .notice,
+.app[data-film] .hint-bar {
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
 @keyframes chrome-in {
   from {
     opacity: 0;
