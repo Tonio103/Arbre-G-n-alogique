@@ -29,6 +29,7 @@ import { HoverStore } from '@/view/hover-store';
 import { CARD_HEIGHT, CARD_WIDTH, FIT_PADDING } from '@/view/metrics';
 import { Backdrop } from '@/components/Backdrop';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { MapCorner } from '@/components/MapCorner';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
@@ -953,6 +954,7 @@ export default function App() {
             onScopeChange={setScope}
             people={scopePeople}
             onSelectPerson={showInTree}
+            onClose={() => setViewMode('tree')}
           />
         )}
         {viewMode === 'timeline' && (
@@ -1053,6 +1055,18 @@ export default function App() {
         l'un ni l'autre n'a de sens (rien à zoomer sur « À compléter », et la
         Carte a désormais son propre geste, quoique de même nature).
       */}
+      {/* La carte, en index plutôt qu'en onglet — et jamais pendant le tirage,
+          où la planche doit rester seule (voir « le mobilier » dans
+          `chrome.css`). */}
+      {viewMode === 'tree' && !ouverture && (
+        <MapCorner
+          graph={graph}
+          people={scopePeople}
+          selectedId={selectedId}
+          onOpen={() => setViewMode('map')}
+        />
+      )}
+
       {viewMode === 'tree' && (
         <div className="hint-bar lg lg--clear lg--pill" data-hidden={hintVisible ? undefined : true}>
           <span>

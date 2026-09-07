@@ -29,6 +29,14 @@ export interface MapViewProps {
   onScopeChange: (scope: Scope) => void;
   people: Set<string>;
   onSelectPerson: (id: string) => void;
+  /**
+   * Refermer la carte.
+   *
+   * Elle n'est plus un onglet : on n'en sort donc plus en choisissant une
+   * autre vue, il lui faut sa propre porte. Sans elle, ouvrir la carte depuis
+   * la vignette de coin était sans retour.
+   */
+  onClose?: () => void;
 }
 
 /*
@@ -152,6 +160,7 @@ export function MapView({
   onScopeChange,
   people,
   onSelectPerson,
+  onClose,
 }: MapViewProps) {
   const report = useMemo(() => collectScopedPlaces(graph, people), [graph, people]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -327,13 +336,20 @@ export function MapView({
 
   return (
     <section className="view view--map" aria-label="Carte familiale" ref={viewRef}>
-      <ScopeBar
-        graph={graph}
-        focusId={focusId}
-        scope={scope}
-        onChange={onScopeChange}
-        count={people.size}
-      />
+      <div className="view-entete">
+        <ScopeBar
+          graph={graph}
+          focusId={focusId}
+          scope={scope}
+          onChange={onScopeChange}
+          count={people.size}
+        />
+        {onClose && (
+          <button type="button" className="view-fermer" onClick={onClose}>
+            Fermer la carte
+          </button>
+        )}
+      </div>
 
       {report.places.length === 0 && report.unlocated.length === 0 ? (
         <p className="view-empty lg lg--thick">

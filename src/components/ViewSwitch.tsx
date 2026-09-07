@@ -1,11 +1,18 @@
-import { MapIcon } from './icons';
-
 /**
  * Le passage d'une vue à l'autre.
  *
  * L'arbre reste la vue principale : c'est lui qui décide de qui l'on parle, et
- * les trois autres ne font que le regarder autrement — les mêmes personnes,
- * les mêmes fiches, le même périmètre.
+ * les autres ne font que le regarder autrement — les mêmes personnes, les
+ * mêmes fiches, le même périmètre.
+ *
+ * ── LA CARTE N'EST PLUS UN ONGLET ────────────────────────────────────────
+ *
+ * Elle en occupait un, à égalité avec l'arbre et la chronologie. Mais on ne
+ * vient pas « consulter la carte » : on veut savoir d'où vient la famille
+ * pendant qu'on regarde l'arbre — et un onglet oblige à quitter l'arbre pour
+ * ça, puis à y revenir. Elle vit maintenant en vignette de coin (voir
+ * `MapCorner`), et son grand format s'ouvre d'un clic dessus. Le mode `map`
+ * existe toujours ; il ne s'atteint simplement plus d'ici.
  */
 export type ViewMode = 'tree' | 'map' | 'timeline' | 'gaps';
 
@@ -41,7 +48,6 @@ const GapGlyph = () => (
 
 const TABS: Array<{ mode: ViewMode; label: string; glyph: () => JSX.Element }> = [
   { mode: 'tree', label: 'Arbre', glyph: TreeGlyph },
-  { mode: 'map', label: 'Carte', glyph: MapIcon as () => JSX.Element },
   { mode: 'timeline', label: 'Chronologie', glyph: ClockGlyph },
   { mode: 'gaps', label: 'À compléter', glyph: GapGlyph },
 ];

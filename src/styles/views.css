@@ -263,6 +263,170 @@
   color: var(--text-tertiary);
 }
 
+/* ── La carte en coin ────────────────────────────────────────────────────── */
+
+/*
+ * LA VIGNETTE.
+ *
+ * Une gravure encadrée posée dans le coin de la planche, pas un widget : un
+ * filet, du papier, et les lieux en marques d'encre. Elle se comporte en
+ * bouton — c'est un index qui mène à la carte, elle n'est pas manipulable
+ * elle-même, et laisser croire le contraire serait une promesse en l'air.
+ */
+.carte-coin {
+  position: absolute;
+  right: calc(14px + var(--safe-right));
+  bottom: calc(14px + var(--safe-bottom));
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 7px 7px 0;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  cursor: pointer;
+  animation: chrome-in 620ms var(--ease-out) 260ms both;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.carte-coin:hover {
+  transform: translateY(-2px);
+}
+
+/*
+ * Le cadre des tuiles.
+ *
+ * `isolation: isolate` crée un contexte de fusion propre : sans lui, le voile
+ * d'encre posé plus bas en `multiply` se mélangerait au papier de la planche
+ * derrière la vignette au lieu de rester sur la carte.
+ */
+.carte-coin-cadre {
+  position: relative;
+  display: block;
+  width: 236px;
+  height: 162px;
+  border: 1px solid var(--glass-border-strong);
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--bg-mid);
+}
+
+.carte-coin-tuiles {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * LES TUILES PASSENT À L'ENCRE.
+ *
+ * Une tuile OpenStreetMap arrive en couleurs — vert des forêts, bleu des
+ * fleuves, jaune des routes. Posée telle quelle dans un coin de planche
+ * gravée, c'est une fenêtre d'application ouverte au milieu d'un herbier.
+ * Désaturée, contrastée et teintée du bistre du papier, elle redevient une
+ * carte ancienne : les côtes et les fleuves restent parfaitement lisibles,
+ * c'est la palette qui change.
+ */
+.carte-coin-tuile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  filter: grayscale(1) contrast(0.82) brightness(1.06) sepia(0.42);
+  opacity: 0.72;
+  user-select: none;
+}
+
+.carte-coin-marques {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Un lieu : un point d'encre cerné de papier, pour qu'il tienne aussi bien
+   sur une côte claire que sur un relief sombre. */
+.carte-coin-marque {
+  fill: var(--link);
+  stroke: var(--glass-panel-solid);
+  stroke-width: 1.1;
+}
+
+/* Les lieux de la personne choisie. Chauds, comme le point du présent sur la
+   chronologie : c'est le même rôle — dire où l'on regarde, maintenant. */
+.carte-coin-marque[data-vif] {
+  fill: var(--accent-warm);
+  stroke-width: 1.4;
+}
+
+.carte-coin-pied {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 3px 7px;
+}
+
+.carte-coin-titre {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.carte-coin-compte {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+/*
+ * Sur petit écran, la vignette prend la place du pouce et masque des cartes.
+ * La carte reste accessible — la fiche d'une personne mène à ses lieux — mais
+ * l'index de coin, lui, coûte plus qu'il ne rapporte à cette taille.
+ */
+@media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
+  .carte-coin {
+    display: none;
+  }
+}
+
+/* ── L'en-tête d'une vue qui se referme ──────────────────────────────────── */
+
+.view-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.view-fermer {
+  flex: none;
+  padding: 6px 2px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.view-fermer:hover {
+  color: var(--text-primary);
+}
+
+/* Le sélecteur de périmètre garde toute la place que le bouton lui laisse. */
+.view-entete .scope-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* ── Carte ───────────────────────────────────────────────────────────────── */
 
 /*
