@@ -618,6 +618,46 @@ export function TreeCanvas({
 
   const hasSelection = highlight.people.size > 0;
 
+  /* ═══════════════════════════════════════════════════════════════════
+   * LA CONSISTANCE DU TRACÉ, PRISE PAR L'AUTRE BOUT.
+   *
+   * `computeHighlight` garantit qu'aucun trait encré n'arrive sur une carte
+   * grise. Le cas symétrique existe aussi, et il se voit tout autant : une
+   * union dont TOUS les gens dessinés sont déjà encrés, mais qu'aucun d'eux
+   * n'accentue. Un oncle et sa femme entrent par la fermeture, leurs enfants
+   * aussi ; leur mariage, lui, restait gris. Des médaillons francs reliés par
+   * des traits fantômes — le défaut précédent, retourné.
+   *
+   * Mesuré sur la démonstration : quatre-vingts sélections sur quatre-vingt-
+   * dix laissaient au moins une union dans ce cas, huit au pire.
+   *
+   * ── POURQUOI ICI, ET PAS DANS LE DOMAINE ─────────────────────────────
+   *
+   * La règle y a d'abord été écrite, et elle n'y marchait pas : une union du
+   * GRAPHE porte tous ses enfants, celle qui est DESSINÉE n'en montre qu'une
+   * partie — une ascendance n'a qu'une place par étage. « Tous les enfants
+   * sont encrés » était donc presque toujours faux dans le graphe et presque
+   * toujours vrai sur la planche. La cohérence d'un dessin se juge sur ce qui
+   * est dessiné ; ce lieu est le seul à le savoir.
+   *
+   * N'ajoute AUCUNE personne — seulement des unions dont tout le monde est
+   * déjà là. L'accentuation ne peut donc pas gagner l'arbre de proche en
+   * proche.
+   * ═══════════════════════════════════════════════════════════════════ */
+  const unionsAccentuees = useMemo(() => {
+    if (!hasSelection) return highlight.unions;
+    const encres = new Set<string>([...highlight.people.keys(), ...highlight.touched]);
+    const augmente = new Set(highlight.unions);
+    for (const union of layout.unions) {
+      if (augmente.has(union.id) || union.partners.length === 0) continue;
+      let complet = true;
+      for (const partner of union.partners) if (!encres.has(partner.id)) complet = false;
+      for (const child of union.children) if (!encres.has(child.id)) complet = false;
+      if (complet) augmente.add(union.id);
+    }
+    return augmente;
+  }, [highlight, layout, hasSelection]);
+
   const detail = visible.detail;
 
   /*
@@ -818,7 +858,7 @@ export function TreeCanvas({
           viewport={viewport}
           layout={layout}
           spatial={spatial}
-          highlightUnions={highlight.unions}
+          highlightUnions={unionsAccentuees}
           hasSelection={hasSelection}
           theme={theme}
           pathUnions={pathUnions}
