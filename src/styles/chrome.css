@@ -618,6 +618,26 @@
  * pour l'accueillir.
  */
 @media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
+  /*
+   * LA BARRE PASSE À DEUX RANGS, LE JETON DOIT SUIVRE.
+   *
+   * Sous 860 px, `.topbar` passe en `height: auto` et se replie sur deux
+   * rangs — identité et commandes en haut, recherche en dessous. Le jeton
+   * `--topbar-height`, lui, restait à 62 px : tout ce qui se cale dessous —
+   * les vues, la fiche, le sélecteur de périmètre — remontait donc SOUS la
+   * barre. Mesuré à 375, 520, 720 et 858 px de large : le bas réel de la
+   * barre tombe entre 114 et 116 px, alors que les vues commençaient à 88.
+   * Vingt-six pixels de recouvrement, et le premier contrôle de chaque vue
+   * disparaissait derrière la recherche.
+   *
+   * Posé sur `:root` et non sur `.topbar` : ce sont d'AUTRES éléments qui
+   * lisent ce jeton. La barre, elle, garde son `height: auto` ci-dessous —
+   * la règle est plus loin dans la feuille, elle l'emporte.
+   */
+  :root {
+    --topbar-height: 116px;
+  }
+
   /* La feuille de détail prend tout l'écran : la barre se retire derrière. */
   .app[data-panel-open] .topbar {
     opacity: 0;

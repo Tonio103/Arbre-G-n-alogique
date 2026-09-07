@@ -105,13 +105,57 @@ export interface LifeSpan {
   to: number;
   birthYear?: number;
   deathYear?: number;
-  /** L'une des deux dates au moins est donnée pour approximative. */
+  /**
+   * L'une des deux dates au moins est donnée pour approximative.
+   *
+   * Gardé pour qui s'en contente ; la frise, elle, lit les deux drapeaux
+   * séparés ci-dessous. Un « vers 1810 » au début et un décès daté au jour
+   * près ne se notent pas du même côté du trait — les confondre en un seul
+   * booléen obligeait à pointiller la vie entière pour une seule incertitude.
+   */
   approximate: boolean;
+  /** La naissance est approximative : le trait s'amorce en pointillé. */
+  approximateBirth: boolean;
+  /** Le décès est approximatif : le trait s'achève en pointillé. */
+  approximateDeath: boolean;
   /** Pas de date de décès : la barre s'arrête faute de mieux. */
   open: boolean;
   generation: number;
   /** Rangée d'affichage, pour que deux vies ne se recouvrent pas. */
   lane: number;
+}
+
+/**
+ * UN ENFANT QUI NAÎT SUR LA LIGNE DE VIE DE SON PARENT.
+ *
+ * C'est ce que ne montre aucune frise généalogique, et c'est pourtant la
+ * seule chose qui distingue la chronologie d'une FAMILLE de la chronologie
+ * d'une liste de gens : un fil qui descend du trait du parent, à l'année
+ * exacte, et qui vient poser le début du trait de l'enfant.
+ *
+ * N'est émis que si l'année de naissance de l'enfant est connue et si les
+ * deux vies ont un trait. Une filiation posée à une date supposée serait une
+ * date inventée avec l'apparence d'un fait.
+ */
+export interface Filiation {
+  parentId: string;
+  childId: string;
+  year: number;
+}
+
+/** Une union, portée par les traits des deux conjoints à la même année. */
+export interface Alliance {
+  aId: string;
+  bId: string;
+  year: number;
+  /** Un divorce ne se note pas comme un mariage. */
+  rompue: boolean;
+}
+
+/** Une génération et les vies qu'elle range, dans l'ordre des naissances. */
+export interface Registre {
+  generation: number;
+  spans: LifeSpan[];
 }
 
 export interface Timeline {
@@ -121,6 +165,10 @@ export interface Timeline {
   from: number;
   to: number;
   lanes: number;
+  /** Les vies groupées par génération, de la plus ancienne à la plus récente. */
+  registres: Registre[];
+  filiations: Filiation[];
+  alliances: Alliance[];
 }
 
 /**
@@ -169,6 +217,8 @@ export function buildTimeline(graph: FamilyGraph, scope: Iterable<string>): Time
       birthYear: birth?.year,
       deathYear: death?.year,
       approximate: Boolean(birth?.approximate || death?.approximate),
+      approximateBirth: Boolean(birth?.approximate),
+      approximateDeath: Boolean(death?.approximate),
       open: !death,
       generation: person.generation,
       lane: 0,
@@ -187,6 +237,69 @@ export function buildTimeline(graph: FamilyGraph, scope: Iterable<string>): Time
     span.lane = lane;
   }
 
+  /*
+   * LE RANGEMENT PAR GÉNÉRATION.
+   *
+   * Les vies étaient rangées par année de naissance, toutes générations
+   * mêlées. Sur une famille un peu large, la conséquence se voit tout de
+   * suite : un grand-oncle né tard tombe entre ses propres petits-neveux, et
+   * la frise ne dit plus rien de la marche des générations — le seul mouvement
+   * qu'une chronologie familiale ait à montrer.
+   *
+   * Rangées par génération, puis par naissance à l'intérieur, les traits
+   * descendent en escalier à travers les siècles. C'est cette forme-là qu'on
+   * vient lire.
+   */
+  spans.sort(
+    (a, b) =>
+      a.generation - b.generation ||
+      a.from - b.from ||
+      a.personId.localeCompare(b.personId),
+  );
+
+  const registres: Registre[] = [];
+  for (const span of spans) {
+    const dernier = registres[registres.length - 1];
+    if (dernier && dernier.generation === span.generation) dernier.spans.push(span);
+    else registres.push({ generation: span.generation, spans: [span] });
+  }
+
+  const traces = new Set(spans.map((span) => span.personId));
+
+  const filiations: Filiation[] = [];
+  for (const span of spans) {
+    // L'année de naissance, pas `from` : `from` retombe sur l'année du décès
+    // quand la naissance est inconnue, et un fil de filiation posé là
+    // rattacherait l'enfant à son parent le jour de sa mort à lui.
+    const naissance = span.birthYear;
+    if (naissance === undefined) continue;
+    for (const parentId of graph.people.get(span.personId)?.parents ?? []) {
+      if (!traces.has(parentId)) continue;
+      filiations.push({ parentId, childId: span.personId, year: naissance });
+    }
+  }
+
+  const alliances: Alliance[] = [];
+  const vues = new Set<string>();
+  for (const span of spans) {
+    for (const link of graph.people.get(span.personId)?.spouseLinks ?? []) {
+      if (!traces.has(link.id)) continue;
+      const year = parseYear(link.since);
+      if (year === undefined) continue;
+      // Une même union est portée par les deux conjoints : on ne la note
+      // qu'une fois, du côté du plus petit identifiant.
+      const cle = [span.personId, link.id].sort().join('|');
+      if (vues.has(cle)) continue;
+      vues.add(cle);
+      alliances.push({
+        aId: span.personId,
+        bId: link.id,
+        year,
+        rompue: link.status === 'divorced',
+      });
+    }
+  }
+
   const years = spans.flatMap((span) => [span.from, span.to]);
   return {
     spans,
@@ -194,6 +307,9 @@ export function buildTimeline(graph: FamilyGraph, scope: Iterable<string>): Time
     from: years.length > 0 ? Math.min(...years) : 0,
     to: years.length > 0 ? Math.max(...years) : 0,
     lanes: laneEnds.length,
+    registres,
+    filiations,
+    alliances,
   };
 }
 
