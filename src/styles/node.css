@@ -193,12 +193,23 @@
  *
  * Le cerne est donc REPRIS ici en tête de liste, et l'ombre le suit.
  */
+/*
+ * Le diamètre change avec le niveau de détail — cinquante pixels, puis
+ * quarante-quatre. Il sautait d'un cran au passage du seuil, en même temps
+ * que le patronyme s'évanouissait : deux gestes simultanés, l'un continu,
+ * l'autre non. Le médaillon fait donc le point avec le reste. La taille vient
+ * d'un style en ligne posé par `Avatar` ; une transition s'y applique comme
+ * sur n'importe quelle autre déclaration.
+ */
 .node-avatar {
+  transition:
+    width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
   box-shadow:
     0 0 0 1.4px var(--avatar-cerne, rgba(42, 34, 24, 0.82)),
     0 1px 2px rgba(46, 36, 24, 0.09),
     0 6px 14px rgba(46, 36, 24, 0.07);
-  transition: box-shadow var(--dur-base) var(--ease-out);
 }
 
 /* --------------------------- Les proches cachés --------------------------- */
@@ -692,6 +703,54 @@
 
 .node[data-detail='compact'] .node-first {
   font-size: 10px;
+}
+
+/*
+ * ── LA MISE AU POINT ────────────────────────────────────────────────────
+ *
+ * Le patronyme et les dates ne disparaissent plus du dessin au passage du
+ * seuil de zoom : ils se DÉFOCALISENT. Fondu, flou d'un pixel et demi, et un
+ * quart de pixel de remontée — c'est ce que fait un objectif dont on tourne
+ * la bague, et c'est la seule chose qui distingue un instrument optique d'un
+ * interrupteur.
+ *
+ * `visibility` suit l'opacité avec un retard exactement égal à la durée : la
+ * ligne effacée cesse alors d'être peinte pour de bon, au lieu de rester une
+ * surface transparente que le navigateur compose à chaque image. C'est le
+ * même montage que l'infobulle plus bas, et pour la même raison — on y avait
+ * mesuré trente-neuf éléments peints à opacité nulle.
+ *
+ * Le prénom ne participe pas : c'est le sujet de la carte, il reste net des
+ * deux côtés du seuil. Faire le point sur une image, ce n'est pas la faire
+ * apparaître.
+ */
+.node-last,
+.node-years {
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    visibility 0s linear 0s;
+}
+
+.node[data-detail='compact'] .node-last,
+.node[data-detail='compact'] .node-years {
+  opacity: 0;
+  filter: blur(1.5px);
+  transform: translateY(-2px);
+  visibility: hidden;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    visibility 0s linear var(--dur-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-last,
+  .node-years {
+    transition: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

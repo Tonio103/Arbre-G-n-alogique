@@ -178,10 +178,31 @@ export const PersonNode = memo(function PersonNode({
         />
       </span>
 
+      {/*
+        LA MISE AU POINT.
+
+        Le patronyme et les dates étaient RETIRÉS du dessin au passage du
+        seuil de zoom, et remis de l'autre côté : deux lignes qui
+        apparaissaient et disparaissaient d'un coup, à un centième d'échelle
+        près, sur toutes les cartes à la fois. Une molette qu'on tourne
+        lentement faisait donc clignoter l'arbre entier.
+
+        Ils restent maintenant posés, et c'est la feuille de style qui les
+        fait entrer et sortir — en fondu et en flou, comme un instrument
+        optique qui fait le point. Le nom, lui, ne bouge jamais : c'est le
+        sujet de la carte, il est net aux deux niveaux.
+
+        Le coût est nul en mise en page : la hauteur d'une carte est fixée par
+        `CARD_HEIGHT`, pas par son contenu. Et le coût de tracé l'est aussi
+        une fois le fondu fini — `visibility` suit l'opacité avec un retard
+        égal à la durée, si bien qu'une ligne effacée cesse vraiment d'être
+        peinte (voir `.node-tooltip`, où trente-neuf d'entre elles se
+        peignaient encore à opacité nulle).
+      */}
       <span className="node-plate">
         <span className="node-first">{person.firstName}</span>
-        {!compact && <span className="node-last">{person.lastName}</span>}
-        {!compact && lifespan && <span className="node-years">{lifespan}</span>}
+        <span className="node-last">{person.lastName}</span>
+        {lifespan && <span className="node-years">{lifespan}</span>}
       </span>
 
       {!compact && (
