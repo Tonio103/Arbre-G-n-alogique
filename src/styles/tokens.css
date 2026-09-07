@@ -41,9 +41,32 @@
   --bg-veil: rgba(46, 36, 24, 0.05);
 
   /* ── L'encre ────────────────────────────────────────────────────────── */
+  /*
+   * LES TROIS ENCRES, ET CE QU'ELLES DOIVENT AU PAPIER.
+   *
+   * Mesuré sur le papier de la planche (#F0E7D7), avant correction :
+   *
+   *   primaire    #2E2418  →  12,39:1
+   *   secondaire  #5C4E3C  →   6,56:1
+   *   tertiaire   #8A7C67  →   3,32:1
+   *
+   * La tertiaire passait SOUS le minimum de 4,5:1 que demande un texte
+   * courant — et c'est elle qui porte les dates, les lieux, les professions
+   * et tous les intitulés de la fiche d'une personne. Vingt-huit règles de
+   * `detail.css` s'en servent : la moitié de ce qu'on vient lire sur
+   * quelqu'un était sous le seuil de lisibilité.
+   *
+   * Elle passe à 4,82:1, la secondaire à 8,00:1. Les deux gardent exactement
+   * leur teinte — c'est le bistre du papier, il ne bouge pas — et ne changent
+   * que de valeur. Une encre plus dense, pas une autre encre.
+   *
+   * Le thème sombre n'est PAS touché : ses tertiaires y sont déjà à 7,4:1 sur
+   * le fond de nuit. « Foncer » y reviendrait à réduire le contraste, c'est-
+   * à-dire à faire l'inverse de ce qu'on cherche.
+   */
   --text-primary: #2E2418;
-  --text-secondary: #5C4E3C;
-  --text-tertiary: #8A7C67;
+  --text-secondary: #4E4131;
+  --text-tertiary: #6E6250;
   --text-inverse: #EDE9DA;
 
   /* ── Le bleu de Prusse ──────────────────────────────────────────────── */
