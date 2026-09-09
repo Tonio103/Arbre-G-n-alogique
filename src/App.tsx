@@ -31,6 +31,9 @@ import { Backdrop } from '@/components/Backdrop';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { MapCorner } from '@/components/MapCorner';
 import { FilmView } from '@/components/FilmView';
+import { PlancheDialog } from '@/components/PlancheDialog';
+import { readPalette } from '@/components/LinkLayer';
+import { etatBotanique, type EtatBotanique } from '@/domain/gaps';
 import { TopBar } from '@/components/TopBar';
 import { TreeCanvas } from '@/components/TreeCanvas';
 import { DetailPanel } from '@/components/DetailPanel';
@@ -68,6 +71,7 @@ import '@/styles/loading-screen.css';
 import '@/styles/path-flow.css';
 import '@/styles/views.css';
 import '@/styles/film.css';
+import '@/styles/planche.css';
 import '@/styles/theme-transition.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
@@ -417,6 +421,31 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   /** Le tracé en cours. `null` dès qu'il est fini ou passé. */
+  const [plancheOuverte, setPlancheOuverte] = useState(false);
+
+  /*
+   * CE QU'IL FAUT AU TIRAGE, ET QU'IL NE PEUT PAS DEVINER.
+   *
+   * L'état botanique de chaque fiche et la palette d'encre vivent d'ordinaire
+   * dans `TreeCanvas` et `LinkLayer`, où l'arbre les consomme. La planche a
+   * besoin des mêmes — et des mêmes EXACTEMENT : une planche imprimée avec
+   * d'autres teintes ou d'autres marques que celles réglées à l'écran ne
+   * serait plus la même planche.
+   *
+   * Calculés ici et non recalculés là-bas : ce sont deux lecteurs d'une seule
+   * vérité, pas deux vérités qui se ressemblent.
+   */
+  const etatsFiches = useMemo(() => {
+    const etats = new Map<string, EtatBotanique>();
+    for (const id of layout.positions.keys()) {
+      const person = graph.people.get(id);
+      if (person) etats.set(id, etatBotanique(person));
+    }
+    return etats;
+  }, [graph, layout]);
+
+  const paletteImpression = useMemo(() => readPalette(theme), [theme]);
+
   const [ouverture, setOuverture] = useState<{
     source: { x: number; y: number };
     duree: number;
@@ -931,6 +960,7 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleThemeFromPoint}
         onOpenTour={() => setTourOpen(true)}
+        onOpenPlanche={() => setPlancheOuverte(true)}
         viewMode={viewMode}
         onChangeView={setViewMode}
         gapCount={gapCount}
@@ -1069,6 +1099,20 @@ export default function App() {
         est donc rendu hors du bloc des autres vues, lesquelles portent leur
         propre papier opaque et masqueraient précisément ce qu'il y a à voir.
       */}
+      {/* La fenêtre de tirage a besoin des MÊMES données que l'arbre — la
+          mise en page, les états de fiche, la palette — et de rien d'autre.
+          Elle se monte donc ici, au même niveau, et non dans un coin de la
+          barre où il aurait fallu les lui faire descendre. */}
+      {plancheOuverte && (
+        <PlancheDialog
+          graph={graph}
+          layout={layout}
+          etats={etatsFiches}
+          palette={paletteImpression}
+          onClose={() => setPlancheOuverte(false)}
+        />
+      )}
+
       {viewMode === 'film' && (
         <FilmView
           graph={graph}

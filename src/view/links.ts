@@ -789,7 +789,7 @@ function encrer(
 /**
  * Le repère local d'une feuille : `u` court le long, `v` en travers.
  */
-function repere(x: number, y: number, angle: number) {
+export function repere(x: number, y: number, angle: number) {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   return (u: number, v: number): [number, number] => [
@@ -813,7 +813,7 @@ function repere(x: number, y: number, angle: number) {
  * `creux` cambre la feuille : nul elle est symétrique, fort elle s'enroule —
  * c'est ce qui fait la feuille sèche.
  */
-function limbe(path: Path2D, x: number, y: number, angle: number, taille: number, creux: number): void {
+export function limbe(path: Path2D, x: number, y: number, angle: number, taille: number, creux: number): void {
   const px = repere(x, y, angle);
   const L = taille;
   const l = taille * 0.34;
@@ -825,7 +825,7 @@ function limbe(path: Path2D, x: number, y: number, angle: number, taille: number
 }
 
 /** La nervure, qui suit la cambrure du limbe. */
-function nervure(path: Path2D, x: number, y: number, angle: number, taille: number, creux: number): void {
+export function nervure(path: Path2D, x: number, y: number, angle: number, taille: number, creux: number): void {
   const px = repere(x, y, angle);
   const L = taille;
   const [bx, by] = px(L * 0.08, 0);
@@ -838,14 +838,14 @@ function nervure(path: Path2D, x: number, y: number, angle: number, taille: numb
 }
 
 /** Le pétiole : la feuille est ATTACHÉE à sa branche, elle n'y flotte pas. */
-function petiole(path: Path2D, x: number, y: number, angle: number, longueur: number): void {
+export function petiole(path: Path2D, x: number, y: number, angle: number, longueur: number): void {
   const px = repere(x, y, angle);
   path.moveTo(x, y);
   path.lineTo(...px(longueur, 0));
 }
 
 /** La goutte close du bourgeon : courte, large, sans pointe ni nervure. */
-function goutte(path: Path2D, x: number, y: number, angle: number, taille: number): void {
+export function goutte(path: Path2D, x: number, y: number, angle: number, taille: number): void {
   const px = repere(x, y, angle);
   const L = taille;
   const l = taille * 0.42;

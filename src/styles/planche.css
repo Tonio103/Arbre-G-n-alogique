@@ -1,0 +1,258 @@
+/* ============================================================================
+ *
+ *  LE TIRAGE — la fenêtre qui grave la planche.
+ *
+ *  Un formulaire et une épreuve. Elle emprunte le vocabulaire de la fiche —
+ *  même papier, mêmes filets, mêmes petites capitales — parce qu'elle règle
+ *  une impression de la même planche, pas un export d'un autre logiciel.
+ *
+ * ========================================================================== */
+
+.planche-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: clamp(12px, 3vh, 36px);
+  animation: planche-parait 240ms var(--ease-out) both;
+}
+
+@keyframes planche-parait {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Le voile est aussi la sortie : cliquer à côté referme. Un bouton plutôt
+   qu'une `div` avec un `onClick`, pour que la touche d'échappement et le
+   parcours au clavier y arrivent sans qu'on ait à les rebrancher. */
+.planche-sortie {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: var(--bg-deep);
+  opacity: 0.72;
+  cursor: default;
+}
+
+.planche-boite {
+  position: relative;
+  width: min(1000px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  border-radius: var(--radius-panel);
+  padding: clamp(18px, 3vw, 30px);
+  animation: planche-monte 320ms var(--ease-out) both;
+}
+
+@keyframes planche-monte {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.planche-entete h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.planche-entete p {
+  margin: 5px 0 0;
+  max-width: 46em;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/*
+ * Deux colonnes : l'épreuve à gauche, les réglages à droite. L'épreuve prend
+ * la place qu'il lui faut pour rester lisible — c'est elle qu'on regarde en
+ * réglant — et les commandes se contentent d'une colonne fixe.
+ */
+.planche-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: clamp(16px, 3vw, 30px);
+  margin-top: 20px;
+  align-items: start;
+}
+
+/*
+ * L'ÉPREUVE.
+ *
+ * Le canevas est posé tel quel dans cette boîte, à sa taille naturelle de
+ * 72 ppp, et ramené à la largeur disponible. `object-fit` ne s'applique pas à
+ * un canevas comme à une image : c'est `max-width`/`height: auto` qui fait le
+ * travail, et il faut les deux — sans la hauteur automatique, un A1 en
+ * portrait s'écrase.
+ */
+.planche-apercu {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  padding: 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--bg-deep);
+}
+
+.planche-epreuve {
+  display: block;
+  max-width: 100%;
+  max-height: min(58vh, 620px);
+  height: auto;
+  width: auto;
+  /* Une épreuve est une feuille posée sur une table : elle porte son ombre. */
+  box-shadow:
+    0 1px 2px rgba(46, 36, 24, 0.18),
+    0 10px 30px rgba(46, 36, 24, 0.22);
+}
+
+.planche-reglages {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.planche-reglages fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.planche-reglages legend {
+  padding: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.planche-choix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/*
+ * Un choix est une entrée composée, pas une pastille : filet, papier, et un
+ * trait sous celui qui est retenu — le même parti que les onglets de vue.
+ */
+.planche-choix button {
+  padding: 7px 11px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.planche-choix button:hover {
+  border-color: var(--glass-border-strong);
+  color: var(--text-primary);
+}
+
+.planche-choix button[data-actif] {
+  border-color: var(--text-primary);
+  background: var(--glass-fill);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.planche-case {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.planche-case input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--text-primary);
+  flex: none;
+}
+
+.planche-pied {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+/*
+ * Le seul bouton PLEIN de l'application, et c'est délibéré : il déclenche la
+ * seule action qui produise un objet — un fichier qu'on emporte. Tout le
+ * reste ne fait que changer un regard sur l'arbre.
+ */
+.planche-tirer {
+  padding: 11px 16px;
+  border: 1px solid var(--text-primary);
+  border-radius: var(--radius-control);
+  background: var(--text-primary);
+  color: var(--bg-base);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.planche-tirer:hover {
+  opacity: 0.88;
+}
+
+.planche-tirer:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.planche-note {
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.planche-note--erreur {
+  font-style: normal;
+  color: var(--accent-warm);
+}
+
+@media (max-width: 860px), (orientation: portrait) and (max-width: 1024px) {
+  /* Sur un écran étroit, l'épreuve passe AU-DESSUS des réglages : c'est elle
+     qu'on regarde, et la reléguer sous trois groupes de commandes obligerait
+     à faire l'aller-retour à chaque changement. */
+  .planche-corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planche-epreuve {
+    max-height: 42vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planche-fond,
+  .planche-boite {
+    animation: none;
+  }
+}

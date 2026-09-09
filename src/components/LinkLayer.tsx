@@ -110,7 +110,10 @@ const avance = (p: number): number => {
   return t * t * (3 - 2 * t);
 };
 
-function readPalette(theme: string): LinkPalette {
+/** Exportée pour le tirage sur papier, qui doit encrer avec EXACTEMENT les
+ *  mêmes valeurs que l'écran — une planche imprimée dans d'autres teintes
+ *  que celles qu'on a réglées ne serait plus la même planche. */
+export function readPalette(theme: string): LinkPalette {
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string): string =>
     styles.getPropertyValue(name).trim() || fallback;

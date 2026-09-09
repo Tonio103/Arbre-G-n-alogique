@@ -4,7 +4,7 @@ import type { SearchIndex } from '@/domain/search';
 import type { HighlightMode } from '@/domain/relations';
 import { SearchField } from './SearchField';
 import { ViewSwitch, type ViewMode } from './ViewSwitch';
-import { BranchIcon, FitIcon, HelpIcon, MinusIcon, MoonIcon, PlusIcon, SunIcon } from './icons';
+import { BranchIcon, FitIcon, HelpIcon, MinusIcon, MoonIcon, PlusIcon, PresseIcon, SunIcon } from './icons';
 
 export interface TopBarProps {
   graph: FamilyGraph;
@@ -22,6 +22,8 @@ export interface TopBarProps {
   onToggleTheme: (x: number, y: number) => void;
   /** Rouvre le guide de navigation. */
   onOpenTour: () => void;
+  /** Ouvre la fenêtre de tirage — voir `PlancheDialog`. */
+  onOpenPlanche: () => void;
   /** La bascule entre l'arbre et ses trois autres lectures — voir `ViewSwitch`. */
   viewMode: ViewMode;
   onChangeView: (mode: ViewMode) => void;
@@ -66,6 +68,7 @@ export function TopBar({
   theme,
   onToggleTheme,
   onOpenTour,
+  onOpenPlanche,
   viewMode,
   onChangeView,
   gapCount,
@@ -153,6 +156,11 @@ export function TopBar({
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
+          {/* Le tirage vit avec le thème et l'aide, pas avec le zoom : c'est
+              une commande de la PLANCHE, pas une commande de la vue. */}
+          <IconButton label="Tirer la planche sur papier" onClick={onOpenPlanche}>
+            <PresseIcon />
+          </IconButton>
           <IconButton label="Comment lire l’arbre" onClick={onOpenTour}>
             <HelpIcon />
           </IconButton>

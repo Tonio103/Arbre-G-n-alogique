@@ -96,6 +96,22 @@ export const PeopleIcon = () => (
   </svg>
 );
 
+/*
+ * LA PRESSE.
+ *
+ * Une feuille sortant d'un rouleau : c'est le geste du tirage, pas celui de
+ * l'impression bureautique. Une imprimante de bureau aurait dit « imprimer
+ * cette page » ; on grave une planche.
+ */
+export const PresseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+    <rect x="4.2" y="3.4" width="15.6" height="12.4" rx="1.4" />
+    <path d="M7.6 19.2h8.8" strokeLinecap="round" />
+    <path d="M12 15.8v3.4" strokeLinecap="round" />
+    <path d="M8 7.4h8M8 10.4h5.4" strokeLinecap="round" />
+  </svg>
+);
+
 export const HelpIcon = () => (
   <svg {...base}>
     <circle cx="10" cy="10" r="7" />
