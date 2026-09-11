@@ -1269,6 +1269,175 @@
   gap: 4px 14px;
 }
 
+/* ── À qui demander ──────────────────────────────────────────────────────── */
+
+/*
+ * LA BASCULE ENTRE LES DEUX LECTURES.
+ *
+ * Le même relevé, vu de deux côtés : les manques rangés par importance, ou
+ * les mêmes manques rangés par personne à qui les poser. Des entrées
+ * composées séparées d'un filet, comme les onglets de vue — c'est le même
+ * geste, à une échelle plus petite, et il n'y a aucune raison qu'il se dise
+ * autrement.
+ */
+.gaps-lecture {
+  display: inline-flex;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+
+.gaps-lecture button {
+  position: relative;
+  padding: 5px 13px 6px;
+  color: var(--text-tertiary);
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.gaps-lecture button + button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
+  background: var(--glass-border);
+}
+
+.gaps-lecture button::after {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 0;
+  height: 1.5px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.gaps-lecture button:hover {
+  color: var(--text-secondary);
+}
+
+.gaps-lecture button[data-actif] {
+  color: var(--text-primary);
+}
+
+.gaps-lecture button[data-actif]::after {
+  opacity: 0.85;
+}
+
+/* Le nom de la personne à qui l'on va écrire : c'est le titre du groupe, et
+   il mène à sa fiche. */
+.demander-tete {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.demander-tete button {
+  padding: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--dur-fast) var(--ease-out);
+}
+
+.demander-tete button:hover {
+  text-decoration-color: var(--glass-border-strong);
+}
+
+.demander-sans {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.demander-tete em {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+/*
+ * Les questions : une liste à filets, pas des cartes.
+ *
+ * Une carte par question donnerait douze boîtes pour douze lignes de texte —
+ * et ce qu'on lit ici, ce n'est pas douze objets, c'est UN message qu'on
+ * s'apprête à envoyer. Un filet entre deux lignes suffit à les séparer.
+ */
+.demander-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demander-liste li + li {
+  border-top: 1px solid var(--glass-border);
+}
+
+.demander-liste button {
+  display: block;
+  width: 100%;
+  padding: 7px 2px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.demander-liste button::before {
+  content: '—';
+  margin-right: 8px;
+  color: var(--text-tertiary);
+}
+
+.demander-liste button:hover {
+  color: var(--text-primary);
+}
+
+/*
+ * LE BOUTON QUI FAIT TOUT.
+ *
+ * Une liste qu'on peut lire ne fait rien arriver ; une liste qu'on peut
+ * ENVOYER, si. C'est la seule raison d'être de cette lecture, et le bouton
+ * porte donc le même poids que celui du tirage : plein, franc, unique.
+ */
+.demander-copier {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--text-primary);
+  border-radius: var(--radius-control);
+  background: var(--text-primary);
+  color: var(--bg-base);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.demander-copier:hover {
+  opacity: 0.88;
+}
+
 /* ── À compléter ─────────────────────────────────────────────────────────── */
 
 .gaps-toggle {

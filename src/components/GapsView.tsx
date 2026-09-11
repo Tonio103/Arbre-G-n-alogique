@@ -9,6 +9,7 @@ import {
   type Gap,
   type GapStatus,
 } from '@/domain/gaps';
+import { questionsAPoser, messagePour } from '@/domain/questions';
 import type { Scope } from '@/domain/scope';
 import { ScopeBar } from './ScopeBar';
 
@@ -22,6 +23,13 @@ export interface GapsViewProps {
   onShowInTree: (id: string) => void;
   /** Ouvre directement sa fiche en modification. */
   onEdit: (id: string) => void;
+  /**
+   * Qui regarde, s'il s'est désigné dans l'arbre.
+   *
+   * Sert à ne pas lui proposer de s'écrire un message à lui-même : ses
+   * questions repartent alors vers le parent vivant suivant.
+   */
+  moi?: string | null;
 }
 
 const PRIORITY_LABELS = {
@@ -58,15 +66,43 @@ export function GapsView({
   people,
   onShowInTree,
   onEdit,
+  moi,
 }: GapsViewProps) {
   const gaps = useMemo(() => findGaps(graph, people), [graph, people]);
+
+  /*
+   * DEUX LECTURES DU MÊME RELEVÉ.
+   *
+   * « Par manque » range des champs vides par importance. C'est juste, et
+   * parfaitement inerte : personne ne se lève pour aller consulter un
+   * registre. « À qui demander » prend exactement les mêmes manques et
+   * répond à la seule question qui déclenche quelque chose — un arbre se
+   * remplit en demandant à sa tante, pas en cherchant.
+   *
+   * Le même relevé, donc, et pas un second calcul : `questionsAPoser` reçoit
+   * `gaps` tout fait. Deux relevés qui pourraient diverger d'un manque
+   * seraient deux vérités sur la même famille.
+   */
+  const [lecture, setLecture] = useState<'manques' | 'demander'>('manques');
+  const interlocuteurs = useMemo(
+    () => questionsAPoser(graph, people, { moi }, gaps),
+    [graph, people, moi, gaps],
+  );
+  const [copie, setCopie] = useState<string | null>(null);
+  /* Quatre-vingt-dix-huit interlocuteurs sur la famille entière : la liste
+     doit se borner comme celle des manques, sans quoi on la fait défiler sans
+     jamais en voir le bout. */
+  const [montres, setMontres] = useState(PAGE);
   const [status, setStatus] = useState<Record<string, GapStatus>>(() => loadGapStatus());
   const [hideDone, setHideDone] = useState(true);
   const [shownCount, setShownCount] = useState(PAGE);
 
   // Changer de périmètre repart d'une page : on ne garde pas « tout déplié »
   // d'une branche de quinze personnes à la famille entière.
-  useEffect(() => setShownCount(PAGE), [people]);
+  useEffect(() => {
+    setShownCount(PAGE);
+    setMontres(PAGE);
+  }, [people]);
 
   useEffect(() => saveGapStatus(status), [status]);
 
@@ -95,6 +131,23 @@ export function GapsView({
       <ScopeBar graph={graph} focusId={focusId} scope={scope} onChange={onScopeChange} count={people.size} />
 
       <header className="gaps-head">
+        <div className="gaps-lecture">
+          <button
+            type="button"
+            data-actif={lecture === 'manques' || undefined}
+            onClick={() => setLecture('manques')}
+          >
+            Par manque
+          </button>
+          <button
+            type="button"
+            data-actif={lecture === 'demander' || undefined}
+            onClick={() => setLecture('demander')}
+          >
+            À qui demander
+          </button>
+        </div>
+
         <h3>
           {shown.length === 0
             ? 'Rien à compléter dans ce périmètre'
@@ -117,7 +170,71 @@ export function GapsView({
         )}
       </header>
 
-      {(['high', 'medium', 'low'] as const).map((priority) => {
+      {lecture === 'demander' &&
+        interlocuteurs.slice(0, montres).map((interlocuteur) => (
+          <div key={interlocuteur.id ?? 'sans'} className="gaps-group">
+            <h4 className="demander-tete">
+              {interlocuteur.id ? (
+                <button type="button" onClick={() => onShowInTree(interlocuteur.id!)}>
+                  {interlocuteur.nom}
+                </button>
+              ) : (
+                <span className="demander-sans">{interlocuteur.nom}</span>
+              )}
+              <em>{interlocuteur.questions.length}</em>
+            </h4>
+
+            <ul className="demander-liste">
+              {interlocuteur.questions.map((question) => (
+                <li key={question.gapId}>
+                  <button type="button" onClick={() => onShowInTree(question.sujetId)}>
+                    {question.texte}
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/*
+              LE BOUTON QUI FAIT TOUT.
+              Une liste qu'on peut lire ne fait rien arriver ; une liste qu'on
+              peut envoyer, si. C'est la seule raison d'être de cette lecture.
+            */}
+            {interlocuteur.id && (
+              <button
+                type="button"
+                className="demander-copier"
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(messagePour(interlocuteur, graph.title, graph))
+                    .then(() => setCopie(interlocuteur.id))
+                    .catch(() => setCopie(null));
+                }}
+              >
+                {copie === interlocuteur.id ? 'Message copié' : 'Copier le message'}
+              </button>
+            )}
+          </div>
+        ))}
+
+      {lecture === 'demander' && interlocuteurs.length > montres && (
+        <button
+          type="button"
+          className="gaps-more"
+          onClick={() => setMontres((compte) => compte + PAGE * 2)}
+        >
+          Voir {Math.min(interlocuteurs.length - montres, PAGE * 2)} personnes de plus
+          <em>{interlocuteurs.length - montres} restantes</em>
+        </button>
+      )}
+
+      {lecture === 'demander' && interlocuteurs.length === 0 && (
+        <p className="view-empty lg lg--thick">
+          Rien à demander dans ce périmètre : toutes les fiches sont complètes.
+        </p>
+      )}
+
+      {lecture === 'manques' &&
+        (['high', 'medium', 'low'] as const).map((priority) => {
         const list = byPriority[priority];
         if (list.length === 0) return null;
         return (
@@ -164,7 +281,7 @@ export function GapsView({
         );
       })}
 
-      {remaining > 0 && (
+      {lecture === 'manques' && remaining > 0 && (
         <button
           type="button"
           className="gaps-more"

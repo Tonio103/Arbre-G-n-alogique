@@ -1027,6 +1027,7 @@ export default function App() {
             people={scopePeople}
             onShowInTree={showInTree}
             onEdit={showInTree}
+            moi={visitor?.personId ?? null}
           />
         )}
       </Suspense>
