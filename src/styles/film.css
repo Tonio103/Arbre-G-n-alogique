@@ -103,6 +103,21 @@
 }
 
 /*
+ * LE MILLÉSIME QUI COURT.
+ *
+ * Pendant la croissance il change à chaque image. Deux exigences en
+ * découlent, et aucune ne se voit tant qu'on ne l'a pas oubliée : des chiffres
+ * de largeur FIXE, sans quoi le nombre danse latéralement à chaque unité qui
+ * tourne ; et pas la moindre transition, sans quoi soixante fondus par seconde
+ * se chevauchent en une bouillie grise.
+ */
+.film-annee[data-court] {
+  font-variant-numeric: tabular-nums;
+  transition: none;
+  opacity: 0.2;
+}
+
+/*
  * LA RÉSERVE.
  *
  * Un titre composé directement sur la ramure se bat avec elle : mesuré à
@@ -131,6 +146,41 @@
   );
   opacity: 0.94;
   pointer-events: none;
+}
+
+/*
+ * LE CAMÉE D'UN PORTRAIT.
+ *
+ * Le carton d'un portrait NOMME quelqu'un, et la caméra vient de descendre
+ * sur son médaillon. Sans un rappel de ce médaillon dans le carton, l'œil
+ * doit faire le rapprochement tout seul entre un nom écrit en grand et un
+ * cercle de quarante pixels quelque part derrière — il ne le fait pas.
+ *
+ * Même dessin que dans l'arbre : disque de papier, un cerne, l'initiale.
+ * C'est le seul moyen que les deux se lisent comme la même personne.
+ */
+.film-camee {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: var(--glass-panel-solid);
+  box-shadow: 0 0 0 1.6px var(--avatar-cerne, rgba(42, 34, 24, 0.82));
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  animation: film-camee-pose 620ms var(--ease-spring) both;
+}
+
+@keyframes film-camee-pose {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
 }
 
 .film-carton {

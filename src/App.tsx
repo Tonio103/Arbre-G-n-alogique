@@ -6,7 +6,12 @@ import { useDataset } from '@/hooks/useDataset';
 import { useTheme } from '@/hooks/useTheme';
 import { useVisitor } from '@/hooks/useVisitor';
 import { useIsCompact } from '@/hooks/useMediaQuery';
-import { computeHighlight, relationPath, type HighlightMode } from '@/domain/relations';
+import {
+  computeHighlight,
+  relationPath,
+  type HighlightMode,
+  type HighlightSet,
+} from '@/domain/relations';
 import {
   addChild,
   addParent,
@@ -422,6 +427,16 @@ export default function App() {
 
   /** Le tracé en cours. `null` dès qu'il est fini ou passé. */
   const [plancheOuverte, setPlancheOuverte] = useState(false);
+
+  /*
+   * LA MISE EN SCÈNE DU FILM.
+   *
+   * Le film ne dessine pas l'arbre : il lui passe une accentuation, exactement
+   * de la forme que produit un clic sur quelqu'un. L'arbre n'a donc rien de
+   * neuf à apprendre — il rend une mise en évidence, qu'elle vienne d'un doigt
+   * ou d'un scénario.
+   */
+  const [sceneDuFilm, setSceneDuFilm] = useState<HighlightSet | null>(null);
 
   /*
    * CE QU'IL FAUT AU TIRAGE, ET QU'IL NE PEUT PAS DEVINER.
@@ -1020,7 +1035,7 @@ export default function App() {
         spatial={spatial}
         viewport={viewport}
         hoverStore={hoverStore}
-        highlight={highlight}
+        highlight={sceneDuFilm ?? highlight}
         selectedId={selectedId}
         flaggedId={flaggedId}
         onSelect={selectPerson}
@@ -1119,6 +1134,7 @@ export default function App() {
           layout={layout}
           viewport={viewport}
           gapCount={gapCount}
+          onScene={setSceneDuFilm}
           onClose={() => setViewMode('tree')}
         />
       )}

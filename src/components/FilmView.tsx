@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FamilyGraph } from '@/domain/graph';
 import type { TreeLayout } from '@/domain/layout';
-import { acteA, buildScenario, debutDe, type Acte } from '@/domain/film';
+import { acteA, buildScenario, debutDe, montreA, type Acte } from '@/domain/film';
+import type { HighlightSet } from '@/domain/relations';
 import type { ViewportController } from '@/view/viewport';
-import { CARD_HEIGHT, CARD_WIDTH, ROW_HEIGHT } from '@/view/metrics';
+import { CARD_HEIGHT, CARD_WIDTH } from '@/view/metrics';
 import { cadrePourLieux, urlTuile, type Cadre } from '@/view/tuiles';
 
 export interface FilmViewProps {
@@ -11,6 +12,14 @@ export interface FilmViewProps {
   layout: TreeLayout;
   viewport: ViewportController;
   gapCount: number;
+  /**
+   * La mise en scène du plan courant, remontée à l'arbre.
+   *
+   * `null` : l'arbre reprend son état ordinaire. Sinon c'est un ensemble
+   * d'accentuation comme celui d'une sélection — l'arbre sait déjà le rendre,
+   * il n'a rien de neuf à apprendre du film.
+   */
+  onScene: (scene: HighlightSet | null) => void;
   onClose: () => void;
 }
 
@@ -22,40 +31,48 @@ export interface FilmViewProps {
  * ── CE QUE CE COMPOSANT EST, ET N'EST PAS ────────────────────────────────
  *
  * Il ne dessine ni arbre, ni encre, ni médaillon. L'arbre est là, sous lui,
- * exactement celui qu'on manipule le reste du temps — le film n'est pas une
- * reconstitution de l'application, c'est l'application qu'on regarde bouger
- * toute seule. Ce composant est un METTEUR EN SCÈNE : il tient une horloge,
- * déplace la caméra, et compose par-dessus les cartons, les millésimes et la
- * réglure du temps.
+ * exactement celui qu'on manipule le reste du temps. Ce composant est un
+ * METTEUR EN SCÈNE : il tient une horloge, déplace la caméra, DÉSIGNE ce qui
+ * est encré, et compose par-dessus les cartons et les millésimes.
  *
- * D'où le partage avec `domain/film.ts` : là-bas ce que la famille raconte,
- * ici comment on le montre. Un scénario qui saurait déplacer une caméra
- * serait intestable ; une caméra qui saurait lire un graphe généalogique
- * deviendrait illisible.
+ * ── LA MISE EN SCÈNE, ET POURQUOI ELLE PASSE PAR L'ACCENTUATION ─────────
  *
- * ── L'HORLOGE ────────────────────────────────────────────────────────────
+ * La première version cadrait et rien d'autre : le carton annonçait « Les
+ * racines » pendant que l'arbre entier restait à l'écran. Un plan qui
+ * contredit sa légende ne se rattrape par aucun mouvement de caméra.
  *
- * Un seul temps, en millisecondes depuis le début, tenu dans une `ref` et
- * publié dans l'état à chaque image. La caméra, elle, n'est PAS pilotée image
- * par image : elle reçoit un ordre au changement d'acte et le joue avec ses
- * propres courbes (voir `ViewportController.animateTo`). Deux boucles qui
- * écriraient dans la même transformation à soixante images par seconde se
- * disputeraient le contrôle, et l'on obtiendrait un tremblement plutôt qu'un
- * mouvement.
+ * Chaque acte désigne maintenant qui il montre, et le film fabrique de cela un
+ * `HighlightSet` — la même structure que produit un clic sur quelqu'un. Le
+ * reste de l'arbre s'estompe au lieu de disparaître : la silhouette entière
+ * demeure, en fantôme, et l'histoire s'y encre. C'est ce qui donne au plan de
+ * croissance son sujet — quelque chose qui S'ÉTEND dans une forme qu'on
+ * pressent déjà.
+ *
+ * Rien n'a été ajouté à l'arbre pour ça. Il savait déjà rendre une
+ * accentuation ; le film ne fait que lui en donner une qui ne vient pas d'un
+ * clic.
+ *
+ * ── L'HORLOGE ET LA CAMÉRA ───────────────────────────────────────────────
+ *
+ * Un seul temps, en millisecondes depuis le début, tenu dans une `ref`. La
+ * caméra n'est PAS pilotée image par image : elle reçoit un ordre au
+ * changement d'acte et le joue avec ses propres courbes. Deux boucles qui
+ * écriraient dans la même transformation soixante fois par seconde se
+ * disputeraient le contrôle, et l'on obtiendrait un tremblement.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 /** La barre de progression et les commandes s'effacent si l'on ne bouge pas. */
 const REPOS_MS = 2600;
 
-/** Un carton reste lisible : il paraît, tient, s'efface — jamais en fondu plat. */
+/** Un carton paraît, tient, s'efface — jamais en fondu plat. */
 function opaciteCarton(local: number, duree: number): number {
   const entree = Math.min(1, local / 620);
   const sortie = Math.min(1, (duree - local) / 560);
   return Math.max(0, Math.min(entree, sortie));
 }
 
-/** Le centre du monde d'un groupe de personnes, et son étendue. */
-function cadreDe(layout: TreeLayout, ids: string[]) {
+/** Le cadre du monde qu'occupe un groupe de personnes. */
+function cadreDe(layout: TreeLayout, ids: Iterable<string>) {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -72,7 +89,14 @@ function cadreDe(layout: TreeLayout, ids: string[]) {
   return { minX, maxX, minY, maxY };
 }
 
-export function FilmView({ graph, layout, viewport, gapCount, onClose }: FilmViewProps) {
+export function FilmView({
+  graph,
+  layout,
+  viewport,
+  gapCount,
+  onScene,
+  onClose,
+}: FilmViewProps) {
   const scenario = useMemo(
     () => buildScenario(graph, layout, gapCount),
     [graph, layout, gapCount],
@@ -83,17 +107,10 @@ export function FilmView({ graph, layout, viewport, gapCount, onClose }: FilmVie
   const [mainVisible, setMainVisible] = useState(true);
   const tRef = useRef(0);
   const dernierActeRef = useRef(-1);
+  const derniereTailleRef = useRef(-1);
 
   const { index, acte, local } = acteA(scenario, t);
 
-  /*
-   * L'HORLOGE.
-   *
-   * Le temps s'accumule par DIFFÉRENCE d'une image à l'autre, jamais depuis un
-   * instant de départ fixe. Sans cela, mettre en pause puis reprendre ferait
-   * bondir le film de toute la durée de la pause — et se déplacer dans la
-   * barre de progression n'aurait aucun effet, l'origine étant figée.
-   */
   useEffect(() => {
     if (!enCours) return undefined;
     let precedent = performance.now();
@@ -117,64 +134,97 @@ export function FilmView({ graph, layout, viewport, gapCount, onClose }: FilmVie
   const allerA = useCallback((valeur: number) => {
     tRef.current = Math.max(0, valeur);
     setT(tRef.current);
-    // Le prochain rendu doit rejouer le mouvement de caméra de l'acte visé,
-    // même si l'on retombe sur celui qu'on regardait déjà.
     dernierActeRef.current = -1;
+    derniereTailleRef.current = -1;
   }, []);
 
   /*
-   * LA CAMÉRA, UNE FOIS PAR ACTE.
+   * ── LA MISE EN SCÈNE ──────────────────────────────────────────────────
    *
-   * Déclenchée au CHANGEMENT d'acte et pas à chaque image : `animateTo` porte
-   * ses propres courbes d'entrée et de sortie, et le relancer soixante fois
-   * par seconde le remettrait au départ soixante fois — le mouvement n'irait
-   * jamais nulle part.
+   * Publiée seulement quand elle CHANGE, jamais à chaque image. Pendant le
+   * plan de croissance, l'ensemble ne grandit qu'aux entrées de génération :
+   * dix fois sur douze secondes, contre sept cent vingt si l'on avait publié
+   * par image. Chaque publication redessine l'arbre entier — c'est le genre
+   * de détail qui décide si un film est fluide ou s'il hache.
+   */
+  useEffect(() => {
+    const montre = montreA(acte, local, layout);
+    if (!montre) {
+      if (derniereTailleRef.current !== 0) {
+        derniereTailleRef.current = 0;
+        onScene(null);
+      }
+      return;
+    }
+    if (montre.size === derniereTailleRef.current) return;
+    derniereTailleRef.current = montre.size;
+
+    /*
+     * Une union n'est encrée que si TOUT ce qu'elle relie est montré. La
+     * règle est celle de la sélection (voir `TreeCanvas`), et pour la même
+     * raison : un trait noir qui aboutit à un fantôme se lit comme une erreur
+     * de tracé, pas comme une intention.
+     */
+    const unions = new Set<string>();
+    for (const union of layout.unions) {
+      if (union.partners.length === 0) continue;
+      let complet = true;
+      for (const partner of union.partners) if (!montre.has(partner.id)) complet = false;
+      for (const child of union.children) if (!montre.has(child.id)) complet = false;
+      if (complet) unions.add(union.id);
+    }
+
+    const people = new Map<string, 'related'>();
+    for (const id of montre) people.set(id, 'related');
+    onScene({ people: people as HighlightSet['people'], unions, touched: new Set() });
+  }, [acte, local, layout, onScene]);
+
+  // L'arbre reprend son état ordinaire quand le film se retire.
+  useEffect(() => () => onScene(null), [onScene]);
+
+  /*
+   * ── LA CAMÉRA ─────────────────────────────────────────────────────────
+   *
+   * Un ordre par acte, avec une durée PLUS LONGUE que l'acte lui-même : le
+   * mouvement n'a donc jamais le temps de s'achever, et la caméra ne se fige
+   * pas avant la coupe. C'est le geste d'un appareil sur rail — et le
+   * contraire de la première version, où chaque plan arrivait à destination
+   * puis attendait, immobile, la fin de son carton.
    */
   useEffect(() => {
     if (dernierActeRef.current === index) return;
     dernierActeRef.current = index;
-    const duree = acte.duree;
+    const course = Math.round(acte.duree * 1.5);
 
     if (acte.kind === 'lieux') return; // la carte prend l'écran : rien à cadrer.
 
-    if (acte.kind === 'titre' || acte.kind === 'final') {
-      viewport.fit(layout.bounds, 120, 0.9, Math.round(duree * 0.9));
+    if (acte.kind === 'titre') {
+      viewport.fit(layout.bounds, 150, 0.86, course);
+      return;
+    }
+    if (acte.kind === 'final') {
+      viewport.fit(layout.bounds, 90, 0.86, course);
       return;
     }
 
-    if (acte.rangee) {
-      /*
-       * Une rangée se regarde en LARGE : c'est une génération entière, et la
-       * cadrer serré sur son milieu ne montrerait que trois cartes sur douze.
-       * L'échelle vient donc de la largeur de l'arbre, bornée pour qu'une
-       * rangée d'une seule personne ne remplisse pas l'écran d'un médaillon.
-       */
-      const largeur = Math.max(1, layout.bounds.maxX - layout.bounds.minX);
-      const echelle = Math.max(0.34, Math.min(0.86, (viewport.size.width * 0.86) / largeur));
-      viewport.focusPoint(
-        (layout.bounds.minX + layout.bounds.maxX) / 2,
-        acte.rangee.y + ROW_HEIGHT / 2,
-        echelle,
-        0,
-        Math.round(duree * 0.92),
-      );
+    if (acte.kind === 'pousse') {
+      // On part serré sur les racines et l'on s'ouvre à l'arbre entier : le
+      // mouvement dure tout le plan, il EST le plan.
+      viewport.fit(layout.bounds, 140, 0.86, course);
       return;
     }
 
-    if (acte.regarde && acte.regarde.length > 0) {
-      const cadre = cadreDe(layout, acte.regarde);
-      if (!cadre) return;
-      viewport.fit(
-        { minX: cadre.minX, maxX: cadre.maxX, minY: cadre.minY, maxY: cadre.maxY },
-        150,
-        acte.kind === 'racines' ? 1.05 : 0.8,
-        Math.round(duree * 0.9),
-      );
-    }
+    const cible = acte.regarde && acte.regarde.length > 0 ? acte.regarde : undefined;
+    const cadre = cible ? cadreDe(layout, cible) : null;
+    if (!cadre) return;
+    viewport.fit(
+      cadre,
+      acte.kind === 'portrait' ? 210 : 150,
+      acte.kind === 'portrait' ? 1.25 : acte.kind === 'racines' ? 1.05 : 0.8,
+      course,
+    );
   }, [index, acte, viewport, layout]);
 
-  /* La main se retire quand elle ne sert pas : un film n'a pas de barre
-     d'outils permanente. Elle revient au moindre mouvement. */
   useEffect(() => {
     if (!enCours) return undefined;
     const timer = window.setTimeout(() => setMainVisible(false), REPOS_MS);
@@ -201,24 +251,44 @@ export function FilmView({ graph, layout, viewport, gapCount, onClose }: FilmVie
 
   const fini = t >= scenario.duree;
 
+  /*
+   * LE MILLÉSIME QUI COURT.
+   *
+   * Pendant la croissance, il ne se pose pas : il avance avec l'arbre, de la
+   * première naissance connue à la dernière. C'est la seule chose du film qui
+   * dise la DURÉE de ce qu'on regarde — un arbre qui pousse en douze secondes
+   * couvre deux siècles et demi, et rien d'autre ne le rappelle.
+   */
+  let annee = acte.annee;
+  if (acte.kind === 'pousse' && acte.de !== undefined && acte.a !== undefined) {
+    const avance = Math.max(0, Math.min(1, local / (acte.duree * 0.8)));
+    annee = Math.round(acte.de + (acte.a - acte.de) * avance);
+  }
+
+  const sujet = acte.sujet ? graph.people.get(acte.sujet) : undefined;
+
   return (
     <div className="film" data-main={mainVisible || fini || undefined}>
-      {/* Le voile : l'arbre reste visible dessous, mais recule d'un cran pour
-          que les cartons se lisent sans se battre avec la ramure. */}
       <div className="film-voile" aria-hidden="true" />
 
-      {acte.kind === 'lieux' && acte.lieux && (
-        <ActeDesLieux acte={acte} local={local} />
-      )}
+      {acte.kind === 'lieux' && acte.lieux && <ActeDesLieux acte={acte} local={local} />}
 
       <div className="film-scene" data-acte={acte.kind}>
-        {acte.annee !== undefined && (
-          <p className="film-annee" style={{ opacity: opaciteCarton(local, acte.duree) }}>
-            {acte.annee}
+        {annee !== undefined && (
+          <p
+            className="film-annee"
+            data-court={acte.kind === 'pousse' || undefined}
+            style={{ opacity: opaciteCarton(local, acte.duree) }}
+          >
+            {annee}
           </p>
         )}
 
         <div className="film-carton" style={{ opacity: opaciteCarton(local, acte.duree) }}>
+          {/* Un portrait porte son initiale : le carton nomme quelqu'un, et
+              l'on doit pouvoir le relier au médaillon vers lequel la caméra
+              vient de descendre. */}
+          {sujet && <span className="film-camee">{sujet.initials}</span>}
           {acte.titre && <h2 className="film-titre">{acte.titre}</h2>}
           {acte.sous && <p className="film-sous">{acte.sous}</p>}
         </div>
@@ -237,9 +307,6 @@ export function FilmView({ graph, layout, viewport, gapCount, onClose }: FilmVie
           <span aria-hidden="true">{fini ? '↺' : enCours ? '❙❙' : '▶'}</span>
         </button>
 
-        {/* La réglure du temps : une graduation par acte, à sa vraie largeur.
-            Une barre continue dirait la durée sans dire la structure ; ici on
-            voit qu'il reste trois chapitres, et l'on peut y sauter. */}
         <div className="film-reglure">
           {scenario.actes.map((chapitre, i) => (
             <button
@@ -270,13 +337,12 @@ export function FilmView({ graph, layout, viewport, gapCount, onClose }: FilmVie
 
 /* ── L'acte des lieux ─────────────────────────────────────────────────────
  *
- * Le seul qui quitte l'arbre. Les lieux s'allument dans l'ordre où la famille
- * les a connus, reliés par un trait — un déplacement a un sens, et c'est ce
- * sens qu'on vient voir. Les lieux sans date attestée arrivent en dernier :
- * on ne peut pas les situer dans le mouvement sans l'inventer.
+ * Le seul qui quitte l'arbre. On y trace le CENTRE DE GRAVITÉ de chaque
+ * génération, relié dans l'ordre — pas les lieux eux-mêmes dans l'ordre des
+ * dates, ce qui donnait une toile d'araignée en travers de la France.
  */
 function ActeDesLieux({ acte, local }: { acte: Acte; local: number }) {
-  const [taille, setTaille] = useState({ w: 900, h: 560 });
+  const [taille, setTaille] = useState({ w: 760, h: 520 });
   const boiteRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -299,13 +365,6 @@ function ActeDesLieux({ acte, local }: { acte: Acte; local: number }) {
 
   if (!acte.lieux || acte.lieux.length === 0) return <div className="film-carte" ref={boiteRef} />;
 
-  /*
-   * L'avance du parcours.
-   *
-   * Il s'achève aux sept dixièmes de l'acte : un déplacement qui se termine à
-   * l'instant précis où le carton s'efface ne se lit pas — il faut un temps
-   * pour regarder ce qui vient d'être tracé.
-   */
   const avance = Math.max(0, Math.min(1, local / (acte.duree * 0.7)));
   const trajet = acte.trajectoire ?? [];
   const atteintes = Math.max(1, Math.round(avance * trajet.length));
@@ -329,8 +388,6 @@ function ActeDesLieux({ acte, local }: { acte: Acte; local: number }) {
           </div>
 
           <svg className="film-carte-marques" viewBox={`0 0 ${taille.w} ${taille.h}`}>
-            {/* Tous les lieux, en fond : ils situent la famille, ils ne
-                racontent rien à eux seuls. */}
             {acte.lieux.map((lieu) => {
               const point = cadre.projeter(lieu.lat, lieu.lon);
               return (
@@ -344,9 +401,6 @@ function ActeDesLieux({ acte, local }: { acte: Acte; local: number }) {
               );
             })}
 
-            {/* LE DÉPLACEMENT : le centre de gravité de chaque génération,
-                relié dans l'ordre. C'est la seule ligne du film qui affirme un
-                mouvement, et elle est la seule à en décrire un réellement. */}
             {trajet.length >= 2 && (
               <path
                 className="film-carte-route"
