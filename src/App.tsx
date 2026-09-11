@@ -37,6 +37,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { MapCorner } from '@/components/MapCorner';
 import { FilmView } from '@/components/FilmView';
 import { PlancheDialog } from '@/components/PlancheDialog';
+import { Ephemeride } from '@/components/Ephemeride';
 import { readPalette } from '@/components/LinkLayer';
 import { etatBotanique, type EtatBotanique } from '@/domain/gaps';
 import { TopBar } from '@/components/TopBar';
@@ -77,6 +78,7 @@ import '@/styles/path-flow.css';
 import '@/styles/views.css';
 import '@/styles/film.css';
 import '@/styles/planche.css';
+import '@/styles/ephemeride.css';
 import '@/styles/theme-transition.css';
 
 /** Largeur réservée au panneau de détails lors d'un recentrage, sur grand écran. */
@@ -1137,6 +1139,13 @@ export default function App() {
           onScene={setSceneDuFilm}
           onClose={() => setViewMode('tree')}
         />
+      )}
+
+      {/* L'éphéméride répond en bas à gauche à la vignette de carte du bas à
+          droite : deux index de même poids, l'un sur le temps, l'autre sur
+          l'espace. Comme elle, jamais pendant le tirage d'ouverture. */}
+      {viewMode === 'tree' && !ouverture && (
+        <Ephemeride graph={graph} people={scopePeople} onSelectPerson={showInTree} />
       )}
 
       {viewMode === 'tree' && !ouverture && (
